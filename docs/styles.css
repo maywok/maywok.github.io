@@ -49,6 +49,7 @@ main { padding: 24px; }
     justify-content: center;
     width: 100%;
     margin: 0 auto;
+    padding: 6px 8px;
     z-index: 1100;
 }
 .icon {
@@ -75,6 +76,7 @@ main { padding: 24px; }
     transform-origin: center;
     filter: drop-shadow(0 6px 14px rgba(0,255,156,0.22));
     pointer-events: none;
+    z-index: 0;
 }
 @media (max-width: 640px) {
     .tabs { flex-wrap: wrap; }
