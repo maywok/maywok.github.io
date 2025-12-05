@@ -5,9 +5,8 @@ body {
     margin: 0;
     font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
     color: #0b1020;
-    background: radial-gradient(1200px 600px at 10% 10%, #fde68a 0%, transparent 60%),
-                            radial-gradient(900px 500px at 90% 0%, #a7f3d0 0%, transparent 70%),
-                            linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    /* Base background; split handled by overlay */
+    background: #ffffff;
     min-height: 100%;
 }
 
@@ -55,16 +54,15 @@ main { padding: 24px; }
     max-width: 900px;
     margin: 0 auto;
     padding: 48px 24px;
-    border-bottom: 1px solid #e5e7eb;
-    background: rgba(255,255,255,0.6);
-    backdrop-filter: saturate(1.2) blur(2px);
-    border-radius: 16px;
+    border-bottom: 1px solid transparent;
+    background: transparent;
 }
 .section:last-of-type { border-bottom: none; }
 
 /* Hero */
 .hero { text-align: center; }
-.hero-center { min-height: 60vh; display: grid; place-items: center; gap: 16px; }
+.hero-center { min-height: calc(100vh - 160px); display: flex; align-items: center; justify-content: center; gap: 16px; }
+.hero-center h1 { margin: 0; }
 .type { font-size: clamp(64px, 14vw, 160px); font-weight: 800; letter-spacing: -1px; }
 .hover-color { color: #0b1020; transition: color 180ms ease, text-shadow 180ms ease; }
 .hover-color:hover { color: #ef4444; text-shadow: 0 2px 24px rgba(239, 68, 68, 0.35); }
@@ -83,6 +81,8 @@ main { padding: 24px; }
 /* Responsive */
 @media (max-width: 640px) {
     .tabs { flex-wrap: wrap; }
+    /* Flip split to horizontal on small screens: top deep red, bottom tan beige */
+    body { background: linear-gradient(180deg, #8b0000 0%, #8b0000 50%, #d2b48c 50%, #d2b48c 100%); }
 }
 
 /* Fix stray tokens */
@@ -100,4 +100,28 @@ main { padding: 24px; }
 @keyframes fall {
     0% { transform: translateY(0) rotate(0deg); opacity: 1; }
     100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+.split-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(90deg, #b22222 0%, #b22222 50%, #f5deb3 50%, #f5deb3 100%);
+}
+
+/* Subtle dot pattern on the beige side */
+.split-bg::after {
+    content: "";
+    position: absolute;
+    top: 0; right: 0; bottom: 0; left: 50%;
+    background-image: radial-gradient(#1f2937 1px, transparent 1px);
+    background-size: 18px 18px;
+    opacity: 0.12;
+    pointer-events: none;
+}
+
+@media (max-width: 640px) {
+    .split-bg { background: linear-gradient(180deg, #b22222 0%, #b22222 50%, #f5deb3 50%, #f5deb3 100%); }
+    .split-bg::after { left: 0; top: 50%; right: 0; bottom: 0; }
 }
