@@ -65,8 +65,8 @@ main { padding: 24px; }
     z-index: 1;
     transition: color 160ms ease, transform 220ms cubic-bezier(.22,1,.36,1);
 }
-.icon:hover { color: #111111; transform: translateY(-1px); }
-.icon.active { color: #000000; }
+.icon:hover { color: #b22222; transform: translateY(-1px); filter: drop-shadow(0 0 6px rgba(178,34,34,0.55)); }
+.icon.active { color: #e85c5c; }
 .bubble {
     position: absolute;
     top: 0;
