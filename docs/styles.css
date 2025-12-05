@@ -10,40 +10,8 @@ body {
     min-height: 100%;
 }
 
-/* Header + Tabs */
-.site-header {
-    position: sticky;
-    top: 0;
-    z-index: 1000;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 20px;
-    background: #0f172a;
-    border-bottom: 1px solid rgba(255,255,255,0.08);
-}
-.brand {
-    font-weight: 700;
-    letter-spacing: 0.2px;
-    color: #e2e8f0;
-}
-.icons {
-    display: flex;
-    gap: 10px;
-}
-.icon {
-    color: #cbd5e1;
-    text-decoration: none;
-    width: 36px;
-    height: 36px;
-    display: grid;
-    place-items: center;
-    border-radius: 8px;
-    transition: background 160ms ease, color 160ms ease, transform 160ms ease;
-    font-size: 18px;
-}
-.icon:hover { background: rgba(255,255,255,0.08); color: #ffffff; transform: translateY(-1px); }
-.icon.active { background: #1e293b; color: #00ff9c; box-shadow: 0 0 0 1px rgba(0,255,156,0.2) inset; }
+/* Header: removed visual banner */
+.site-header { display: none; }
 
 /* Layout */
 main { padding: 24px; }
@@ -73,17 +41,18 @@ main { padding: 24px; }
 .hover-color:hover { color: #ef4444; text-shadow: 0 2px 24px rgba(239, 68, 68, 0.35); }
 /* Centered icon navigation bar */
 .icon-bar {
-    position: fixed;
+    position: sticky;
     top: 12px;
-    left: 50%;
-    transform: translateX(-50%);
     display: flex;
     gap: 12px;
     align-items: center;
+    justify-content: center;
+    width: max-content;
+    margin: 0 auto;
     z-index: 1100;
 }
 .icon {
-    color: #cbd5e1;
+    color: #e5e7eb;
     text-decoration: none;
     width: 40px;
     height: 40px;
