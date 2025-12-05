@@ -1,46 +1,103 @@
-/* Style the dropdown button */
-.dropbtn {
-    background-color: #4CAF50;
-    color: white;
-    padding: 16px;
-    font-size: 16px;
-    border: none;
-    cursor: pointer;
+/* Base */
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; height: 100%; }
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    color: #0b1020;
+    background: radial-gradient(1200px 600px at 10% 10%, #fde68a 0%, transparent 60%),
+                            radial-gradient(900px 500px at 90% 0%, #a7f3d0 0%, transparent 70%),
+                            linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    min-height: 100%;
 }
 
-/* The container <div> - needed to position the dropdown content */
-.dropdown {
-    position: relative;
-    display: inline-block;
+/* Header + Tabs */
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: #0f172a;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
 }
-
-/* Dropdown content (hidden by default) */
-.dropdown-content {
-    display: none;
-    position: absolute;
-    background-color: #a7dac0;
-    min-width: 160px;
-    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-    z-index: 1;
+.brand {
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    color: #e2e8f0;
 }
-
-/* Links inside the dropdown */
-.dropdown-content a {
-    color: black;
-    padding: 12px 16px;
+.tabs {
+    display: flex;
+    gap: 8px;
+}
+.tab {
+    color: #cbd5e1;
     text-decoration: none;
-    display: block;
+    padding: 8px 12px;
+    border-radius: 8px;
+    transition: background 160ms ease, color 160ms ease;
+}
+.tab:hover { background: rgba(255,255,255,0.08); color: #ffffff; }
+.tab.active { background: #1e293b; color: #ffffff; }
+
+/* Layout */
+main { padding: 24px; }
+/* Center the app content vertically and horizontally */
+.app {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+}
+.section {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 48px 24px;
+    border-bottom: 1px solid #e5e7eb;
+    background: rgba(255,255,255,0.6);
+    backdrop-filter: saturate(1.2) blur(2px);
+    border-radius: 16px;
+}
+.section:last-of-type { border-bottom: none; }
+
+/* Hero */
+.hero { text-align: center; }
+.hero-center { min-height: 60vh; display: grid; place-items: center; gap: 16px; }
+.type { font-size: clamp(64px, 14vw, 160px); font-weight: 800; letter-spacing: -1px; }
+.hover-color { color: #0b1020; transition: color 180ms ease, text-shadow 180ms ease; }
+.hover-color:hover { color: #ef4444; text-shadow: 0 2px 24px rgba(239, 68, 68, 0.35); }
+.actions { display: inline-flex; gap: 12px; margin-top: 16px; }
+.btn { background: #0ea5e9; color: #ffffff; border: 0; padding: 10px 14px; border-radius: 10px; cursor: pointer; text-decoration: none; }
+.btn:hover { filter: brightness(1.05); }
+.btn.alt { background: #6366f1; }
+
+/* Cards */
+.card-list { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.card { padding: 16px; border: 1px solid #e5e7eb; border-radius: 12px; background: #f8fafc; }
+
+/* Footer */
+.site-footer { padding: 24px; text-align: center; color: #64748b; }
+
+/* Responsive */
+@media (max-width: 640px) {
+    .tabs { flex-wrap: wrap; }
 }
 
-/* Change color of dropdown links on hover */
-.dropdown-content a:hover {background-color: #f1f1f1}
+/* Fix stray tokens */
+/* Intentionally left blank to clear any accidental text */
 
-/* Show the dropdown menu on hover */
-.dropdown:hover .dropdown-content {
-    display: block;
+/* Confetti */
+.confetti {
+    position: fixed;
+    top: -10px;
+    width: 8px;
+    height: 14px;
+    border-radius: 2px;
+    animation: fall 1.5s ease-in forwards;
 }
-
-/* Change the background color of the dropdown button when the dropdown content is shown */
-.dropdown:hover .dropbtn {
-    background-color: #3e8e41;
+@keyframes fall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
 }
