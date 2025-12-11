@@ -15,9 +15,9 @@ export class Vine {
 		this.offsets = new Float32Array(this.segments + 1);
 		this.velocities = new Float32Array(this.segments + 1);
 		this.smoothed = new Float32Array(this.segments + 1);
-		this.stiffness = 40; // stronger spring for snappier response
-		this.damping = 10.0; // higher damping to avoid jitter
-		this.influenceRadius = 110; // mouse influence in pixels
+		this.stiffness = 65; // much stronger spring for fast response
+		this.damping = 12.0; // keep stable while allowing quick movement
+		this.influenceRadius = 120; // mouse influence in pixels
 	}
 
 	update(time, mouse) {
@@ -46,7 +46,7 @@ export class Vine {
 				if (dist < this.influenceRadius) {
 					const strength = (this.influenceRadius - dist) / this.influenceRadius;
 					// Push horizontally based on mouse relative position
-					mousePush += (dx > 0 ? 1 : -1) * strength * 34 * (1 - t);
+					mousePush += (dx > 0 ? 1 : -1) * strength * 60 * (1 - t);
 				}
 			}
 
@@ -62,7 +62,7 @@ export class Vine {
 
 		// Light neighbor smoothing for visual continuity
 		for (let i = 1; i < this.segments; i++) {
-			const o = this.offsets[i] * 0.7 + this.offsets[i - 1] * 0.15 + this.offsets[i + 1] * 0.15;
+			const o = this.offsets[i] * 0.5 + this.offsets[i - 1] * 0.25 + this.offsets[i + 1] * 0.25;
 			this.smoothed[i] = o;
 		}
 
