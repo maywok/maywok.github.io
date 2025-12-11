@@ -1,6 +1,7 @@
 // Module entry: boots PIXI and uses local placeholders from shaders/player/vines.
 // Assumes PIXI is available globally via CDN in index.html.
 import { createCRTFilter, updateCRTFilter } from './shaders.js';
+import { createPixelateFilter } from './pixelate.js';
 import { Player } from './player.js';
 import { createVines } from './vines.js';
 
@@ -18,20 +19,22 @@ function boot() {
 		});
 		root.appendChild(app.view);
 
-		const ENABLE_FILTER = true; // keep shader on with higher brightness
+		const ENABLE_CRT = true; // keep CRT shader glow on
+		const ENABLE_PIXELATE = true; // enable pixelation effect
 		const DEBUG_SHAPES = false; // keep demo shapes off
-		const { filter, uniforms } = createCRTFilter(app, { intensity: 1.0, brightness: 1.2 });
-		const container = new PIXI.Container();
-		app.stage.addChild(container);
-
-		const gfx = new PIXI.Graphics();
-		// Use the app background color for the fullscreen quad so filter shows clearly
-		gfx.beginFill(0x102a3f);
-		gfx.drawRect(0, 0, app.renderer.width, app.renderer.height);
-		gfx.endFill();
-		container.addChild(gfx);
-		if (ENABLE_FILTER) {
-			container.filters = [filter];
+		// World container holds game visuals
+		const world = new PIXI.Container();
+		app.stage.addChild(world);
+		// Optional CRT filter (background glow overlay)
+		const { filter: crtFilter, uniforms: crtUniforms } = createCRTFilter(app, { intensity: 1.0, brightness: 1.2 });
+		// Pixelate filter
+		const { filter: pixelFilter, update: updatePixel } = createPixelateFilter(app, { pixelSize: 4 });
+		if (ENABLE_PIXELATE && ENABLE_CRT) {
+			world.filters = [pixelFilter, crtFilter];
+		} else if (ENABLE_PIXELATE) {
+			world.filters = [pixelFilter];
+		} else if (ENABLE_CRT) {
+			world.filters = [crtFilter];
 		}
 
 		// Debug: add visible UI to confirm rendering
@@ -76,16 +79,15 @@ function boot() {
 
 		const player = new Player(app);
 		const { container: vinesLayer, vines } = createVines(app, 12);
-		// Vines hang from the top; add above background container
-		app.stage.addChild(vinesLayer);
-		// Add player cube near bottom center
-		app.stage.addChild(player.view);
+		world.addChild(vinesLayer);
+		world.addChild(player.view);
 
 		let time = 0;
 		app.ticker.add((dt) => {
-			if (ENABLE_FILTER) {
-				updateCRTFilter({ uniforms }, app, dt / 60);
+			if (ENABLE_CRT) {
+				updateCRTFilter({ uniforms: crtUniforms }, app, dt / 60);
 			}
+			if (ENABLE_PIXELATE) updatePixel();
 			time += dt / 60;
 			for (const vine of vines) vine.update(time);
 			player.update(dt / 60);
@@ -93,14 +95,10 @@ function boot() {
 		});
 
 		window.addEventListener('resize', () => {
-			gfx.clear();
-			gfx.beginFill(0x102a3f);
-			gfx.drawRect(0, 0, app.renderer.width, app.renderer.height);
-			gfx.endFill();
 			// Rebuild vines layout for new width/height
-			app.stage.removeChild(vinesLayer);
+			world.removeChild(vinesLayer);
 			const rebuilt = createVines(app, 12);
-			app.stage.addChild(rebuilt.container);
+			world.addChild(rebuilt.container);
 			vines.length = 0; // mutate array in-place to keep reference
 			for (const v of rebuilt.vines) vines.push(v);
 			player.onResize();
