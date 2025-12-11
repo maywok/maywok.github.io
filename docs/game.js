@@ -2,6 +2,7 @@
 // Assumes PIXI is available globally via CDN in index.html.
 import { createCRTFilter, updateCRTFilter } from './shaders.js';
 import { createPixelateFilter } from './pixelate.js';
+import { createParallaxBackground } from './background.js';
 import { Player } from './player.js';
 import { createVines } from './vines.js';
 
@@ -22,19 +23,19 @@ function boot() {
 		const ENABLE_CRT = true; // keep CRT shader glow on
 		const ENABLE_PIXELATE = true; // enable pixelation effect
 		const DEBUG_SHAPES = false; // keep demo shapes off
-		// World container holds game visuals
-		const world = new PIXI.Container();
-		app.stage.addChild(world);
+		// Scene container holds background + world so filters apply to both
+		const scene = new PIXI.Container();
+		app.stage.addChild(scene);
 		// Optional CRT filter (background glow overlay)
 		const { filter: crtFilter, uniforms: crtUniforms } = createCRTFilter(app, { intensity: 1.0, brightness: 1.2 });
 		// Pixelate filter
 		const { filter: pixelFilter, update: updatePixel } = createPixelateFilter(app, { pixelSize: 4 });
 		if (ENABLE_PIXELATE && ENABLE_CRT) {
-			world.filters = [pixelFilter, crtFilter];
+			scene.filters = [pixelFilter, crtFilter];
 		} else if (ENABLE_PIXELATE) {
-			world.filters = [pixelFilter];
+			scene.filters = [pixelFilter];
 		} else if (ENABLE_CRT) {
-			world.filters = [crtFilter];
+			scene.filters = [crtFilter];
 		}
 
 		// Debug: add visible UI to confirm rendering
@@ -77,6 +78,13 @@ function boot() {
 			app.stage.addChild(rect);
 		}
 
+		// Parallax background
+		const { container: bg, update: updateBg, resize: resizeBg } = createParallaxBackground(app);
+		scene.addChild(bg);
+
+		// World visuals
+		const world = new PIXI.Container();
+		scene.addChild(world);
 		const player = new Player(app);
 		const { container: vinesLayer, vines } = createVines(app, 12);
 		world.addChild(vinesLayer);
@@ -89,6 +97,7 @@ function boot() {
 			}
 			if (ENABLE_PIXELATE) updatePixel();
 			time += dt / 60;
+			updateBg(time);
 			for (const vine of vines) vine.update(time);
 			player.update(dt / 60);
 			if (circle) circle.rotation += 0.02;
@@ -96,6 +105,7 @@ function boot() {
 
 		window.addEventListener('resize', () => {
 			// Rebuild vines layout for new width/height
+			resizeBg();
 			world.removeChild(vinesLayer);
 			const rebuilt = createVines(app, 12);
 			world.addChild(rebuilt.container);
