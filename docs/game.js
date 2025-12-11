@@ -18,7 +18,7 @@ function boot() {
 		});
 		root.appendChild(app.view);
 
-		const { filter, uniforms } = createCRTFilter(app);
+		const { filter, uniforms } = createCRTFilter(app, { intensity: 1.0, brightness: 0.8 });
 		const container = new PIXI.Container();
 		app.stage.addChild(container);
 
@@ -29,12 +29,38 @@ function boot() {
 		container.addChild(gfx);
 		container.filters = [filter];
 
+		// Debug: add visible UI to confirm rendering
+		const label = new PIXI.Text('Maywok — PIXI running', {
+			fontFamily: 'Arial',
+			fontSize: 28,
+			fill: 0x00ffcc,
+			stroke: 0x003333,
+			strokeThickness: 4,
+			dropShadow: true,
+			dropShadowColor: '#00ffaa',
+			dropShadowBlur: 6,
+			dropShadowAngle: Math.PI / 6,
+			dropShadowDistance: 4,
+		});
+		label.x = 24;
+		label.y = 24;
+		app.stage.addChild(label);
+
+		const circle = new PIXI.Graphics();
+		circle.beginFill(0xff0066);
+		circle.drawCircle(0, 0, 40);
+		circle.endFill();
+		circle.x = app.renderer.width - 80;
+		circle.y = 80;
+		app.stage.addChild(circle);
+
 		const player = new Player();
 		const vines = createVines(12);
 
 		app.ticker.add((dt) => {
 			updateCRTFilter({ uniforms }, app, dt / 60);
 			player.update(dt / 60);
+			circle.rotation += 0.02;
 		});
 
 		window.addEventListener('resize', () => {
