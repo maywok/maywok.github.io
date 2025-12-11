@@ -21,7 +21,12 @@ export class Player {
 		this.view.position.set(x, y);
 
 		// Movement state
-		this.speed = 180; // pixels per second
+		this.speed = 180; // pixels per second (horizontal)
+		this.vx = 0;
+		this.vy = 0;
+		this.gravity = 820; // pixels per second^2
+		this.jumpSpeed = 380; // initial jump velocity
+		this.grounded = true;
 		this.keys = new Set();
 		this.baseY = y;
 		this.time = 0;
@@ -32,6 +37,10 @@ export class Player {
 			if (code === 'KeyW' || code === 'KeyA' || code === 'KeyS' || code === 'KeyD' ||
 				code === 'ArrowUp' || code === 'ArrowLeft' || code === 'ArrowDown' || code === 'ArrowRight') {
 				this.keys.add(code);
+			}
+			if ((code === 'Space' || code === 'KeyW' || code === 'ArrowUp') && this.grounded) {
+				this.vy = -this.jumpSpeed;
+				this.grounded = false;
 			}
 		};
 		this._onKeyUp = (e) => {
@@ -49,7 +58,7 @@ export class Player {
 		let ax = 0, ay = 0;
 		if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) ax -= 1;
 		if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) ax += 1;
-		if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) ay -= 1;
+		// Vertical input handled via jump; allow down key to nudge quickly
 		if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) ay += 1;
 
 		// Normalize diagonal movement
@@ -58,19 +67,36 @@ export class Player {
 			ax *= inv; ay *= inv;
 		}
 
-		// Apply movement
+		// Apply horizontal movement
 		this.view.x += ax * this.speed * dt;
-		this.view.y += ay * this.speed * dt;
+
+		// Gravity and jump physics
+		this.vy += this.gravity * dt;
+		this.view.y += this.vy * dt;
 
 		// Clamp to viewport with small margins
 		const margin = 16;
 		const w = this.app.renderer.width;
 		const h = this.app.renderer.height;
 		this.view.x = Math.max(margin, Math.min(w - margin, this.view.x));
-		this.view.y = Math.max(margin, Math.min(h - margin, this.view.y));
+
+		// Ground plane near bottom
+		const groundY = Math.max(80, h - 120);
+		if (this.view.y >= groundY) {
+			this.view.y = groundY;
+			this.vy = 0;
+			this.grounded = true;
+		} else {
+			this.grounded = false;
+		}
+		// Ceiling clamp
+		if (this.view.y < margin) {
+			this.view.y = margin;
+			this.vy = Math.max(0, this.vy);
+		}
 
 		// Subtle bob when idle
-		if (ax === 0 && ay === 0) {
+		if (ax === 0 && ay === 0 && this.grounded) {
 			this.view.y = this.baseY + Math.sin(this.time * 2.5) * 2;
 		} else {
 			this.baseY = this.view.y;
@@ -82,5 +108,7 @@ export class Player {
 		this.view.x = Math.max(16, Math.min(this.app.renderer.width - 16, this.app.renderer.width / 2));
 		this.baseY = Math.max(80, this.app.renderer.height - 120);
 		this.view.y = Math.max(16, Math.min(this.app.renderer.height - 16, this.baseY));
+		this.vy = 0;
+		this.grounded = true;
 	}
 }
