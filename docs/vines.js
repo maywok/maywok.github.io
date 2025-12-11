@@ -8,8 +8,6 @@ export class Vine {
 		this.view = new PIXI.Container();
 		this.glow = new PIXI.Graphics();
 		this.line = new PIXI.Graphics();
-		// Soft glow
-		this.glow.filters = [new PIXI.BlurFilter(3)];
 		this.view.addChild(this.glow);
 		this.view.addChild(this.line);
 	}
@@ -20,8 +18,10 @@ export class Vine {
 		const hue = 0x00e6ff; // neon blue core
 		this.line.clear();
 		this.glow.clear();
-		this.line.lineStyle(3, hue, 1);
-		this.glow.lineStyle(10, hue, 0.33);
+		// Thick, semi-transparent glow behind the core
+		this.glow.lineStyle(12, hue, 0.22);
+		// Bright core line
+		this.line.lineStyle(3, hue, 0.95);
 
 		for (let i = 0; i <= this.segments; i++) {
 			const t = i / this.segments;

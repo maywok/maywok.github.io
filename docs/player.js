@@ -6,9 +6,9 @@ export class Player {
 		this.view = new PIXI.Container();
 
 		const glow = new PIXI.Graphics();
-		glow.filters = [new PIXI.BlurFilter(2)];
-		glow.beginFill(0x00ffc8, 0.35);
-		glow.drawRoundedRect(-size / 2, -size / 2, size, size, 6);
+		// Simulate glow without filters by drawing a larger, semi-transparent rect
+		glow.beginFill(0x00ffc8, 0.22);
+		glow.drawRoundedRect(-size / 2 - 3, -size / 2 - 3, size + 6, size + 6, 8);
 		glow.endFill();
 
 		const box = new PIXI.Graphics();
