@@ -51,18 +51,24 @@ export class Vine {
 			}
 
 			const target = wind + mousePush;
-			const displacement = this.offsets[i] - target;
-			// Damped spring acceleration toward target
-			const accel = -this.stiffness * displacement - this.damping * this.velocities[i];
-			this.velocities[i] += accel * dt;
-			this.offsets[i] += this.velocities[i] * dt;
+			// If close to cursor, snap to target for zero lag
+			if (mouse && mousePush !== 0) {
+				this.offsets[i] = target;
+				this.velocities[i] = 0;
+			} else {
+				const displacement = this.offsets[i] - target;
+				// Damped spring acceleration toward target
+				const accel = -this.stiffness * displacement - this.damping * this.velocities[i];
+				this.velocities[i] += accel * dt;
+				this.offsets[i] += this.velocities[i] * dt;
+			}
 
 			this.smoothed[i] = this.offsets[i];
 		}
 
 		// Light neighbor smoothing for visual continuity
 		for (let i = 1; i < this.segments; i++) {
-			const o = this.offsets[i] * 0.3 + this.offsets[i - 1] * 0.35 + this.offsets[i + 1] * 0.35;
+			const o = this.offsets[i] * 0.6 + this.offsets[i - 1] * 0.2 + this.offsets[i + 1] * 0.2;
 			this.smoothed[i] = o;
 		}
 

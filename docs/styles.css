@@ -164,6 +164,7 @@ main { padding: 24px; }
     position: fixed;
     inset: 0;
 }
+.crt canvas { cursor: none; }
 .crt::after {
     content: "";
     position: absolute;
