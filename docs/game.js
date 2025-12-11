@@ -93,10 +93,10 @@ function boot() {
 		// Simple platform to test landing: centered slab
 		const platform = new PIXI.Graphics();
 		platform.beginFill(0x00e6ff, 0.18);
-		const pw = Math.max(220, Math.floor(app.renderer.width * 0.28));
-		const ph = 14;
-		const px = Math.floor((app.renderer.width - pw) / 2);
-		const py = Math.floor(app.renderer.height * 0.62);
+		let pw = Math.max(220, Math.floor(app.renderer.width * 0.28));
+		let ph = 14;
+		let px = Math.floor((app.renderer.width - pw) / 2);
+		let py = Math.floor(app.renderer.height * 0.62);
 		platform.drawRoundedRect(px, py, pw, ph, 6);
 		platform.endFill();
 		// core bright edge
@@ -107,6 +107,19 @@ function boot() {
 		world.addChild(platform);
 		world.addChild(platformEdge);
 
+		// Track mouse position in canvas space for vine interactions
+		const mouse = { x: app.renderer.width * 0.5, y: app.renderer.height * 0.3 };
+		function updateMouseFromEvent(e) {
+			const rect = app.view.getBoundingClientRect();
+			const x = e.clientX - rect.left;
+			const y = e.clientY - rect.top;
+			// Scale to renderer resolution
+			mouse.x = x * (app.renderer.width / rect.width);
+			mouse.y = y * (app.renderer.height / rect.height);
+		}
+		window.addEventListener('pointermove', updateMouseFromEvent);
+		window.addEventListener('pointerdown', updateMouseFromEvent);
+
 		let time = 0;
 		app.ticker.add((dt) => {
 			if (ENABLE_CRT) {
@@ -115,7 +128,7 @@ function boot() {
 			if (ENABLE_PIXELATE) updatePixel();
 			time += dt / 60;
 			updateBg(time);
-			for (const vine of vines) vine.update(time);
+			for (const vine of vines) vine.update(time, mouse);
 			player.update(dt / 60);
 			// Simple AABB collision with platform top
 			const half = player.size / 2;
