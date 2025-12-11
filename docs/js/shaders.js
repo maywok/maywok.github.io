@@ -8,6 +8,7 @@ export function createCRTFilter(app) {
   uniform sampler2D uSampler;
   uniform float time;
   uniform vec2 resolution;
+  uniform float brightness;
 
   // Barrel distortion
   vec2 barrel(vec2 uv, float amount) {
@@ -33,15 +34,19 @@ export function createCRTFilter(app) {
 
     // Vignette
     float dist = distance(uv, vec2(0.5));
-    float vignette = smoothstep(0.9, 0.3, dist);
+    float vignette = smoothstep(1.05, 0.35, dist);
     color *= vignette;
+
+    // Boost brightness slightly for clarity
+    color *= brightness;
 
     gl_FragColor = vec4(color, 1.0);
   }`;
 
   const filter = new PIXI.Filter(undefined, frag, {
     time: 0,
-    resolution: new Float32Array([app.renderer.width, app.renderer.height])
+    resolution: new Float32Array([app.renderer.width, app.renderer.height]),
+    brightness: 1.2
   });
   return filter;
 }
