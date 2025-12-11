@@ -35,7 +35,9 @@ export class Vine {
 		for (let i = 0; i <= this.segments; i++) {
 			const t = i / this.segments;
 			const y = t * this.length;
-			const wind = Math.sin(time * freq + i * 0.25) * amp * (1 - t);
+			// Tail should have freedom: boost wind toward the bottom
+			const tailBoost = 0.4 + 0.6 * t; // more motion near the tip
+			const wind = Math.sin(time * freq + i * 0.25) * amp * tailBoost;
 
 			// Mouse influence: push segment away if mouse is close
 			let mousePush = 0;
@@ -46,7 +48,8 @@ export class Vine {
 				if (dist < this.influenceRadius) {
 					const strength = (this.influenceRadius - dist) / this.influenceRadius;
 					// Push horizontally based on mouse relative position
-					mousePush += (dx > 0 ? 1 : -1) * strength * 60 * (1 - t);
+					const pushBoost = 0.6 + 0.4 * t; // stronger influence toward the tail
+					mousePush += (dx > 0 ? 1 : -1) * strength * 60 * pushBoost;
 				}
 			}
 
