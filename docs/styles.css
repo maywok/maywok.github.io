@@ -164,7 +164,7 @@ main { padding: 24px; }
     position: fixed;
     inset: 0;
 }
-.crt canvas { cursor: none; }
+#game-root, .crt, .crt canvas { cursor: none !important; }
 .crt::after {
     content: "";
     position: absolute;

@@ -133,8 +133,14 @@ function boot() {
 			mouse.y = y * (app.renderer.height / rect.height);
 			cursor.position.set(mouse.x, mouse.y);
 		}
+		// Use multiple events to ensure immediate cursor updates
 		window.addEventListener('pointermove', updateMouseFromEvent);
 		window.addEventListener('pointerdown', updateMouseFromEvent);
+		window.addEventListener('pointerenter', updateMouseFromEvent);
+		window.addEventListener('mousemove', updateMouseFromEvent);
+		// Hide cursor dot when leaving canvas bounds
+		window.addEventListener('pointerleave', () => { cursor.visible = false; });
+		window.addEventListener('pointerenter', () => { cursor.visible = true; });
 
 		let time = 0;
 		app.ticker.add((dt) => {
