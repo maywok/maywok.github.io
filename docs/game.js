@@ -18,7 +18,7 @@ function boot() {
 		});
 		root.appendChild(app.view);
 
-		const ENABLE_FILTER = true; // toggle to quickly validate visuals
+		const ENABLE_FILTER = false; // disable dark filter so background stays bright
 		const DEBUG_SHAPES = false; // disable demo shapes for production
 		const { filter, uniforms } = createCRTFilter(app, { intensity: 1.0, brightness: 0.9 });
 		const container = new PIXI.Container();

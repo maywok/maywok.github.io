@@ -178,3 +178,20 @@ main { padding: 24px; }
 
 /* Hide legacy icon UI in neon mode */
 .icon-bar, .bubble, .hero, .section, .app { display: none; }
+
+/* Site title at top-left */
+.site-title {
+    position: fixed;
+    top: 16px;
+    left: 24px;
+    z-index: 1200;
+    font-weight: 800;
+    font-size: clamp(20px, 2vw, 28px);
+    color: #00ffc8;
+    letter-spacing: 0.5px;
+    text-shadow: 0 0 10px rgba(0,255,200,0.35), 0 0 18px rgba(0,255,200,0.25);
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(0,255,200,0.25);
+    border-radius: 6px;
+    padding: 8px 12px;
+}
