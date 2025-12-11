@@ -109,6 +109,21 @@ function boot() {
 
 		// Track mouse position in canvas space for vine interactions
 		const mouse = { x: app.renderer.width * 0.5, y: app.renderer.height * 0.3 };
+		// In-website cursor dot for visual and interaction feedback
+		const cursor = new PIXI.Graphics();
+		function drawCursor() {
+			cursor.clear();
+			// Glow
+			cursor.beginFill(0x00e6ff, 0.15);
+			cursor.drawCircle(0, 0, 10);
+			cursor.endFill();
+			// Core
+			cursor.beginFill(0x00e6ff, 0.95);
+			cursor.drawCircle(0, 0, 2.5);
+			cursor.endFill();
+		}
+		drawCursor();
+		world.addChild(cursor);
 		function updateMouseFromEvent(e) {
 			const rect = app.view.getBoundingClientRect();
 			const x = e.clientX - rect.left;
@@ -116,6 +131,7 @@ function boot() {
 			// Scale to renderer resolution
 			mouse.x = x * (app.renderer.width / rect.width);
 			mouse.y = y * (app.renderer.height / rect.height);
+			cursor.position.set(mouse.x, mouse.y);
 		}
 		window.addEventListener('pointermove', updateMouseFromEvent);
 		window.addEventListener('pointerdown', updateMouseFromEvent);
@@ -128,7 +144,7 @@ function boot() {
 			if (ENABLE_PIXELATE) updatePixel();
 			time += dt / 60;
 			updateBg(time);
-			for (const vine of vines) vine.update(time, mouse);
+			for (const vine of vines) vine.update(time, mouse, dt / 60);
 			player.update(dt / 60);
 			// Simple AABB collision with platform top
 			const half = player.size / 2;

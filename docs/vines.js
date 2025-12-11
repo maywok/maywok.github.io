@@ -20,7 +20,7 @@ export class Vine {
 		this.influenceRadius = 120; // mouse influence in pixels
 	}
 
-	update(time, mouse) {
+	update(time, mouse, dt = 1 / 60) {
 		const amp = 10; // sway amplitude
 		const freq = 0.9; // slightly faster sway
 		const hue = 0x00e6ff; // neon blue core
@@ -54,15 +54,15 @@ export class Vine {
 			const displacement = this.offsets[i] - target;
 			// Damped spring acceleration toward target
 			const accel = -this.stiffness * displacement - this.damping * this.velocities[i];
-			this.velocities[i] += accel * (1 / 60);
-			this.offsets[i] += this.velocities[i] * (1 / 60);
+			this.velocities[i] += accel * dt;
+			this.offsets[i] += this.velocities[i] * dt;
 
 			this.smoothed[i] = this.offsets[i];
 		}
 
 		// Light neighbor smoothing for visual continuity
 		for (let i = 1; i < this.segments; i++) {
-			const o = this.offsets[i] * 0.5 + this.offsets[i - 1] * 0.25 + this.offsets[i + 1] * 0.25;
+			const o = this.offsets[i] * 0.3 + this.offsets[i - 1] * 0.35 + this.offsets[i + 1] * 0.35;
 			this.smoothed[i] = o;
 		}
 
