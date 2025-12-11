@@ -14,9 +14,28 @@ import { Player } from './player.js';
   root.appendChild(app.view);
   app.stage.sortableChildren = true;
 
-  // CRT filter over the whole stage
+  // Optional CRT filter (disabled initially for visibility)
   const crt = createCRTFilter(app);
-  app.stage.filters = [crt];
+  // app.stage.filters = [crt];
+
+  // Background grid to improve visibility
+  const bg = new PIXI.Graphics();
+  bg.zIndex = 0;
+  bg.beginFill(0x0a0a0a, 1);
+  bg.drawRect(0, 0, app.renderer.width, app.renderer.height);
+  bg.endFill();
+  // Draw neon grid lines
+  const spacing = 24;
+  bg.lineStyle(1, 0x043a30, 0.55);
+  for (let x = 0; x <= app.renderer.width; x += spacing) {
+    bg.moveTo(x, 0);
+    bg.lineTo(x, app.renderer.height);
+  }
+  for (let y = 0; y <= app.renderer.height; y += spacing) {
+    bg.moveTo(0, y);
+    bg.lineTo(app.renderer.width, y);
+  }
+  app.stage.addChild(bg);
 
   // Content
   const vines = createVines(app, 7);
@@ -36,7 +55,7 @@ import { Player } from './player.js';
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
 
-    // Update CRT uniforms
+    // Update CRT uniforms (kept in sync even if filter disabled)
     updateCRTFilter(crt, app, dt);
 
     // Update vines toward a slightly offset target to feel organic
@@ -55,5 +74,20 @@ import { Player } from './player.js';
   window.addEventListener('resize', () => {
     // PIXI with resizeTo handles this, but we refresh resolution
     updateCRTFilter(crt, app, 0);
+    // Redraw background to the new size
+    bg.clear();
+    bg.beginFill(0x0a0a0a, 1);
+    bg.drawRect(0, 0, app.renderer.width, app.renderer.height);
+    bg.endFill();
+    const spacing = 24;
+    bg.lineStyle(1, 0x043a30, 0.55);
+    for (let x = 0; x <= app.renderer.width; x += spacing) {
+      bg.moveTo(x, 0);
+      bg.lineTo(x, app.renderer.height);
+    }
+    for (let y = 0; y <= app.renderer.height; y += spacing) {
+      bg.moveTo(0, y);
+      bg.lineTo(app.renderer.width, y);
+    }
   });
 })();

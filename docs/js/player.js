@@ -8,7 +8,7 @@ export class Player {
     this.acc = 0.6;
     this.drag = 0.88;
     this.max = 6.0;
-    this.radius = 9;
+    this.radius = 12;
     this.color = 0xe85c5c; // salmon
     this.graphics = new PIXI.Graphics();
     this.graphics.zIndex = 2;
@@ -47,8 +47,8 @@ export class Player {
     // Draw
     this.graphics.clear();
     // Glow
-    this.graphics.beginFill(this.color, 0.1);
-    this.graphics.drawCircle(this.pos.x, this.pos.y, this.radius * 3.0);
+    this.graphics.beginFill(this.color, 0.14);
+    this.graphics.drawCircle(this.pos.x, this.pos.y, this.radius * 3.6);
     this.graphics.endFill();
     // Core
     this.graphics.beginFill(this.color, 1);

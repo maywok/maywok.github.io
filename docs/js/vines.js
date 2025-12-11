@@ -50,14 +50,14 @@ export class Vine {
 
     // Draw
     this.graphics.clear();
-    this.graphics.lineStyle(2, this.color, 1);
+    this.graphics.lineStyle(3, this.color, 1);
     this.graphics.moveTo(this.segments[0].x, this.segments[0].y);
     for (let i = 1; i < this.segments.length; i++) {
       const s = this.segments[i];
       this.graphics.lineTo(s.x, s.y);
     }
     // Glow
-    this.graphics.lineStyle(10, this.color, 0.08);
+    this.graphics.lineStyle(14, this.color, 0.12);
     this.graphics.moveTo(this.segments[0].x, this.segments[0].y);
     for (let i = 1; i < this.segments.length; i++) {
       const s = this.segments[i];
