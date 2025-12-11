@@ -90,6 +90,23 @@ function boot() {
 		world.addChild(vinesLayer);
 		world.addChild(player.view);
 
+		// Simple platform to test landing: centered slab
+		const platform = new PIXI.Graphics();
+		platform.beginFill(0x00e6ff, 0.18);
+		const pw = Math.max(220, Math.floor(app.renderer.width * 0.28));
+		const ph = 14;
+		const px = Math.floor((app.renderer.width - pw) / 2);
+		const py = Math.floor(app.renderer.height * 0.62);
+		platform.drawRoundedRect(px, py, pw, ph, 6);
+		platform.endFill();
+		// core bright edge
+		const platformEdge = new PIXI.Graphics();
+		platformEdge.lineStyle(3, 0x00e6ff, 0.95);
+		platformEdge.moveTo(px + 6, py + ph);
+		platformEdge.lineTo(px + pw - 6, py + ph);
+		world.addChild(platform);
+		world.addChild(platformEdge);
+
 		let time = 0;
 		app.ticker.add((dt) => {
 			if (ENABLE_CRT) {
@@ -100,6 +117,21 @@ function boot() {
 			updateBg(time);
 			for (const vine of vines) vine.update(time);
 			player.update(dt / 60);
+			// Simple AABB collision with platform top
+			const half = player.size / 2;
+			const pLeft = px, pRight = px + pw, pTop = py, pBottom = py + ph;
+			const plLeft = player.view.x - half;
+			const plRight = player.view.x + half;
+			const plTop = player.view.y - half;
+			const plBottom = player.view.y + half;
+			const overlapX = plRight > pLeft && plLeft < pRight;
+			const fallingOnto = player.vy >= 0 && plBottom >= pTop && plTop < pTop;
+			if (overlapX && fallingOnto) {
+				// Snap on top
+				player.view.y = pTop - half;
+				player.vy = 0;
+				player.grounded = true;
+			}
 			if (circle) circle.rotation += 0.02;
 		});
 
@@ -112,6 +144,22 @@ function boot() {
 			vines.length = 0; // mutate array in-place to keep reference
 			for (const v of rebuilt.vines) vines.push(v);
 			player.onResize();
+
+			// Rebuild platform for new size
+			platform.clear();
+			platform.beginFill(0x00e6ff, 0.18);
+			const npw = Math.max(220, Math.floor(app.renderer.width * 0.28));
+			const nph = 14;
+			const npx = Math.floor((app.renderer.width - npw) / 2);
+			const npy = Math.floor(app.renderer.height * 0.62);
+			platform.drawRoundedRect(npx, npy, npw, nph, 6);
+			platform.endFill();
+			platformEdge.clear();
+			platformEdge.lineStyle(3, 0x00e6ff, 0.95);
+			platformEdge.moveTo(npx + 6, npy + nph);
+			platformEdge.lineTo(npx + npw - 6, npy + nph);
+			// Update collision references
+			pw = npw; ph = nph; px = npx; py = npy;
 		});
 	} catch (err) {
 		console.error('Game boot failed:', err);

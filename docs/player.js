@@ -25,8 +25,15 @@ export class Player {
 		this.vx = 0;
 		this.vy = 0;
 		this.gravity = 820; // pixels per second^2
-		this.jumpSpeed = 380; // initial jump velocity
+		this.jumpSpeed = 420; // initial jump velocity
 		this.grounded = true;
+		// Advanced jump feel
+		this.coyoteTimeMax = 0.08; // seconds allowed to jump after leaving ground
+		this.coyoteTime = 0;
+		this.jumpBufferMax = 0.12; // seconds to buffer a jump press before landing
+		this.jumpBuffer = 0;
+		this.jumpHeld = false;
+		this.jumpHoldGravityScale = 0.45; // lower gravity while holding for variable height
 		this.keys = new Set();
 		this.baseY = y;
 		this.time = 0;
@@ -38,14 +45,26 @@ export class Player {
 				code === 'ArrowUp' || code === 'ArrowLeft' || code === 'ArrowDown' || code === 'ArrowRight') {
 				this.keys.add(code);
 			}
-			if ((code === 'Space' || code === 'KeyW' || code === 'ArrowUp') && this.grounded) {
-				this.vy = -this.jumpSpeed;
-				this.grounded = false;
+			if (code === 'Space' || code === 'KeyW' || code === 'ArrowUp') {
+				this.jumpHeld = true;
+				// If grounded or within coyote time, start jump
+				if (this.grounded || this.coyoteTime > 0) {
+					this.vy = -this.jumpSpeed;
+					this.grounded = false;
+					this.coyoteTime = 0;
+					this.jumpBuffer = 0;
+				} else {
+					// Buffer the jump to execute on next landing
+					this.jumpBuffer = this.jumpBufferMax;
+				}
 			}
 		};
 		this._onKeyUp = (e) => {
 			const code = e.code;
 			this.keys.delete(code);
+			if (code === 'Space' || code === 'KeyW' || code === 'ArrowUp') {
+				this.jumpHeld = false;
+			}
 		};
 		window.addEventListener('keydown', this._onKeyDown);
 		window.addEventListener('keyup', this._onKeyUp);
@@ -70,8 +89,9 @@ export class Player {
 		// Apply horizontal movement
 		this.view.x += ax * this.speed * dt;
 
-		// Gravity and jump physics
-		this.vy += this.gravity * dt;
+		// Gravity and jump physics (variable height when jump is held)
+		const gravityScale = (!this.grounded && this.jumpHeld && this.vy < 0) ? this.jumpHoldGravityScale : 1.0;
+		this.vy += this.gravity * gravityScale * dt;
 		this.view.y += this.vy * dt;
 
 		// Clamp to viewport with small margins
@@ -86,6 +106,12 @@ export class Player {
 			this.view.y = groundY;
 			this.vy = 0;
 			this.grounded = true;
+			// If a jump was buffered, consume it now
+			if (this.jumpBuffer > 0) {
+				this.vy = -this.jumpSpeed;
+				this.grounded = false;
+				this.jumpBuffer = 0;
+			}
 		} else {
 			this.grounded = false;
 		}
@@ -94,6 +120,10 @@ export class Player {
 			this.view.y = margin;
 			this.vy = Math.max(0, this.vy);
 		}
+
+		// Timers: coyote and jump buffer
+		this.coyoteTime = this.grounded ? this.coyoteTimeMax : Math.max(0, this.coyoteTime - dt);
+		this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
 
 		// Subtle bob when idle
 		if (ax === 0 && ay === 0 && this.grounded) {
