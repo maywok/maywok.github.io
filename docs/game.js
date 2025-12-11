@@ -19,6 +19,7 @@ function boot() {
 		root.appendChild(app.view);
 
 		const ENABLE_FILTER = true; // toggle to quickly validate visuals
+		const DEBUG_SHAPES = false; // disable demo shapes for production
 		const { filter, uniforms } = createCRTFilter(app, { intensity: 1.0, brightness: 0.9 });
 		const container = new PIXI.Container();
 		app.stage.addChild(container);
@@ -33,7 +34,7 @@ function boot() {
 		}
 
 		// Debug: add visible UI to confirm rendering
-		const label = new PIXI.Text('Maywok — PIXI running', {
+		const label = new PIXI.Text('', {
 			fontFamily: 'Arial',
 			fontSize: 28,
 			fill: 0x00ffcc,
@@ -45,24 +46,32 @@ function boot() {
 			dropShadowAngle: Math.PI / 6,
 			dropShadowDistance: 4,
 		});
-		label.x = 24;
-		label.y = 24;
-		app.stage.addChild(label);
+		if (DEBUG_SHAPES) {
+			label.text = 'PIXI running';
+			label.x = 24;
+			label.y = 24;
+			app.stage.addChild(label);
+		}
 
-		const circle = new PIXI.Graphics();
-		circle.beginFill(0xff0066);
-		circle.drawCircle(0, 0, 40);
-		circle.endFill();
-		circle.x = app.renderer.width - 80;
-		circle.y = 80;
-		app.stage.addChild(circle);
+		let circle = null;
+		if (DEBUG_SHAPES) {
+			circle = new PIXI.Graphics();
+			circle.beginFill(0xff0066);
+			circle.drawCircle(0, 0, 40);
+			circle.endFill();
+			circle.x = app.renderer.width - 80;
+			circle.y = 80;
+			app.stage.addChild(circle);
+		}
 
 		// Extra visible rectangle
-		const rect = new PIXI.Graphics();
-		rect.beginFill(0x22ccff, 0.6);
-		rect.drawRoundedRect(120, 120, 220, 140, 16);
-		rect.endFill();
-		app.stage.addChild(rect);
+		if (DEBUG_SHAPES) {
+			const rect = new PIXI.Graphics();
+			rect.beginFill(0x22ccff, 0.6);
+			rect.drawRoundedRect(120, 120, 220, 140, 16);
+			rect.endFill();
+			app.stage.addChild(rect);
+		}
 
 		const player = new Player();
 		const vines = createVines(12);
@@ -72,7 +81,7 @@ function boot() {
 				updateCRTFilter({ uniforms }, app, dt / 60);
 			}
 			player.update(dt / 60);
-			circle.rotation += 0.02;
+			if (circle) circle.rotation += 0.02;
 		});
 
 		window.addEventListener('resize', () => {
