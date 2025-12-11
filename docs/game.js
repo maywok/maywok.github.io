@@ -13,19 +13,20 @@ function boot() {
 
 		const app = new PIXI.Application({
 			resizeTo: window,
-			background: 0x000000,
+			background: 0x102a3f, // brighter teal base so canvas isn't pure black
 			antialias: true,
 		});
 		root.appendChild(app.view);
 
-		const ENABLE_FILTER = false; // disable dark filter so background stays bright
-		const DEBUG_SHAPES = false; // disable demo shapes for production
-		const { filter, uniforms } = createCRTFilter(app, { intensity: 1.0, brightness: 0.9 });
+		const ENABLE_FILTER = true; // keep shader on with higher brightness
+		const DEBUG_SHAPES = false; // keep demo shapes off
+		const { filter, uniforms } = createCRTFilter(app, { intensity: 1.0, brightness: 1.2 });
 		const container = new PIXI.Container();
 		app.stage.addChild(container);
 
 		const gfx = new PIXI.Graphics();
-		gfx.beginFill(0x000000);
+		// Use the app background color for the fullscreen quad so filter shows clearly
+		gfx.beginFill(0x102a3f);
 		gfx.drawRect(0, 0, app.renderer.width, app.renderer.height);
 		gfx.endFill();
 		container.addChild(gfx);
@@ -73,22 +74,36 @@ function boot() {
 			app.stage.addChild(rect);
 		}
 
-		const player = new Player();
-		const vines = createVines(12);
+		const player = new Player(app);
+		const { container: vinesLayer, vines } = createVines(app, 12);
+		// Vines hang from the top; add above background container
+		app.stage.addChild(vinesLayer);
+		// Add player cube near bottom center
+		app.stage.addChild(player.view);
 
+		let time = 0;
 		app.ticker.add((dt) => {
 			if (ENABLE_FILTER) {
 				updateCRTFilter({ uniforms }, app, dt / 60);
 			}
+			time += dt / 60;
+			for (const vine of vines) vine.update(time);
 			player.update(dt / 60);
 			if (circle) circle.rotation += 0.02;
 		});
 
 		window.addEventListener('resize', () => {
 			gfx.clear();
-			gfx.beginFill(0x000000);
+			gfx.beginFill(0x102a3f);
 			gfx.drawRect(0, 0, app.renderer.width, app.renderer.height);
 			gfx.endFill();
+			// Rebuild vines layout for new width/height
+			app.stage.removeChild(vinesLayer);
+			const rebuilt = createVines(app, 12);
+			app.stage.addChild(rebuilt.container);
+			vines.length = 0; // mutate array in-place to keep reference
+			for (const v of rebuilt.vines) vines.push(v);
+			player.onResize();
 		});
 	} catch (err) {
 		console.error('Game boot failed:', err);
