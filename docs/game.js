@@ -150,6 +150,8 @@ function boot() {
 			if (ENABLE_PIXELATE) updatePixel();
 			time += dt / 60;
 			updateBg(time);
+			// Ensure the in-site cursor is 1:1 with stored mouse coordinates every frame
+			cursor.position.set(mouse.x, mouse.y);
 			for (const vine of vines) vine.update(time, mouse, dt / 60);
 			player.update(dt / 60);
 			// Simple AABB collision with platform top
