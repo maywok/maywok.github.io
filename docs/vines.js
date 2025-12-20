@@ -33,10 +33,10 @@ export class Vine {
 		}
 
 		// Solver / feel tuning
-		this.damping = 0.992; // 0..1 velocity damping per frame
-		this.constraintIterations = 7;
+		this.damping = 0.989; // slightly less damping => faster motion / less sluggish
+		this.constraintIterations = 8;
 		this.bendStiffness = 0.12; // 0..1, higher keeps the vine smoother/less kinked
-		this.gravity = 420; // mild gravity so the rope settles naturally
+		this.gravity = 980; // stronger gravity => faster fall/settle
 		this.windAmp = 0; // testing: no wind sway
 		this.windFreq = 0.9;
 
