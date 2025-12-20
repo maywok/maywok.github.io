@@ -92,9 +92,9 @@ export class Vine {
 		this.line.clear();
 		this.glow.clear();
 		// Thick, semi-transparent glow behind the core
-		this.glow.lineStyle(12, hue, 0.22);
+		this.glow.lineStyle(16, hue, 0.35);
 		// Bright core line
-		this.line.lineStyle(3, hue, 0.95);
+		this.line.lineStyle(4, hue, 1.0);
 
 		// Grab/latch detection: use distance to current polyline.
 		let minLineSq = Infinity;

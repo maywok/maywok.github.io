@@ -47,7 +47,8 @@ async function boot() {
 		// Optional CRT filter (background glow overlay)
 		const { filter: crtFilter, uniforms: crtUniforms } = createCRTFilter(app, { intensity: 1.0, brightness: 1.2 });
 		// Pixelate filter
-		const { filter: pixelFilter, update: updatePixel } = createPixelateFilter(app, { pixelSize: 4 });
+		// Bigger pixelSize => chunkier, more defined pixels.
+		const { filter: pixelFilter, update: updatePixel } = createPixelateFilter(app, { pixelSize: 7 });
 		if (ENABLE_PIXELATE && ENABLE_CRT) {
 			scene.filters = [pixelFilter, crtFilter];
 		} else if (ENABLE_PIXELATE) {
@@ -172,10 +173,11 @@ async function boot() {
 			return container;
 		}
 
+		// Left-side link stack: bigger and more centered vertically.
 		const linkPlatforms = [
-			makeLinkPlatform('Resume', '/resume.pdf', { x: 70, y: app.renderer.height * 0.22, fontSize: 44 }),
-			makeLinkPlatform('GitHub', 'https://github.com/maywok', { x: 70, y: app.renderer.height * 0.36, fontSize: 44 }),
-			makeLinkPlatform('LinkedIn', 'https://www.linkedin.com/in/mason--walker/', { x: 70, y: app.renderer.height * 0.54, fontSize: 44 }),
+			makeLinkPlatform('Resume', '/resume.pdf', { x: 64, y: app.renderer.height * 0.34, fontSize: 58 }),
+			makeLinkPlatform('GitHub', 'https://github.com/maywok', { x: 64, y: app.renderer.height * 0.48, fontSize: 58 }),
+			makeLinkPlatform('LinkedIn', 'https://www.linkedin.com/in/mason--walker/', { x: 64, y: app.renderer.height * 0.62, fontSize: 58 }),
 		];
 		for (const lp of linkPlatforms) world.addChild(lp);
 
