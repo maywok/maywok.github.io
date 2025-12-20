@@ -6,11 +6,23 @@ import { createParallaxBackground } from './background.js';
 import { Player } from './player.js';
 import { createVines } from './vines.js';
 
-function boot() {
+async function boot() {
 	try {
 		const root = document.getElementById('game-root');
 		if (!root) {
 			throw new Error('Missing #game-root element');
+		}
+
+		// Ensure custom fonts are loaded before PIXI measures text.
+		// On GitHub Pages, font loading can race and cause overlapping/incorrect hitboxes.
+		if (document.fonts && document.fonts.load) {
+			try {
+				await document.fonts.load('16px Minecraft');
+				// Some browsers need an extra tick for layout to settle.
+				await new Promise((r) => requestAnimationFrame(() => r()));
+			} catch (_) {
+				// If font loading fails, continue with fallback fonts.
+			}
 		}
 
 		const app = new PIXI.Application({
@@ -117,15 +129,14 @@ function boot() {
 			});
 			container.addChild(text);
 
-			function redraw() {
-				// Use bounds for hit + collision (slightly padded)
+			function redrawHitArea() {
+				// Hit area in local space so pointer events work
 				const b = text.getLocalBounds();
 				const w = Math.ceil(b.width + collisionPad * 2);
 				const h = Math.ceil(b.height + collisionPad * 2);
 				container.hitArea = new PIXI.Rectangle(b.x - collisionPad, b.y - collisionPad, w, h);
-				container._platformRect = { x: container.x + (b.x - collisionPad), y: container.y + (b.y - collisionPad), w, h };
 			}
-			redraw();
+			redrawHitArea();
 
 			// Make it clickable
 			container.eventMode = 'static';
@@ -138,15 +149,25 @@ function boot() {
 			container.on('pointerover', () => {
 				container.scale.set(1.03);
 				text.style.fill = 0xeafffb;
-				redraw();
+				redrawHitArea();
 			});
 			container.on('pointerout', () => {
 				container.scale.set(1.0);
 				text.style.fill = 0x22f3c8;
-				redraw();
+				redrawHitArea();
 			});
 
-			container._updatePlatformRect = () => redraw();
+			container._updatePlatformRect = () => {
+				// Collision rect in world space (robust to font swaps/scale)
+				const gb = text.getBounds();
+				container._platformRect = {
+					x: gb.x - collisionPad,
+					y: gb.y - collisionPad,
+					w: gb.width + collisionPad * 2,
+					h: gb.height + collisionPad * 2,
+				};
+			};
+			container._updatePlatformRect();
 
 			return container;
 		}
