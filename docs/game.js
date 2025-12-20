@@ -40,6 +40,9 @@ async function boot() {
 
 		const ENABLE_CRT = true; // keep CRT shader glow on
 		const ENABLE_PIXELATE = true; // enable pixelation effect
+		// Smaller value = higher internal resolution = less pixelated / more readable.
+		// Suggested range: 1.0 (very clear) .. 4.0 (chunky). Previous value was 7.
+		const PIXELATE_SIZE = 2;
 		const DEBUG_SHAPES = false; // keep demo shapes off
 		// Scene container holds background + world so filters apply to both
 		const scene = new PIXI.Container();
@@ -48,7 +51,7 @@ async function boot() {
 		const { filter: crtFilter, uniforms: crtUniforms } = createCRTFilter(app, { intensity: 1.0, brightness: 1.2 });
 		// Pixelate filter
 		// Bigger pixelSize => chunkier, more defined pixels.
-		const { filter: pixelFilter, update: updatePixel } = createPixelateFilter(app, { pixelSize: 7 });
+		const { filter: pixelFilter, update: updatePixel } = createPixelateFilter(app, { pixelSize: PIXELATE_SIZE });
 		if (ENABLE_PIXELATE && ENABLE_CRT) {
 			scene.filters = [pixelFilter, crtFilter];
 		} else if (ENABLE_PIXELATE) {
