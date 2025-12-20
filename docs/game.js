@@ -42,7 +42,7 @@ async function boot() {
 		const ENABLE_PIXELATE = true; // enable pixelation effect
 		// Smaller value = higher internal resolution = less pixelated / more readable.
 		// Suggested range: 1.0 (very clear) .. 4.0 (chunky). Previous value was 7.
-		const PIXELATE_SIZE = 2;
+		const PIXELATE_SIZE = 4;
 		const DEBUG_SHAPES = false; // keep demo shapes off
 		// Scene container holds background + world so filters apply to both
 		const scene = new PIXI.Container();
@@ -67,11 +67,7 @@ async function boot() {
 			fill: 0x00ffcc,
 			stroke: 0x003333,
 			strokeThickness: 4,
-			dropShadow: true,
-			dropShadowColor: '#00ffaa',
-			dropShadowBlur: 6,
-			dropShadowAngle: Math.PI / 6,
-			dropShadowDistance: 4,
+			dropShadow: false,
 		});
 		if (DEBUG_SHAPES) {
 			label.text = 'PIXI running';
@@ -126,10 +122,7 @@ async function boot() {
 				fill: 0x22f3c8,
 				align: 'left',
 				letterSpacing: 2,
-				dropShadow: true,
-				dropShadowColor: '#22f3c8',
-				dropShadowBlur: 8,
-				dropShadowDistance: 0,
+				dropShadow: false,
 			});
 			container.addChild(text);
 
