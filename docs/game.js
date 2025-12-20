@@ -108,7 +108,7 @@ function boot() {
 		world.addChild(platformEdge);
 
 		// Track mouse position in canvas space for vine interactions
-		const mouse = { x: app.renderer.width * 0.5, y: app.renderer.height * 0.3 };
+		const mouse = { x: app.renderer.width * 0.5, y: app.renderer.height * 0.3, down: false };
 		// In-website cursor dot for visual and interaction feedback
 		const cursor = new PIXI.Graphics();
 		function drawCursor() {
@@ -138,6 +138,10 @@ function boot() {
 		window.addEventListener('pointerdown', updateMouseFromEvent);
 		window.addEventListener('pointerenter', updateMouseFromEvent);
 		window.addEventListener('mousemove', updateMouseFromEvent);
+		window.addEventListener('pointerdown', () => { mouse.down = true; cursor.visible = true; });
+		window.addEventListener('pointerup', () => { mouse.down = false; });
+		window.addEventListener('pointercancel', () => { mouse.down = false; });
+		window.addEventListener('blur', () => { mouse.down = false; });
 		// Hide cursor dot when leaving canvas bounds
 		window.addEventListener('pointerleave', () => { cursor.visible = false; });
 		window.addEventListener('pointerenter', () => { cursor.visible = true; });

@@ -273,6 +273,22 @@ canvas.vines {
     transform: translateY(-8px) scale(0.72);
     opacity: 0.9;
     filter: saturate(0.9) brightness(0.95);
+    will-change: transform;
+}
+
+/* Subtle idle sway so motion feels organic even when mouse stops */
+.vines,
+.vine,
+.vine-layer,
+#vines,
+canvas.vines {
+    animation: vine-idle-sway 4.6s ease-in-out infinite;
+}
+
+@keyframes vine-idle-sway {
+    0%   { transform: translateY(-8px) scale(0.72) rotate(-0.35deg); }
+    50%  { transform: translateY(-8px) scale(0.72) rotate(0.35deg); }
+    100% { transform: translateY(-8px) scale(0.72) rotate(-0.35deg); }
 }
 
 .vines svg,
@@ -314,5 +330,6 @@ canvas.vines {
     canvas.vines {
         transform: translateY(-10px) scale(0.62);
         opacity: 0.88;
+        will-change: transform;
     }
 }
