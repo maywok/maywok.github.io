@@ -147,17 +147,105 @@ function boot() {
 		window.addEventListener('pointerenter', () => { cursor.visible = true; });
 
 		let time = 0;
+		// Player-vine grab state
+		let vineGrab = null; // { vine, pointIndex }
+		let grabRequested = false;
+		let releaseRequested = false;
+		const GRAB_KEY = 'KeyE';
+		window.addEventListener('keydown', (e) => {
+			if (e.code === GRAB_KEY) grabRequested = true;
+			if (e.code === 'Space') releaseRequested = true;
+		});
+		window.addEventListener('keyup', (e) => {
+			if (e.code === 'Space') releaseRequested = true;
+		});
+
+		function findNearestVinePoint(px, py, maxDist) {
+			let best = null;
+			let bestSq = maxDist * maxDist;
+			for (const v of vines) {
+				const pts = v.getPointsView?.();
+				if (!pts) continue;
+				for (let i = 1; i < pts.count; i++) {
+					const dx = pts.x[i] - px;
+					const dy = pts.y[i] - py;
+					const dSq = dx * dx + dy * dy;
+					if (dSq < bestSq) {
+						bestSq = dSq;
+						best = { vine: v, pointIndex: i };
+					}
+				}
+			}
+			return best;
+		}
+
 		app.ticker.add((dt) => {
 			if (ENABLE_CRT) {
 				updateCRTFilter({ uniforms: crtUniforms }, app, dt / 60);
 			}
 			if (ENABLE_PIXELATE) updatePixel();
-			time += dt / 60;
+			const seconds = dt / 60;
+			time += seconds;
 			updateBg(time);
 			// Ensure the in-site cursor is 1:1 with stored mouse coordinates every frame
 			cursor.position.set(mouse.x, mouse.y);
-			for (const vine of vines) vine.update(time, mouse, dt / 60);
-			player.update(dt / 60);
+			for (const vine of vines) vine.update(time, mouse, seconds);
+
+			// Grab/release handling
+			if (grabRequested) {
+				grabRequested = false;
+				if (!vineGrab) {
+					const near = findNearestVinePoint(player.view.x, player.view.y, 48);
+					if (near) {
+						vineGrab = near;
+						player.grounded = false;
+						// cancel vertical velocity so it doesn't fight the constraint too hard
+						player.vy *= 0.25;
+					}
+				} else {
+					releaseRequested = true;
+				}
+			}
+			if (releaseRequested) {
+				releaseRequested = false;
+				if (vineGrab) {
+					// Impart a bit of momentum from the vine point's velocity (approx)
+					const v = vineGrab.vine;
+					const i = vineGrab.pointIndex;
+					const pts = v.getPointsView?.();
+					if (pts) {
+						// approximate point velocity via finite difference on draw positions
+						// (vines maintain their own internal velocities; this rough estimate is ok)
+						const dx = (pts.x[i] - player.view.x);
+						const dy = (pts.y[i] - player.view.y);
+						player.vx = dx * 6;
+						player.vy = dy * 6;
+					}
+					vineGrab = null;
+				}
+			}
+
+			if (!vineGrab) {
+				player.update(seconds);
+			} else {
+				// While grabbed: constrain player to the grabbed vine point
+				const v = vineGrab.vine;
+				const pts = v.getPointsView?.();
+				if (!pts) {
+					vineGrab = null;
+					player.update(seconds);
+				} else {
+					const i = vineGrab.pointIndex;
+					// Keep the grab index valid if vines were rebuilt
+					vineGrab.pointIndex = Math.max(1, Math.min(pts.count - 1, i));
+					const gx = pts.x[vineGrab.pointIndex];
+					const gy = pts.y[vineGrab.pointIndex];
+					// Place player slightly below the point so the cube hangs under the vine
+					player.view.x = gx;
+					player.view.y = gy + player.size * 0.55;
+					player.grounded = false;
+				}
+			}
 			// Simple AABB collision with platform top
 			const half = player.size / 2;
 			const pLeft = px, pRight = px + pw, pTop = py, pBottom = py + ph;

@@ -49,6 +49,18 @@ export class Vine {
 		this._grabbedIndex = -1;
 	}
 
+	// Gameplay helpers
+	getPointCount() {
+		return this.segments + 1;
+	}
+	getPoint(i) {
+		return { x: this.drawX[i], y: this.drawY[i] };
+	}
+	// Returns internal arrays for fast iteration (read-only contract)
+	getPointsView() {
+		return { x: this.drawX, y: this.drawY, count: this.segments + 1 };
+	}
+
 	// Squared distance from point P to segment AB
 	static _distToSegmentSq(px, py, ax, ay, bx, by) {
 		const abx = bx - ax;
