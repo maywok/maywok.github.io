@@ -1,4 +1,18 @@
 * { box-sizing: border-box; }
+:root {
+    --pixel-font: "Minecraft", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    --neon: #22f3c8;
+    --neon-soft: rgba(34,243,200,0.28);
+    --neon-softer: rgba(34,243,200,0.18);
+}
+
+@font-face {
+    font-family: "Minecraft";
+    src: url("./assets/fonts/Minecraft.ttf") format("truetype");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
 html { scroll-behavior: smooth; height: 100%; }
 body {
     margin: 0;
@@ -134,35 +148,7 @@ main { padding: 24px; }
     .split-bg { display: none; }
 }
 
-.dock {
-    position: fixed;
-    top: 50%;
-    right: 24px;
-    transform: translateY(-50%);
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    z-index: 1000;
-}
-.dock a {
-    display: block;
-    padding: 10px 14px;
-    color: #22f3c8;
-    text-decoration: none;
-    font-weight: 600;
-    background: rgba(34, 243, 200, 0.10);
-    border: 1px solid rgba(34, 243, 200, 0.32);
-    box-shadow: 0 0 12px rgba(34, 243, 200, 0.18);
-    border-radius: 6px;
-    transition: transform 160ms cubic-bezier(.22,1,.36,1),
-                box-shadow 160ms ease, background 160ms ease, color 160ms ease;
-}
-.dock a:hover {
-    transform: translateX(-2px);
-    color: #eafffb;
-    background: rgba(34, 243, 200, 0.16);
-    box-shadow: 0 0 18px rgba(34, 243, 200, 0.30);
-}
+/* (Dock removed) */
 
 .crt {
     position: fixed;
@@ -188,11 +174,12 @@ main { padding: 24px; }
     top: 16px;
     left: 24px;
     z-index: 1200;
-    font-weight: 800;
+    font-family: var(--pixel-font);
+    font-weight: 400;
     font-size: clamp(20px, 2vw, 28px);
-    color: #22f3c8;
+    color: var(--neon);
     letter-spacing: 0.5px;
-    text-shadow: 0 0 10px rgba(34,243,200,0.28), 0 0 18px rgba(34,243,200,0.18);
+    text-shadow: 0 0 10px var(--neon-soft), 0 0 18px var(--neon-softer);
     background: rgba(0, 0, 0, 0.35);
     border: 1px solid rgba(34,243,200,0.22);
     border-radius: 6px;
@@ -204,14 +191,20 @@ main { padding: 24px; }
     inset: 0;
     pointer-events: none;
     z-index: 1400;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-family: var(--pixel-font);
 }
+
+/* In-world PIXI links replace the HTML overlay links */
+.overlay-ui { display: none; }
 
 .overlay-link {
     pointer-events: auto;
     color: rgba(255,255,255,0.95);
     text-decoration: none;
-    text-shadow: 0 10px 36px rgba(0, 0, 0, 0.72);
+    text-shadow:
+        0 0 10px rgba(34,243,200,0.22),
+        0 0 22px rgba(34,243,200,0.12),
+        0 10px 36px rgba(0, 0, 0, 0.72);
     display: inline-block;
     transition: transform 200ms ease, color 160ms ease, text-shadow 160ms ease;
 }
@@ -219,13 +212,16 @@ main { padding: 24px; }
 .overlay-left {
     position: absolute;
     left: clamp(28px, 6vw, 72px);
-    top: 36vh;
-    font-weight: 700;
-    font-size: clamp(48px, 12vw, 140px);
-    letter-spacing: -2px;
-    color: rgba(255, 255, 255, 0.95);
+    font-weight: 400;
+    font-size: clamp(26px, 5vw, 54px);
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.93);
     mix-blend-mode: screen;
 }
+
+.overlay-left-1 { top: 34vh; }
+.overlay-left-2 { top: 44vh; }
+.overlay-left-3 { top: 54vh; }
 
 .overlay-center {
     position: absolute;
@@ -310,16 +306,13 @@ canvas.vines {
 
 @media (max-width: 640px) {
     .overlay-left {
-        top: 30vh;
-        font-size: clamp(28px, 14vw, 72px);
         left: 18px;
+        font-size: clamp(16px, 6vw, 26px);
     }
 
-    .overlay-center {
-        top: 4vh;
-        font-size: 16px;
-        padding: 4px 8px;
-    }
+    .overlay-left-1 { top: 34vh; }
+    .overlay-left-2 { top: 44vh; }
+    .overlay-left-3 { top: 54vh; }
 
     .vines,
     .vine,

@@ -18,6 +18,12 @@ function boot() {
 			background: 0x102a3f, // brighter teal base so canvas isn't pure black
 			antialias: true,
 		});
+		// Favor a crisp/pixel look for text and sprites
+		app.stage.roundPixels = true;
+		if (PIXI.settings) {
+			PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
+			PIXI.settings.ROUND_PIXELS = true;
+		}
 		root.appendChild(app.view);
 
 		const ENABLE_CRT = true; // keep CRT shader glow on
@@ -88,6 +94,70 @@ function boot() {
 		const player = new Player(app);
 		const { container: vinesLayer, vines } = createVines(app, 12);
 		world.addChild(vinesLayer);
+
+		// In-world clickable link platforms (left-side stack)
+		function makeLinkPlatform(labelText, url, options = {}) {
+			const { x = 80, y = 200, fontSize = 40, collisionPad = 6 } = options;
+
+			const container = new PIXI.Container();
+			container.x = x;
+			container.y = y;
+
+			// Plain text only (no border/plate) with glow
+			const text = new PIXI.Text(labelText, {
+				fontFamily: 'Minecraft, monospace',
+				fontSize,
+				fill: 0x22f3c8,
+				align: 'left',
+				letterSpacing: 2,
+				dropShadow: true,
+				dropShadowColor: '#22f3c8',
+				dropShadowBlur: 8,
+				dropShadowDistance: 0,
+			});
+			container.addChild(text);
+
+			function redraw() {
+				// Use bounds for hit + collision (slightly padded)
+				const b = text.getLocalBounds();
+				const w = Math.ceil(b.width + collisionPad * 2);
+				const h = Math.ceil(b.height + collisionPad * 2);
+				container.hitArea = new PIXI.Rectangle(b.x - collisionPad, b.y - collisionPad, w, h);
+				container._platformRect = { x: container.x + (b.x - collisionPad), y: container.y + (b.y - collisionPad), w, h };
+			}
+			redraw();
+
+			// Make it clickable
+			container.eventMode = 'static';
+			container.cursor = 'pointer';
+			container.on('pointertap', () => {
+				window.open(url, '_blank', 'noopener');
+			});
+
+			// Simple hover pulse
+			container.on('pointerover', () => {
+				container.scale.set(1.03);
+				text.style.fill = 0xeafffb;
+				redraw();
+			});
+			container.on('pointerout', () => {
+				container.scale.set(1.0);
+				text.style.fill = 0x22f3c8;
+				redraw();
+			});
+
+			container._updatePlatformRect = () => redraw();
+
+			return container;
+		}
+
+		const linkPlatforms = [
+			makeLinkPlatform('Resume', '/resume.pdf', { x: 70, y: app.renderer.height * 0.22, fontSize: 44 }),
+			makeLinkPlatform('GitHub', 'https://github.com/maywok', { x: 70, y: app.renderer.height * 0.36, fontSize: 44 }),
+			makeLinkPlatform('LinkedIn', 'https://www.linkedin.com/in/mason--walker/', { x: 70, y: app.renderer.height * 0.54, fontSize: 44 }),
+		];
+		for (const lp of linkPlatforms) world.addChild(lp);
+
 		world.addChild(player.view);
 
 		// Simple platform to test landing: centered slab
@@ -246,20 +316,34 @@ function boot() {
 					player.grounded = false;
 				}
 			}
-			// Simple AABB collision with platform top
+			// Simple AABB collision with platform tops (slab + link platforms)
 			const half = player.size / 2;
-			const pLeft = px, pRight = px + pw, pTop = py, pBottom = py + ph;
 			const plLeft = player.view.x - half;
 			const plRight = player.view.x + half;
 			const plTop = player.view.y - half;
 			const plBottom = player.view.y + half;
-			const overlapX = plRight > pLeft && plLeft < pRight;
-			const fallingOnto = player.vy >= 0 && plBottom >= pTop && plTop < pTop;
-			if (overlapX && fallingOnto) {
-				// Snap on top
-				player.view.y = pTop - half;
-				player.vy = 0;
-				player.grounded = true;
+
+			function resolveTopPlatform(pLeft, pTop, pWidth, pHeight) {
+				const pRight = pLeft + pWidth;
+				const overlapX = plRight > pLeft && plLeft < pRight;
+				const fallingOnto = player.vy >= 0 && plBottom >= pTop && plTop < pTop;
+				if (overlapX && fallingOnto) {
+					player.view.y = pTop - half;
+					player.vy = 0;
+					player.grounded = true;
+					return true;
+				}
+				return false;
+			}
+
+			// slab first
+			resolveTopPlatform(px, py, pw, ph);
+			// then link platforms
+			for (const lp of linkPlatforms) {
+				lp._updatePlatformRect?.();
+				const r = lp._platformRect;
+				if (!r) continue;
+				resolveTopPlatform(r.x, r.y, r.w, r.h);
 			}
 			if (circle) circle.rotation += 0.02;
 		});
@@ -289,6 +373,20 @@ function boot() {
 			platformEdge.lineTo(npx + npw - 6, npy + nph);
 			// Update collision references
 			pw = npw; ph = nph; px = npx; py = npy;
+
+			// Reposition link platforms relative to new size
+			if (linkPlatforms[0]) {
+				linkPlatforms[0].position.set(70, app.renderer.height * 0.22);
+				linkPlatforms[0]._updatePlatformRect?.();
+			}
+			if (linkPlatforms[1]) {
+				linkPlatforms[1].position.set(70, app.renderer.height * 0.36);
+				linkPlatforms[1]._updatePlatformRect?.();
+			}
+			if (linkPlatforms[2]) {
+				linkPlatforms[2].position.set(70, app.renderer.height * 0.54);
+				linkPlatforms[2]._updatePlatformRect?.();
+			}
 		});
 	} catch (err) {
 		console.error('Game boot failed:', err);
