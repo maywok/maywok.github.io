@@ -26,7 +26,9 @@ async function boot() {
 		}
 
 		const app = new PIXI.Application({
-			resizeTo: window,
+			// Resize to the fixed root container so we don't accidentally size to the
+			// document/window (which can include scrollbars / mobile URL bar quirks).
+			resizeTo: root,
 			background: 0x102a3f, // brighter teal base so canvas isn't pure black
 			antialias: true,
 		});
@@ -37,10 +39,14 @@ async function boot() {
 			PIXI.settings.ROUND_PIXELS = true;
 		}
 		root.appendChild(app.view);
+		// Ensure the canvas exactly fills the root in CSS pixels.
+		// (PIXI controls the internal resolution; CSS controls layout.)
+		app.view.style.width = '100%';
+		app.view.style.height = '100%';
+		app.view.style.display = 'block';
 
 		const ENABLE_CRT = true; // keep CRT shader glow on
 		const ENABLE_PIXELATE = true; // enable pixelation effect
-		const ENABLE_PARALLAX_BACKGROUND = false; // disable moving green-ish background layer
 		// Smaller value = higher internal resolution = less pixelated / more readable.
 		// Suggested range: 1.0 (very clear) .. 4.0 (chunky). Previous value was 7.
 		const PIXELATE_SIZE = 4;
@@ -97,15 +103,9 @@ async function boot() {
 			app.stage.addChild(rect);
 		}
 
-		// Parallax background (optional)
-		let updateBg = null;
-		let resizeBg = null;
-		if (ENABLE_PARALLAX_BACKGROUND) {
-			const { container: bg, update, resize } = createParallaxBackground(app);
-			scene.addChild(bg);
-			updateBg = update;
-			resizeBg = resize;
-		}
+		// Parallax background
+		const { container: bg, update: updateBg, resize: resizeBg } = createParallaxBackground(app);
+		scene.addChild(bg);
 
 		// World visuals
 		const world = new PIXI.Container();
@@ -282,7 +282,7 @@ async function boot() {
 			if (ENABLE_PIXELATE) updatePixel();
 			const seconds = dt / 60;
 			time += seconds;
-			if (updateBg) updateBg(time);
+			updateBg(time);
 			// Ensure the in-site cursor is 1:1 with stored mouse coordinates every frame
 			cursor.position.set(mouse.x, mouse.y);
 			for (const vine of vines) vine.update(time, mouse, seconds);
@@ -374,9 +374,18 @@ async function boot() {
 			if (circle) circle.rotation += 0.02;
 		});
 
-		window.addEventListener('resize', () => {
+		function onResize() {
+			// In some browsers, layout settles a tick later; force a resize based on the
+			// actual root box to avoid 1-frame letterboxing/cropping.
+			const rect = root.getBoundingClientRect();
+			if (rect.width > 0 && rect.height > 0) {
+				app.renderer.resize(Math.round(rect.width), Math.round(rect.height));
+			}
+			// Keep shader uniforms in sync with new renderer size
+			if (ENABLE_PIXELATE) updatePixel();
+
 			// Rebuild vines layout for new width/height
-			if (resizeBg) resizeBg();
+			resizeBg();
 			world.removeChild(vinesLayer);
 			const rebuilt = createVines(app, 12);
 			world.addChild(rebuilt.container);
@@ -413,7 +422,10 @@ async function boot() {
 				linkPlatforms[2].position.set(70, app.renderer.height * 0.54);
 				linkPlatforms[2]._updatePlatformRect?.();
 			}
-		});
+		}
+		window.addEventListener('resize', onResize);
+		// Run once after first paint so initial sizing is correct.
+		requestAnimationFrame(onResize);
 	} catch (err) {
 		console.error('Game boot failed:', err);
 		const root = document.getElementById('game-root');
