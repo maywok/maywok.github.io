@@ -47,6 +47,7 @@ async function boot() {
 
 		const ENABLE_CRT = true; // keep CRT shader glow on
 		const ENABLE_PIXELATE = true; // enable pixelation effect
+		const ENABLE_DEBUG_HUD = true; // temporary: helps diagnose sizing issues in production
 		// Smaller value = higher internal resolution = less pixelated / more readable.
 		// Suggested range: 1.0 (very clear) .. 4.0 (chunky). Previous value was 7.
 		const PIXELATE_SIZE = 4;
@@ -82,6 +83,20 @@ async function boot() {
 			label.y = 24;
 			app.stage.addChild(label);
 		}
+
+		// Debug HUD to confirm sizing on the *deployed* site.
+		// Shows: root box, canvas rect, renderer res, DPR.
+		const debugHud = new PIXI.Text('', {
+			fontFamily: 'Arial',
+			fontSize: 12,
+			fill: 0xffffff,
+			stroke: 0x000000,
+			strokeThickness: 3,
+		});
+		debugHud.alpha = 0.9;
+		debugHud.x = 10;
+		debugHud.y = 10;
+		if (ENABLE_DEBUG_HUD) app.stage.addChild(debugHud);
 
 		let circle = null;
 		if (DEBUG_SHAPES) {
@@ -276,6 +291,16 @@ async function boot() {
 		}
 
 		app.ticker.add((dt) => {
+			if (ENABLE_DEBUG_HUD) {
+				const r = root.getBoundingClientRect();
+				const c = app.view.getBoundingClientRect();
+				const dpr = window.devicePixelRatio || 1;
+				debugHud.text =
+					`root: ${Math.round(r.width)}x${Math.round(r.height)}\n` +
+					`canvas: ${Math.round(c.width)}x${Math.round(c.height)}\n` +
+					`renderer: ${app.renderer.width}x${app.renderer.height}\n` +
+					`dpr: ${dpr.toFixed(2)}`;
+			}
 			if (ENABLE_CRT) {
 				updateCRTFilter({ uniforms: crtUniforms }, app, dt / 60);
 			}
