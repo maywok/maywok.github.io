@@ -280,10 +280,14 @@ async function boot() {
 
 		let time = 0;
 		// Player-vine grab state
-		let vineGrab = null; // { vine, pointIndex }
+		let vineGrab = null; // { vine, pointIndex, ropeLen, angle, angVel }
 		let grabRequested = false;
 		let releaseRequested = false;
 		const GRAB_KEY = 'KeyE';
+		// Swing tuning
+		const SWING_ACCEL = 9.5; // angular accel (rad/s^2) from input
+		const SWING_DAMP = 0.995; // angular damping per frame
+		const SWING_GRAVITY = 18.0; // pendulum gravity constant (rad/s^2)
 		window.addEventListener('keydown', (e) => {
 			if (e.code === GRAB_KEY) grabRequested = true;
 			if (e.code === 'Space') releaseRequested = true;
@@ -339,10 +343,28 @@ async function boot() {
 				if (!vineGrab) {
 					const near = findNearestVinePoint(player.view.x, player.view.y, 48);
 					if (near) {
-						vineGrab = near;
+						// Initialize swing state using current player offset from vine point
+						const pts = near.vine.getPointsView?.();
+						if (pts) {
+							const gx = pts.x[near.pointIndex];
+							const gy = pts.y[near.pointIndex];
+							const ox = player.view.x - gx;
+							const oy = (player.view.y - (gy + player.size * 0.55));
+							const ropeLen = Math.max(18, Math.hypot(ox, oy));
+							vineGrab = {
+								vine: near.vine,
+								pointIndex: near.pointIndex,
+								ropeLen,
+								angle: Math.atan2(ox, oy), // 0 means hanging straight down
+								angVel: 0,
+							};
+						} else {
+							vineGrab = near;
+						}
 						player.grounded = false;
 						// cancel vertical velocity so it doesn't fight the constraint too hard
 						player.vy *= 0.25;
+						player.vx *= 0.25;
 					}
 				} else {
 					releaseRequested = true;
@@ -351,17 +373,33 @@ async function boot() {
 			if (releaseRequested) {
 				releaseRequested = false;
 				if (vineGrab) {
-					// Impart a bit of momentum from the vine point's velocity (approx)
+					// Impart momentum on release.
 					const v = vineGrab.vine;
 					const i = vineGrab.pointIndex;
 					const pts = v.getPointsView?.();
 					if (pts) {
-						// approximate point velocity via finite difference on draw positions
-						// (vines maintain their own internal velocities; this rough estimate is ok)
-						const dx = (pts.x[i] - player.view.x);
-						const dy = (pts.y[i] - player.view.y);
-						player.vx = dx * 6;
-						player.vy = dy * 6;
+						// If we have angular velocity stored, convert to tangential velocity.
+						if (typeof vineGrab.ropeLen === 'number' && typeof vineGrab.angVel === 'number' && typeof vineGrab.angle === 'number') {
+							const gx = pts.x[i];
+							const gy = pts.y[i];
+							const L = vineGrab.ropeLen;
+							const a = vineGrab.angle;
+							const w = vineGrab.angVel;
+							// Tangent direction for param x=L*sin(a), y=L*cos(a): dx/da=L*cos, dy/da=-L*sin
+							const tx = Math.cos(a);
+							const ty = -Math.sin(a);
+							player.vx = tx * (w * L);
+							player.vy = ty * (w * L);
+							// Nudge player outward so they don't immediately re-collide with the point
+							player.view.x = gx + Math.sin(a) * L;
+							player.view.y = gy + Math.cos(a) * L + player.size * 0.55;
+						} else {
+							// Fallback: rough estimate from current offset
+							const dx = (pts.x[i] - player.view.x);
+							const dy = (pts.y[i] - player.view.y);
+							player.vx = dx * 6;
+							player.vy = dy * 6;
+						}
 					}
 					vineGrab = null;
 				}
@@ -370,7 +408,7 @@ async function boot() {
 			if (!vineGrab) {
 				player.update(seconds);
 			} else {
-				// While grabbed: constrain player to the grabbed vine point
+				// While grabbed: pendulum swing around the grabbed vine point.
 				const v = vineGrab.vine;
 				const pts = v.getPointsView?.();
 				if (!pts) {
@@ -382,10 +420,36 @@ async function boot() {
 					vineGrab.pointIndex = Math.max(1, Math.min(pts.count - 1, i));
 					const gx = pts.x[vineGrab.pointIndex];
 					const gy = pts.y[vineGrab.pointIndex];
-					// Place player slightly below the point so the cube hangs under the vine
-					player.view.x = gx;
-					player.view.y = gy + player.size * 0.55;
+
+					// Input (A/D or arrows) pumps swing.
+					let input = 0;
+					if (player.keys?.has('KeyA') || player.keys?.has('ArrowLeft')) input -= 1;
+					if (player.keys?.has('KeyD') || player.keys?.has('ArrowRight')) input += 1;
+
+					// Ensure swing state exists.
+					if (typeof vineGrab.ropeLen !== 'number') vineGrab.ropeLen = Math.max(28, player.size * 2.0);
+					if (typeof vineGrab.angle !== 'number') vineGrab.angle = 0;
+					if (typeof vineGrab.angVel !== 'number') vineGrab.angVel = 0;
+					const L = vineGrab.ropeLen;
+
+					// Simple pendulum dynamics: a'' = -g/L * sin(a) + input
+					// Using constants tuned for "game feel" rather than real-world units.
+					const a = vineGrab.angle;
+					let w = vineGrab.angVel;
+					const accel = (-SWING_GRAVITY * Math.sin(a)) + (input * SWING_ACCEL);
+					w += accel * seconds;
+					w *= Math.pow(SWING_DAMP, dt);
+					vineGrab.angle = a + w * seconds;
+					vineGrab.angVel = w;
+
+					// Place player at the end of the rope.
+					player.view.x = gx + Math.sin(vineGrab.angle) * L;
+					player.view.y = gy + Math.cos(vineGrab.angle) * L + player.size * 0.55;
 					player.grounded = false;
+					// While swinging, keep the player's freefall velocities synced to swing
+					// so when you release it feels smooth.
+					player.vx = Math.cos(vineGrab.angle) * (vineGrab.angVel * L);
+					player.vy = -Math.sin(vineGrab.angle) * (vineGrab.angVel * L);
 				}
 			}
 			// Simple AABB collision with platform tops (slab + link platforms)
