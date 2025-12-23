@@ -21,11 +21,16 @@ export class Player {
 		this.view.position.set(x, y);
 
 		// Movement state
-		this.speed = 180; // pixels per second (horizontal)
+		// Horizontal movement tuning
+		this.maxSpeed = 260; // px/s
+		this.groundAccel = 1800; // px/s^2
+		this.airAccel = 900; // px/s^2
+		this.groundFriction = 2200; // px/s^2
+		this.airFriction = 180; // px/s^2
 		this.vx = 0;
 		this.vy = 0;
 		this.gravity = 820; // pixels per second^2
-		this.jumpSpeed = 420; // initial jump velocity
+		this.jumpSpeed = 430; // initial jump velocity
 		this.grounded = true;
 		// Advanced jump feel
 		this.coyoteTimeMax = 0.08; // seconds allowed to jump after leaving ground
@@ -35,7 +40,6 @@ export class Player {
 		this.jumpHeld = false;
 		this.jumpHoldGravityScale = 0.45; // lower gravity while holding for variable height
 		this.keys = new Set();
-		this.baseY = y;
 		this.time = 0;
 
 		// Keyboard input handlers (WASD + arrow keys)
@@ -86,8 +90,19 @@ export class Player {
 			ax *= inv; ay *= inv;
 		}
 
-		// Apply horizontal movement
-		this.view.x += ax * this.speed * dt;
+		// Horizontal acceleration + friction (feels less "floaty" than direct position changes)
+		const targetAccel = this.grounded ? this.groundAccel : this.airAccel;
+		const targetFriction = this.grounded ? this.groundFriction : this.airFriction;
+		if (ax !== 0) {
+			this.vx += ax * targetAccel * dt;
+		} else {
+			// approach 0 with friction
+			if (this.vx > 0) this.vx = Math.max(0, this.vx - targetFriction * dt);
+			else if (this.vx < 0) this.vx = Math.min(0, this.vx + targetFriction * dt);
+		}
+		// clamp horizontal speed
+		this.vx = Math.max(-this.maxSpeed, Math.min(this.maxSpeed, this.vx));
+		this.view.x += this.vx * dt;
 
 		// Gravity and jump physics (variable height when jump is held)
 		const gravityScale = (!this.grounded && this.jumpHeld && this.vy < 0) ? this.jumpHoldGravityScale : 1.0;
@@ -125,19 +140,15 @@ export class Player {
 		this.coyoteTime = this.grounded ? this.coyoteTimeMax : Math.max(0, this.coyoteTime - dt);
 		this.jumpBuffer = Math.max(0, this.jumpBuffer - dt);
 
-		// Subtle bob when idle
-		if (ax === 0 && ay === 0 && this.grounded) {
-			this.view.y = this.baseY + Math.sin(this.time * 2.5) * 2;
-		} else {
-			this.baseY = this.view.y;
-		}
+		// No idle bob: it can fight collision/resizing and make the player look "off".
 	}
 
 	onResize() {
 		// Keep player roughly centered horizontally and near bottom
 		this.view.x = Math.max(16, Math.min(this.app.renderer.width - 16, this.app.renderer.width / 2));
-		this.baseY = Math.max(80, this.app.renderer.height - 120);
-		this.view.y = Math.max(16, Math.min(this.app.renderer.height - 16, this.baseY));
+		const baseY = Math.max(80, this.app.renderer.height - 120);
+		this.view.y = Math.max(16, Math.min(this.app.renderer.height - 16, baseY));
+		this.vx = 0;
 		this.vy = 0;
 		this.grounded = true;
 	}
