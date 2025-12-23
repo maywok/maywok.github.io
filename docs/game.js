@@ -47,7 +47,7 @@ async function boot() {
 
 		const ENABLE_CRT = true; // keep CRT shader glow on
 		const ENABLE_PIXELATE = true; // enable pixelation effect
-		const ENABLE_DEBUG_HUD = true; // temporary: helps diagnose sizing issues in production
+		const ENABLE_DEBUG_HUD = false; // keep code, but off by default
 		// Smaller value = higher internal resolution = less pixelated / more readable.
 		// Suggested range: 1.0 (very clear) .. 4.0 (chunky). Previous value was 7.
 		const PIXELATE_SIZE = 4;
@@ -193,11 +193,32 @@ async function boot() {
 
 		// Left-side link stack: bigger and more centered vertically.
 		const linkPlatforms = [
-			makeLinkPlatform('Resume', '/resume.pdf', { x: 64, y: app.renderer.height * 0.34, fontSize: 58 }),
-			makeLinkPlatform('GitHub', 'https://github.com/maywok', { x: 64, y: app.renderer.height * 0.48, fontSize: 58 }),
-			makeLinkPlatform('LinkedIn', 'https://www.linkedin.com/in/mason--walker/', { x: 64, y: app.renderer.height * 0.62, fontSize: 58 }),
+			makeLinkPlatform('Resume', '/resume.pdf', { x: 64, y: 0, fontSize: 58 }),
+			makeLinkPlatform('GitHub', 'https://github.com/maywok', { x: 64, y: 0, fontSize: 58 }),
+			makeLinkPlatform('LinkedIn', 'https://www.linkedin.com/in/mason--walker/', { x: 64, y: 0, fontSize: 58 }),
 		];
 		for (const lp of linkPlatforms) world.addChild(lp);
+
+		function layoutLinkPlatforms() {
+			const leftX = 64;
+			// Try to keep it "middle-left" on all screens.
+			const centerY = app.renderer.height * 0.5;
+			const spacing = Math.max(74, Math.min(120, app.renderer.height * 0.14));
+			const startY = centerY - spacing;
+			if (linkPlatforms[0]) {
+				linkPlatforms[0].position.set(leftX, startY);
+				linkPlatforms[0]._updatePlatformRect?.();
+			}
+			if (linkPlatforms[1]) {
+				linkPlatforms[1].position.set(leftX, startY + spacing);
+				linkPlatforms[1]._updatePlatformRect?.();
+			}
+			if (linkPlatforms[2]) {
+				linkPlatforms[2].position.set(leftX, startY + spacing * 2);
+				linkPlatforms[2]._updatePlatformRect?.();
+			}
+		}
+		layoutLinkPlatforms();
 
 		world.addChild(player.view);
 
@@ -435,18 +456,7 @@ async function boot() {
 			pw = npw; ph = nph; px = npx; py = npy;
 
 			// Reposition link platforms relative to new size
-			if (linkPlatforms[0]) {
-				linkPlatforms[0].position.set(70, app.renderer.height * 0.22);
-				linkPlatforms[0]._updatePlatformRect?.();
-			}
-			if (linkPlatforms[1]) {
-				linkPlatforms[1].position.set(70, app.renderer.height * 0.36);
-				linkPlatforms[1]._updatePlatformRect?.();
-			}
-			if (linkPlatforms[2]) {
-				linkPlatforms[2].position.set(70, app.renderer.height * 0.54);
-				linkPlatforms[2]._updatePlatformRect?.();
-			}
+			layoutLinkPlatforms();
 		}
 		window.addEventListener('resize', onResize);
 		// Run once after first paint so initial sizing is correct.
