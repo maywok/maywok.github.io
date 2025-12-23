@@ -47,6 +47,12 @@ export class Vine {
 		this._mouseLatched = false;
 		this.grabRadius = 18;
 		this._grabbedIndex = -1;
+		// Render color
+		this.hue = 0xff5a6e; // salmon red
+	}
+
+	setColor(hue) {
+		if (typeof hue === 'number') this.hue = hue;
 	}
 
 	// Gameplay helpers
@@ -88,7 +94,7 @@ export class Vine {
 		// Testing mode: disable wind/idle sway so interaction is easier to evaluate.
 		const amp = this.windAmp;
 		const freq = this.windFreq;
-		const hue = 0xff5a6e; // vibrant salmon red core
+		const hue = this.hue;
 		this.line.clear();
 		this.glow.clear();
 		// Thick, semi-transparent glow behind the core

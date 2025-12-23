@@ -4,20 +4,17 @@ export class Player {
 		this.app = app;
 		this.size = size;
 		this.view = new PIXI.Container();
+		this._glow = new PIXI.Graphics();
+		this._box = new PIXI.Graphics();
+		this._colors = {
+			fill: 0xf5e6c8,
+			glow: 0xf5e6c8,
+			glowAlpha: 0.22,
+		};
 
-		const glow = new PIXI.Graphics();
-		// Simulate glow without filters by drawing a larger, semi-transparent rect
-		glow.beginFill(0xf5e6c8, 0.22);
-		glow.drawRoundedRect(-size / 2 - 3, -size / 2 - 3, size + 6, size + 6, 8);
-		glow.endFill();
-
-		const box = new PIXI.Graphics();
-		box.beginFill(0xf5e6c8);
-		box.drawRoundedRect(-size / 2, -size / 2, size, size, 6);
-		box.endFill();
-
-		this.view.addChild(glow);
-		this.view.addChild(box);
+		this.view.addChild(this._glow);
+		this.view.addChild(this._box);
+		this._redraw();
 		this.view.position.set(x, y);
 
 		// Movement state
@@ -72,6 +69,26 @@ export class Player {
 		};
 		window.addEventListener('keydown', this._onKeyDown);
 		window.addEventListener('keyup', this._onKeyUp);
+	}
+
+	_redraw() {
+		const size = this.size;
+		this._glow.clear();
+		this._box.clear();
+		// Simulate glow without filters by drawing a larger, semi-transparent rect
+		this._glow.beginFill(this._colors.glow, this._colors.glowAlpha);
+		this._glow.drawRoundedRect(-size / 2 - 3, -size / 2 - 3, size + 6, size + 6, 8);
+		this._glow.endFill();
+		this._box.beginFill(this._colors.fill);
+		this._box.drawRoundedRect(-size / 2, -size / 2, size, size, 6);
+		this._box.endFill();
+	}
+
+	setColors({ fill, glow, glowAlpha } = {}) {
+		if (typeof fill === 'number') this._colors.fill = fill;
+		if (typeof glow === 'number') this._colors.glow = glow;
+		if (typeof glowAlpha === 'number') this._colors.glowAlpha = glowAlpha;
+		this._redraw();
 	}
 
 	update(dt) {

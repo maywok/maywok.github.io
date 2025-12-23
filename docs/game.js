@@ -6,6 +6,40 @@ import { createParallaxBackground } from './background.js';
 import { Player } from './player.js';
 import { createVines } from './vines.js';
 
+const THEMES = {
+	// Light mode: beige world + black player
+	light: {
+		name: 'Light',
+		appBackground: 0xf5e6c8,
+		bg: { bg: 0xf5e6c8, dot: 0xcebfa3, stripe: 0xb9aa8d, farAlpha: 0.10, midAlpha: 0.12, nearAlpha: 0.14 },
+		player: { fill: 0x000000, glow: 0x000000, glowAlpha: 0.0 },
+		vines: { hue: 0xff5a6e },
+		crt: { intensity: 0.0, brightness: 1.0, glowColor: 0x000000, scanStrength: 0.25 },
+	},
+	// Dark mode: current look (teal + green CRT glow) + beige player
+	dark: {
+		name: 'Dark',
+		appBackground: 0x102a3f,
+		bg: { bg: 0x102a3f, dot: 0x0e2233, stripe: 0x143247, farAlpha: 0.10, midAlpha: 0.14, nearAlpha: 0.18 },
+		player: { fill: 0xf5e6c8, glow: 0xf5e6c8, glowAlpha: 0.22 },
+		vines: { hue: 0xff5a6e },
+		crt: { intensity: 1.0, brightness: 1.2, glowColor: 0x00ff99, scanStrength: 1.0 },
+	},
+};
+
+function loadThemeKey() {
+	try {
+		const t = localStorage.getItem('mw_theme');
+		return (t === 'light' || t === 'dark') ? t : 'dark';
+	} catch (_) {
+		return 'dark';
+	}
+}
+
+function saveThemeKey(key) {
+	try { localStorage.setItem('mw_theme', key); } catch (_) {}
+}
+
 async function boot() {
 	try {
 		const root = document.getElementById('game-root');
@@ -29,7 +63,7 @@ async function boot() {
 			// Resize to the fixed root container so we don't accidentally size to the
 			// document/window (which can include scrollbars / mobile URL bar quirks).
 			resizeTo: root,
-			background: 0x102a3f, // brighter teal base so canvas isn't pure black
+			background: THEMES[loadThemeKey()].appBackground,
 			antialias: true,
 		});
 		// Favor a crisp/pixel look for text and sprites
@@ -55,8 +89,11 @@ async function boot() {
 		// Scene container holds background + world so filters apply to both
 		const scene = new PIXI.Container();
 		app.stage.addChild(scene);
+		let themeKey = loadThemeKey();
+		let theme = THEMES[themeKey];
+
 		// Optional CRT filter (background glow overlay)
-		const { filter: crtFilter, uniforms: crtUniforms } = createCRTFilter(app, { intensity: 1.0, brightness: 1.2 });
+		const { filter: crtFilter, uniforms: crtUniforms } = createCRTFilter(app, theme.crt);
 		// Pixelate filter
 		// Bigger pixelSize => chunkier, more defined pixels.
 		const { filter: pixelFilter, update: updatePixel } = createPixelateFilter(app, { pixelSize: PIXELATE_SIZE });
@@ -119,14 +156,16 @@ async function boot() {
 		}
 
 		// Parallax background
-		const { container: bg, update: updateBg, resize: resizeBg } = createParallaxBackground(app);
+		let { container: bg, update: updateBg, resize: resizeBg, destroy: destroyBg } = createParallaxBackground(app, theme.bg);
 		scene.addChild(bg);
 
 		// World visuals
 		const world = new PIXI.Container();
 		scene.addChild(world);
 		const player = new Player(app);
+		player.setColors(theme.player);
 		const { container: vinesLayer, vines } = createVines(app, 12);
+		for (const v of vines) v.setColor(theme.vines.hue);
 		world.addChild(vinesLayer);
 
 		// In-world clickable link platforms (left-side stack)
@@ -221,6 +260,59 @@ async function boot() {
 		layoutLinkPlatforms();
 
 		world.addChild(player.view);
+
+		// Theme toggle UI (top-right)
+		const toggleBtn = document.createElement('button');
+		toggleBtn.type = 'button';
+		toggleBtn.textContent = themeKey === 'dark' ? 'Dark' : 'Light';
+		toggleBtn.title = 'Toggle theme (T)';
+		Object.assign(toggleBtn.style, {
+			position: 'fixed',
+			top: '16px',
+			right: '16px',
+			zIndex: 9999,
+			pointerEvents: 'auto',
+			padding: '8px 10px',
+			borderRadius: '10px',
+			border: '1px solid rgba(255,255,255,0.18)',
+			background: 'rgba(0,0,0,0.35)',
+			color: 'rgba(255,255,255,0.92)',
+			fontFamily: 'Minecraft, ui-monospace, Menlo, monospace',
+			fontSize: '12px',
+			cursor: 'pointer',
+		});
+		document.body.appendChild(toggleBtn);
+
+		function applyTheme(nextKey) {
+			themeKey = nextKey;
+			theme = THEMES[themeKey];
+			app.renderer.background.color = theme.appBackground;
+			player.setColors(theme.player);
+			for (const v of vines) v.setColor(theme.vines.hue);
+			// Update CRT uniforms in-place
+			crtUniforms.u_intensity = theme.crt.intensity;
+			crtUniforms.u_brightness = theme.crt.brightness;
+			crtUniforms.u_scanStrength = theme.crt.scanStrength;
+			const gc = theme.crt.glowColor;
+			crtUniforms.u_glowColor[0] = ((gc >> 16) & 255) / 255;
+			crtUniforms.u_glowColor[1] = ((gc >> 8) & 255) / 255;
+			crtUniforms.u_glowColor[2] = (gc & 255) / 255;
+			// Rebuild background textures for the new palette
+			scene.removeChild(bg);
+			destroyBg?.();
+			({ container: bg, update: updateBg, resize: resizeBg, destroy: destroyBg } = createParallaxBackground(app, theme.bg));
+			scene.addChildAt(bg, 0);
+			toggleBtn.textContent = themeKey === 'dark' ? 'Dark' : 'Light';
+			saveThemeKey(themeKey);
+		}
+
+		function toggleTheme() {
+			applyTheme(themeKey === 'dark' ? 'light' : 'dark');
+		}
+		toggleBtn.addEventListener('click', toggleTheme);
+		window.addEventListener('keydown', (e) => {
+			if (e.code === 'KeyT') toggleTheme();
+		});
 
 		// Simple platform to test landing: centered slab
 		const platform = new PIXI.Graphics();

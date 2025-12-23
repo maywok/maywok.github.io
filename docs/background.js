@@ -1,11 +1,21 @@
 // Parallax background with tiled procedural textures (dots + diagonal stripes)
 // Returns { container, update, resize }
-export function createParallaxBackground(app) {
+export function createParallaxBackground(app, theme) {
   const container = new PIXI.Container();
+
+  const t = theme || {
+    // Dark mode defaults (current look)
+    bg: 0x102a3f,
+    dot: 0x0e2233,
+    stripe: 0x143247,
+    farAlpha: 0.10,
+    midAlpha: 0.14,
+    nearAlpha: 0.18,
+  };
 
   function makeDotsTexture() {
     const g = new PIXI.Graphics();
-    g.beginFill(0x0e2233, 0.25);
+  g.beginFill(t.dot, 0.25);
     const size = 128;
     for (let y = 4; y < size; y += 8) {
       for (let x = 4; x < size; x += 8) {
@@ -19,7 +29,7 @@ export function createParallaxBackground(app) {
   function makeStripesTexture() {
     const g = new PIXI.Graphics();
     const size = 128;
-    g.lineStyle(2, 0x143247, 0.35);
+  g.lineStyle(2, t.stripe, 0.35);
     for (let i = -size; i < size * 2; i += 12) {
       g.moveTo(i, -8);
       g.lineTo(i + size, size + 8);
@@ -34,13 +44,13 @@ export function createParallaxBackground(app) {
   const height = app.renderer.height;
 
   const far = new PIXI.TilingSprite(texDots, width, height);
-  far.alpha = 0.10;
+  far.alpha = t.farAlpha;
 
   const mid = new PIXI.TilingSprite(texStripes, width, height);
-  mid.alpha = 0.14;
+  mid.alpha = t.midAlpha;
 
   const near = new PIXI.TilingSprite(texDots, width, height);
-  near.alpha = 0.18;
+  near.alpha = t.nearAlpha;
 
   container.addChild(far);
   container.addChild(mid);
@@ -61,5 +71,11 @@ export function createParallaxBackground(app) {
     far.height = mid.height = near.height = app.renderer.height;
   }
 
-  return { container, update, resize };
+  function destroy() {
+    texDots?.destroy?.(true);
+    texStripes?.destroy?.(true);
+    container.destroy({ children: true });
+  }
+
+  return { container, update, resize, destroy };
 }
