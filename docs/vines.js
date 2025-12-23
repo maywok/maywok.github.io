@@ -88,11 +88,11 @@ export class Vine {
 		// Testing mode: disable wind/idle sway so interaction is easier to evaluate.
 		const amp = this.windAmp;
 		const freq = this.windFreq;
-		const hue = 0x00e6ff; // neon blue core
+		const hue = 0xff5a6e; // vibrant salmon red core
 		this.line.clear();
 		this.glow.clear();
 		// Thick, semi-transparent glow behind the core
-		this.glow.lineStyle(16, hue, 0.35);
+		this.glow.lineStyle(16, hue, 0.32);
 		// Bright core line
 		this.line.lineStyle(4, hue, 1.0);
 

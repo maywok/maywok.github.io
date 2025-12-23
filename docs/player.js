@@ -7,12 +7,12 @@ export class Player {
 
 		const glow = new PIXI.Graphics();
 		// Simulate glow without filters by drawing a larger, semi-transparent rect
-		glow.beginFill(0x00ffc8, 0.22);
+		glow.beginFill(0xf5e6c8, 0.22);
 		glow.drawRoundedRect(-size / 2 - 3, -size / 2 - 3, size + 6, size + 6, 8);
 		glow.endFill();
 
 		const box = new PIXI.Graphics();
-		box.beginFill(0x00ffc8);
+		box.beginFill(0xf5e6c8);
 		box.drawRoundedRect(-size / 2, -size / 2, size, size, 6);
 		box.endFill();
 
