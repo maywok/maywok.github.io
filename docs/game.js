@@ -40,6 +40,7 @@ async function boot() {
 
 		const ENABLE_CRT = true; // keep CRT shader glow on
 		const ENABLE_PIXELATE = true; // enable pixelation effect
+		const ENABLE_PARALLAX_BACKGROUND = false; // disable moving green-ish background layer
 		// Smaller value = higher internal resolution = less pixelated / more readable.
 		// Suggested range: 1.0 (very clear) .. 4.0 (chunky). Previous value was 7.
 		const PIXELATE_SIZE = 4;
@@ -96,9 +97,15 @@ async function boot() {
 			app.stage.addChild(rect);
 		}
 
-		// Parallax background
-		const { container: bg, update: updateBg, resize: resizeBg } = createParallaxBackground(app);
-		scene.addChild(bg);
+		// Parallax background (optional)
+		let updateBg = null;
+		let resizeBg = null;
+		if (ENABLE_PARALLAX_BACKGROUND) {
+			const { container: bg, update, resize } = createParallaxBackground(app);
+			scene.addChild(bg);
+			updateBg = update;
+			resizeBg = resize;
+		}
 
 		// World visuals
 		const world = new PIXI.Container();
@@ -275,7 +282,7 @@ async function boot() {
 			if (ENABLE_PIXELATE) updatePixel();
 			const seconds = dt / 60;
 			time += seconds;
-			updateBg(time);
+			if (updateBg) updateBg(time);
 			// Ensure the in-site cursor is 1:1 with stored mouse coordinates every frame
 			cursor.position.set(mouse.x, mouse.y);
 			for (const vine of vines) vine.update(time, mouse, seconds);
@@ -369,7 +376,7 @@ async function boot() {
 
 		window.addEventListener('resize', () => {
 			// Rebuild vines layout for new width/height
-			resizeBg();
+			if (resizeBg) resizeBg();
 			world.removeChild(vinesLayer);
 			const rebuilt = createVines(app, 12);
 			world.addChild(rebuilt.container);
