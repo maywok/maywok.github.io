@@ -42,7 +42,7 @@ export async function createBlogIcon(app, world, options = {}) {
 	hoverSprite.anchor.set(0.5);
 	frozenSprite.animationSpeed = animationSpeed;
 	hoverSprite.animationSpeed = animationSpeed;
-	frozenSprite.gotoAndStop(0);
+	frozenSprite.play();
 	hoverSprite.visible = false;
 	hoverSprite.stop();
 
@@ -61,7 +61,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		hoverSprite.stop();
 		hoverSprite.visible = false;
 		frozenSprite.visible = true;
-		frozenSprite.gotoAndStop(0);
+		frozenSprite.play();
 	});
 	container.on('pointertap', () => {
 		window.open(url, '_blank', 'noopener');
