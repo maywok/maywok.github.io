@@ -7,7 +7,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		hoverImageUrl = './assets/spritesheet/hoverMug.png',
 		margin = 24,
 		animationSpeed = 0.12,
-		scale = 3,
+		scale = 20,
 	} = options;
 
 	function extractFrameIndex(name) {
