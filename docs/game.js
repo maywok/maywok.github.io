@@ -200,7 +200,7 @@ async function boot() {
 		}
 
 		const linkPlatforms = [
-			makeLinkPlatform('Resume', '/resume.pdf', { x: 64, y: 0, fontSize: 58 }),
+			makeLinkPlatform('Resume', './assets/files/mason-walker-resume.pdf', { x: 64, y: 0, fontSize: 58 }),
 			makeLinkPlatform('GitHub', 'https://github.com/maywok', { x: 64, y: 0, fontSize: 58 }),
 			makeLinkPlatform('LinkedIn', 'https://www.linkedin.com/in/mason--walker/', { x: 64, y: 0, fontSize: 58 }),
 		];
