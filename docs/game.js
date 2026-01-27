@@ -1,5 +1,6 @@
 import { Player } from './player.js';
 import { createVines } from './vines.js';
+import { createBlogIcon } from './blogIcon.js';
 
 const THEMES = {
 	light: {
@@ -123,6 +124,10 @@ async function boot() {
 		const { container: vinesLayer, vines } = createVines(app, 12);
 		for (const v of vines) v.setColor(theme.vines.hue);
 		world.addChild(vinesLayer);
+
+		const { layout: layoutBlogIcon } = await createBlogIcon(app, world, {
+			url: '/blog',
+		});
 
 		function makeLinkPlatform(labelText, url, options = {}) {
 			const { x = 80, y = 200, fontSize = 40, collisionPad = 6 } = options;
@@ -528,6 +533,7 @@ async function boot() {
 
 			// Reposition link platforms relative to new size
 			layoutLinkPlatforms();
+			layoutBlogIcon();
 		}
 		window.addEventListener('resize', onResize);
 		// Run once after first paint so initial sizing is correct.
