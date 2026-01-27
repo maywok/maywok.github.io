@@ -7,6 +7,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		hoverImageUrl = './assets/spritesheet/hoverMug.png',
 		margin = 24,
 		animationSpeed = 0.12,
+		scale = 3,
 	} = options;
 
 	function extractFrameIndex(name) {
@@ -48,6 +49,7 @@ export async function createBlogIcon(app, world, options = {}) {
 	const container = new PIXI.Container();
 	container.addChild(frozenSprite);
 	container.addChild(hoverSprite);
+	container.scale.set(scale);
 	container.eventMode = 'static';
 	container.cursor = 'pointer';
 	container.on('pointerover', () => {
