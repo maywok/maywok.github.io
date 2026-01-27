@@ -1,6 +1,5 @@
 import { createCRTFilter, updateCRTFilter } from './shaders.js';
 import { createPixelateFilter } from './pixelate.js';
-import { createParallaxBackground } from './background.js';
 import { Player } from './player.js';
 import { createVines } from './vines.js';
 
@@ -132,9 +131,6 @@ async function boot() {
 			app.stage.addChild(rect);
 		}
 
-		let { container: bg, update: updateBg, resize: resizeBg, destroy: destroyBg } = createParallaxBackground(app, theme.bg);
-		scene.addChild(bg);
-
 		const world = new PIXI.Container();
 		scene.addChild(world);
 		const player = new Player(app);
@@ -262,10 +258,6 @@ async function boot() {
 			crtUniforms.u_glowColor[0] = ((gc >> 16) & 255) / 255;
 			crtUniforms.u_glowColor[1] = ((gc >> 8) & 255) / 255;
 			crtUniforms.u_glowColor[2] = (gc & 255) / 255;
-			scene.removeChild(bg);
-			destroyBg?.();
-			({ container: bg, update: updateBg, resize: resizeBg, destroy: destroyBg } = createParallaxBackground(app, theme.bg));
-			scene.addChildAt(bg, 0);
 			toggleBtn.textContent = themeKey === 'dark' ? 'Dark' : 'Light';
 			saveThemeKey(themeKey);
 		}
@@ -377,7 +369,6 @@ async function boot() {
 			if (ENABLE_PIXELATE) updatePixel();
 			const seconds = dt / 60;
 			time += seconds;
-			updateBg(time);
 			cursor.position.set(mouse.x, mouse.y);
 			for (const vine of vines) vine.update(time, mouse, seconds);
 
@@ -531,7 +522,6 @@ async function boot() {
 			if (ENABLE_PIXELATE) updatePixel();
 
 			// Rebuild vines layout for new width/height
-			resizeBg();
 			world.removeChild(vinesLayer);
 			const rebuilt = createVines(app, 12);
 			world.addChild(rebuilt.container);
