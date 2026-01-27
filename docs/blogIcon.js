@@ -55,7 +55,7 @@ export async function createBlogIcon(app, world, options = {}) {
 	container.on('pointerover', () => {
 		frozenSprite.visible = false;
 		hoverSprite.visible = true;
-		hoverSprite.play();
+		hoverSprite.gotoAndPlay(0);
 	});
 	container.on('pointerout', () => {
 		hoverSprite.stop();
