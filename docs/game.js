@@ -210,25 +210,28 @@ async function boot() {
 		world.addChild(player.view);
 
 		const toggleBtn = document.createElement('button');
-		toggleBtn.type = 'button';
-		toggleBtn.textContent = themeKey === 'dark' ? 'Dark' : 'Light';
-		toggleBtn.title = 'Toggle theme (T)';
-		Object.assign(toggleBtn.style, {
-			position: 'fixed',
-			top: '16px',
-			right: '16px',
-			zIndex: 9999,
-			pointerEvents: 'auto',
-			padding: '8px 10px',
-			borderRadius: '10px',
-			border: '1px solid rgba(255,255,255,0.18)',
-			background: 'rgba(0,0,0,0.35)',
-			color: 'rgba(255,255,255,0.92)',
-			fontFamily: 'Minecraft, ui-monospace, Menlo, monospace',
-			fontSize: '12px',
-			cursor: 'pointer',
-		});
-		document.body.appendChild(toggleBtn);
+		const ENABLE_THEME_TOGGLE = false;
+		if (ENABLE_THEME_TOGGLE) {
+			toggleBtn.type = 'button';
+			toggleBtn.textContent = themeKey === 'dark' ? 'Dark' : 'Light';
+			toggleBtn.title = 'Toggle theme (T)';
+			Object.assign(toggleBtn.style, {
+				position: 'fixed',
+				top: '16px',
+				right: '16px',
+				zIndex: 9999,
+				pointerEvents: 'auto',
+				padding: '8px 10px',
+				borderRadius: '10px',
+				border: '1px solid rgba(255,255,255,0.18)',
+				background: 'rgba(0,0,0,0.35)',
+				color: 'rgba(255,255,255,0.92)',
+				fontFamily: 'Minecraft, ui-monospace, Menlo, monospace',
+				fontSize: '12px',
+				cursor: 'pointer',
+			});
+			document.body.appendChild(toggleBtn);
+		}
 
 		function applyTheme(nextKey) {
 			themeKey = nextKey;
@@ -236,17 +239,21 @@ async function boot() {
 			app.renderer.background.color = theme.appBackground;
 			player.setColors(theme.player);
 			for (const v of vines) v.setColor(theme.vines.hue);
-			toggleBtn.textContent = themeKey === 'dark' ? 'Dark' : 'Light';
+			if (ENABLE_THEME_TOGGLE) {
+				toggleBtn.textContent = themeKey === 'dark' ? 'Dark' : 'Light';
+			}
 			saveThemeKey(themeKey);
 		}
 
 		function toggleTheme() {
 			applyTheme(themeKey === 'dark' ? 'light' : 'dark');
 		}
-		toggleBtn.addEventListener('click', toggleTheme);
-		window.addEventListener('keydown', (e) => {
-			if (e.code === 'KeyT') toggleTheme();
-		});
+		if (ENABLE_THEME_TOGGLE) {
+			toggleBtn.addEventListener('click', toggleTheme);
+			window.addEventListener('keydown', (e) => {
+				if (e.code === 'KeyT') toggleTheme();
+			});
+		}
 
 		const platform = new PIXI.Graphics();
 		platform.beginFill(0x00e6ff, 0.18);
