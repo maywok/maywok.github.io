@@ -1,10 +1,7 @@
-// Parallax background with tiled procedural textures (dots + diagonal stripes)
-// Returns { container, update, resize }
 export function createParallaxBackground(app, theme) {
   const container = new PIXI.Container();
 
   const t = theme || {
-    // Dark mode defaults (current look)
     bg: 0x102a3f,
     dot: 0x0e2233,
     stripe: 0x143247,
@@ -57,7 +54,6 @@ export function createParallaxBackground(app, theme) {
   container.addChild(near);
 
   function update(time) {
-    // Subtle drift for depth
     far.tilePosition.x = -time * 8;
     far.tilePosition.y = time * 2;
     mid.tilePosition.x = -time * 18;

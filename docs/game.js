@@ -1,5 +1,3 @@
-// Module entry: boots PIXI and uses local placeholders from shaders/player/vines.
-// Assumes PIXI is available globally via CDN in index.html.
 import { createCRTFilter, updateCRTFilter } from './shaders.js';
 import { createPixelateFilter } from './pixelate.js';
 import { createParallaxBackground } from './background.js';
@@ -7,7 +5,6 @@ import { Player } from './player.js';
 import { createVines } from './vines.js';
 
 const THEMES = {
-	// Light mode: beige world + black player
 	light: {
 		name: 'Light',
 		appBackground: 0xf5e6c8,
@@ -16,7 +13,6 @@ const THEMES = {
 		vines: { hue: 0xff5a6e },
 		crt: { intensity: 0.0, brightness: 1.0, glowColor: 0x000000, scanStrength: 0.25 },
 	},
-	// Dark mode: current look (teal + green CRT glow) + beige player
 	dark: {
 		name: 'Dark',
 		appBackground: 0x102a3f,
@@ -47,55 +43,40 @@ async function boot() {
 			throw new Error('Missing #game-root element');
 		}
 
-		// Ensure custom fonts are loaded before PIXI measures text.
-		// On GitHub Pages, font loading can race and cause overlapping/incorrect hitboxes.
 		if (document.fonts && document.fonts.load) {
 			try {
 				await document.fonts.load('16px Minecraft');
-				// Some browsers need an extra tick for layout to settle.
 				await new Promise((r) => requestAnimationFrame(() => r()));
 			} catch (_) {
-				// If font loading fails, continue with fallback fonts.
 			}
 		}
 
 		const app = new PIXI.Application({
-			// Resize to the fixed root container so we don't accidentally size to the
-			// document/window (which can include scrollbars / mobile URL bar quirks).
 			resizeTo: root,
 			background: THEMES[loadThemeKey()].appBackground,
 			antialias: true,
 		});
-		// Favor a crisp/pixel look for text and sprites
 		app.stage.roundPixels = true;
 		if (PIXI.settings) {
 			PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
 			PIXI.settings.ROUND_PIXELS = true;
 		}
 		root.appendChild(app.view);
-		// Ensure the canvas exactly fills the root in CSS pixels.
-		// (PIXI controls the internal resolution; CSS controls layout.)
 		app.view.style.width = '100%';
 		app.view.style.height = '100%';
 		app.view.style.display = 'block';
 
-		const ENABLE_CRT = true; // keep CRT shader glow on
-		const ENABLE_PIXELATE = true; // enable pixelation effect
-		const ENABLE_DEBUG_HUD = false; // keep code, but off by default
-		// Smaller value = higher internal resolution = less pixelated / more readable.
-		// Suggested range: 1.0 (very clear) .. 4.0 (chunky). Previous value was 7.
+		const ENABLE_CRT = true;
+		const ENABLE_PIXELATE = true;
+		const ENABLE_DEBUG_HUD = false;
 		const PIXELATE_SIZE = 4;
-		const DEBUG_SHAPES = false; // keep demo shapes off
-		// Scene container holds background + world so filters apply to both
+		const DEBUG_SHAPES = false;
 		const scene = new PIXI.Container();
 		app.stage.addChild(scene);
 		let themeKey = loadThemeKey();
 		let theme = THEMES[themeKey];
 
-		// Optional CRT filter (background glow overlay)
 		const { filter: crtFilter, uniforms: crtUniforms } = createCRTFilter(app, theme.crt);
-		// Pixelate filter
-		// Bigger pixelSize => chunkier, more defined pixels.
 		const { filter: pixelFilter, update: updatePixel } = createPixelateFilter(app, { pixelSize: PIXELATE_SIZE });
 		if (ENABLE_PIXELATE && ENABLE_CRT) {
 			scene.filters = [pixelFilter, crtFilter];
@@ -105,7 +86,6 @@ async function boot() {
 			scene.filters = [crtFilter];
 		}
 
-		// Debug: add visible UI to confirm rendering
 		const label = new PIXI.Text('', {
 			fontFamily: 'Arial',
 			fontSize: 28,
@@ -121,8 +101,6 @@ async function boot() {
 			app.stage.addChild(label);
 		}
 
-		// Debug HUD to confirm sizing on the *deployed* site.
-		// Shows: root box, canvas rect, renderer res, DPR.
 		const debugHud = new PIXI.Text('', {
 			fontFamily: 'Arial',
 			fontSize: 12,
@@ -146,7 +124,6 @@ async function boot() {
 			app.stage.addChild(circle);
 		}
 
-		// Extra visible rectangle
 		if (DEBUG_SHAPES) {
 			const rect = new PIXI.Graphics();
 			rect.beginFill(0x22ccff, 0.6);
@@ -155,11 +132,9 @@ async function boot() {
 			app.stage.addChild(rect);
 		}
 
-		// Parallax background
 		let { container: bg, update: updateBg, resize: resizeBg, destroy: destroyBg } = createParallaxBackground(app, theme.bg);
 		scene.addChild(bg);
 
-		// World visuals
 		const world = new PIXI.Container();
 		scene.addChild(world);
 		const player = new Player(app);
@@ -168,7 +143,6 @@ async function boot() {
 		for (const v of vines) v.setColor(theme.vines.hue);
 		world.addChild(vinesLayer);
 
-		// In-world clickable link platforms (left-side stack)
 		function makeLinkPlatform(labelText, url, options = {}) {
 			const { x = 80, y = 200, fontSize = 40, collisionPad = 6 } = options;
 
@@ -176,7 +150,6 @@ async function boot() {
 			container.x = x;
 			container.y = y;
 
-			// Plain text only (no border/plate) with glow
 			const text = new PIXI.Text(labelText, {
 				fontFamily: 'Minecraft, monospace',
 				fontSize,
@@ -188,7 +161,6 @@ async function boot() {
 			container.addChild(text);
 
 			function redrawHitArea() {
-				// Hit area in local space so pointer events work
 				const b = text.getLocalBounds();
 				const w = Math.ceil(b.width + collisionPad * 2);
 				const h = Math.ceil(b.height + collisionPad * 2);
@@ -196,14 +168,12 @@ async function boot() {
 			}
 			redrawHitArea();
 
-			// Make it clickable
 			container.eventMode = 'static';
 			container.cursor = 'pointer';
 			container.on('pointertap', () => {
 				window.open(url, '_blank', 'noopener');
 			});
 
-			// Simple hover pulse
 			container.on('pointerover', () => {
 				container.scale.set(1.03);
 				text.style.fill = 0xeafffb;
@@ -216,7 +186,6 @@ async function boot() {
 			});
 
 			container._updatePlatformRect = () => {
-				// Collision rect in world space (robust to font swaps/scale)
 				const gb = text.getBounds();
 				container._platformRect = {
 					x: gb.x - collisionPad,
@@ -230,7 +199,6 @@ async function boot() {
 			return container;
 		}
 
-		// Left-side link stack: bigger and more centered vertically.
 		const linkPlatforms = [
 			makeLinkPlatform('Resume', '/resume.pdf', { x: 64, y: 0, fontSize: 58 }),
 			makeLinkPlatform('GitHub', 'https://github.com/maywok', { x: 64, y: 0, fontSize: 58 }),
@@ -240,7 +208,6 @@ async function boot() {
 
 		function layoutLinkPlatforms() {
 			const leftX = 64;
-			// Try to keep it "middle-left" on all screens.
 			const centerY = app.renderer.height * 0.5;
 			const spacing = Math.max(74, Math.min(120, app.renderer.height * 0.14));
 			const startY = centerY - spacing;
@@ -261,7 +228,6 @@ async function boot() {
 
 		world.addChild(player.view);
 
-		// Theme toggle UI (top-right)
 		const toggleBtn = document.createElement('button');
 		toggleBtn.type = 'button';
 		toggleBtn.textContent = themeKey === 'dark' ? 'Dark' : 'Light';
@@ -289,7 +255,6 @@ async function boot() {
 			app.renderer.background.color = theme.appBackground;
 			player.setColors(theme.player);
 			for (const v of vines) v.setColor(theme.vines.hue);
-			// Update CRT uniforms in-place
 			crtUniforms.u_intensity = theme.crt.intensity;
 			crtUniforms.u_brightness = theme.crt.brightness;
 			crtUniforms.u_scanStrength = theme.crt.scanStrength;
@@ -297,7 +262,6 @@ async function boot() {
 			crtUniforms.u_glowColor[0] = ((gc >> 16) & 255) / 255;
 			crtUniforms.u_glowColor[1] = ((gc >> 8) & 255) / 255;
 			crtUniforms.u_glowColor[2] = (gc & 255) / 255;
-			// Rebuild background textures for the new palette
 			scene.removeChild(bg);
 			destroyBg?.();
 			({ container: bg, update: updateBg, resize: resizeBg, destroy: destroyBg } = createParallaxBackground(app, theme.bg));
@@ -314,7 +278,6 @@ async function boot() {
 			if (e.code === 'KeyT') toggleTheme();
 		});
 
-		// Simple platform to test landing: centered slab
 		const platform = new PIXI.Graphics();
 		platform.beginFill(0x00e6ff, 0.18);
 		let pw = Math.max(220, Math.floor(app.renderer.width * 0.28));
@@ -323,7 +286,6 @@ async function boot() {
 		let py = Math.floor(app.renderer.height * 0.62);
 		platform.drawRoundedRect(px, py, pw, ph, 6);
 		platform.endFill();
-		// core bright edge
 		const platformEdge = new PIXI.Graphics();
 		platformEdge.lineStyle(3, 0x00e6ff, 0.95);
 		platformEdge.moveTo(px + 6, py + ph);
@@ -331,17 +293,13 @@ async function boot() {
 		world.addChild(platform);
 		world.addChild(platformEdge);
 
-		// Track mouse position in canvas space for vine interactions
 		const mouse = { x: app.renderer.width * 0.5, y: app.renderer.height * 0.3, down: false };
-		// In-website cursor dot for visual and interaction feedback
 		const cursor = new PIXI.Graphics();
 		function drawCursor() {
 			cursor.clear();
-			// Glow
 			cursor.beginFill(0x00e6ff, 0.15);
 			cursor.drawCircle(0, 0, 10);
 			cursor.endFill();
-			// Core
 			cursor.beginFill(0x00e6ff, 0.95);
 			cursor.drawCircle(0, 0, 2.5);
 			cursor.endFill();
@@ -352,12 +310,10 @@ async function boot() {
 			const rect = app.view.getBoundingClientRect();
 			const x = e.clientX - rect.left;
 			const y = e.clientY - rect.top;
-			// Scale to renderer resolution
 			mouse.x = x * (app.renderer.width / rect.width);
 			mouse.y = y * (app.renderer.height / rect.height);
 			cursor.position.set(mouse.x, mouse.y);
 		}
-		// Use multiple events to ensure immediate cursor updates
 		window.addEventListener('pointermove', updateMouseFromEvent);
 		window.addEventListener('pointerdown', updateMouseFromEvent);
 		window.addEventListener('pointerenter', updateMouseFromEvent);
@@ -366,20 +322,17 @@ async function boot() {
 		window.addEventListener('pointerup', () => { mouse.down = false; });
 		window.addEventListener('pointercancel', () => { mouse.down = false; });
 		window.addEventListener('blur', () => { mouse.down = false; });
-		// Hide cursor dot when leaving canvas bounds
 		window.addEventListener('pointerleave', () => { cursor.visible = false; });
 		window.addEventListener('pointerenter', () => { cursor.visible = true; });
 
 		let time = 0;
-		// Player-vine grab state
-		let vineGrab = null; // { vine, pointIndex, ropeLen, angle, angVel }
+		let vineGrab = null;
 		let grabRequested = false;
 		let releaseRequested = false;
 		const GRAB_KEY = 'KeyE';
-		// Swing tuning
-		const SWING_ACCEL = 9.5; // angular accel (rad/s^2) from input
-		const SWING_DAMP = 0.995; // angular damping per frame
-		const SWING_GRAVITY = 18.0; // pendulum gravity constant (rad/s^2)
+		const SWING_ACCEL = 9.5;
+		const SWING_DAMP = 0.995;
+		const SWING_GRAVITY = 18.0;
 		window.addEventListener('keydown', (e) => {
 			if (e.code === GRAB_KEY) grabRequested = true;
 			if (e.code === 'Space') releaseRequested = true;

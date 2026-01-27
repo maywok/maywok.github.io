@@ -1,5 +1,3 @@
-// Pixelation filter: quantizes sampling to a lower-resolution grid
-// Apply to a container: container.filters = [filter]
 export function createPixelateFilter(app, { pixelSize = 4 } = {}) {
   const fragment = `
     precision mediump float;
@@ -14,7 +12,6 @@ export function createPixelateFilter(app, { pixelSize = 4 } = {}) {
     }
   `;
 
-  // Use the default PIXI vertex that provides vTextureCoord
   const uniforms = {
     u_resolution: new Float32Array([app.renderer.width, app.renderer.height]),
     u_pixel: pixelSize,

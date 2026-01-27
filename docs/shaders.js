@@ -1,6 +1,4 @@
-// Shaders module placeholder (no external forwards)
 export function createCRTFilter(app, { intensity = 0.8, brightness = 0.35, glowColor = 0x00ff99, scanStrength = 1.0 } = {}) {
-	// CRT overlay that samples the input texture, then adds scanlines and glow
 	const fragment = `
 		precision mediump float;
 		varying vec2 vTextureCoord;
@@ -13,7 +11,7 @@ export function createCRTFilter(app, { intensity = 0.8, brightness = 0.35, glowC
 		uniform float u_scanStrength;
         
 		float scanPattern(vec2 uv) {
-			return sin(uv.y * 600.0) * 0.02; // thin horizontal lines
+			return sin(uv.y * 600.0) * 0.02;
 		}
 
 		void main() {
@@ -22,10 +20,8 @@ export function createCRTFilter(app, { intensity = 0.8, brightness = 0.35, glowC
 			float wave = 0.5 + 0.5 * sin(u_time + uv.x * 6.2831);
 			float scan = scanPattern(uv * u_resolution) * u_scanStrength;
             
-			// Glow tint
 			vec3 glow = u_glowColor * wave * u_intensity;
             
-			// Apply brightness and blend glow + scanlines over the sampled color
 			vec3 color = baseColor * (0.6 + u_brightness) + glow * 0.25 + vec3(scan);
 			gl_FragColor = vec4(color, 1.0);
 		}
@@ -42,7 +38,6 @@ export function createCRTFilter(app, { intensity = 0.8, brightness = 0.35, glowC
 		u_glowColor: new Float32Array([r, g, b]),
 		u_scanStrength: scanStrength,
 	};
-	// Use default PIXI filter vertex that provides vTextureCoord
 	return { filter: new PIXI.Filter(undefined, fragment, uniforms), uniforms };
 }
 
