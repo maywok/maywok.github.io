@@ -378,17 +378,14 @@ async function boot() {
 			const seconds = dt / 60;
 			time += seconds;
 			updateBg(time);
-			// Ensure the in-site cursor is 1:1 with stored mouse coordinates every frame
 			cursor.position.set(mouse.x, mouse.y);
 			for (const vine of vines) vine.update(time, mouse, seconds);
 
-			// Grab/release handling
 			if (grabRequested) {
 				grabRequested = false;
 				if (!vineGrab) {
 					const near = findNearestVinePoint(player.view.x, player.view.y, 48);
 					if (near) {
-						// Initialize swing state using current player offset from vine point
 						const pts = near.vine.getPointsView?.();
 						if (pts) {
 							const gx = pts.x[near.pointIndex];
@@ -400,14 +397,13 @@ async function boot() {
 								vine: near.vine,
 								pointIndex: near.pointIndex,
 								ropeLen,
-								angle: Math.atan2(ox, oy), // 0 means hanging straight down
+								angle: Math.atan2(ox, oy),
 								angVel: 0,
 							};
 						} else {
 							vineGrab = near;
 						}
 						player.grounded = false;
-						// cancel vertical velocity so it doesn't fight the constraint too hard
 						player.vy *= 0.25;
 						player.vx *= 0.25;
 					}
@@ -418,28 +414,23 @@ async function boot() {
 			if (releaseRequested) {
 				releaseRequested = false;
 				if (vineGrab) {
-					// Impart momentum on release.
 					const v = vineGrab.vine;
 					const i = vineGrab.pointIndex;
 					const pts = v.getPointsView?.();
 					if (pts) {
-						// If we have angular velocity stored, convert to tangential velocity.
 						if (typeof vineGrab.ropeLen === 'number' && typeof vineGrab.angVel === 'number' && typeof vineGrab.angle === 'number') {
 							const gx = pts.x[i];
 							const gy = pts.y[i];
 							const L = vineGrab.ropeLen;
 							const a = vineGrab.angle;
 							const w = vineGrab.angVel;
-							// Tangent direction for param x=L*sin(a), y=L*cos(a): dx/da=L*cos, dy/da=-L*sin
 							const tx = Math.cos(a);
 							const ty = -Math.sin(a);
 							player.vx = tx * (w * L);
 							player.vy = ty * (w * L);
-							// Nudge player outward so they don't immediately re-collide with the point
 							player.view.x = gx + Math.sin(a) * L;
 							player.view.y = gy + Math.cos(a) * L + player.size * 0.55;
 						} else {
-							// Fallback: rough estimate from current offset
 							const dx = (pts.x[i] - player.view.x);
 							const dy = (pts.y[i] - player.view.y);
 							player.vx = dx * 6;
