@@ -276,17 +276,10 @@ async function boot() {
 		world.addChild(platformEdge);
 
 		const mouse = { x: app.renderer.width * 0.5, y: app.renderer.height * 0.3, down: false };
-		const cursor = new PIXI.Graphics();
-		function drawCursor() {
-			cursor.clear();
-			cursor.beginFill(0x00e6ff, 0.15);
-			cursor.drawCircle(0, 0, 10);
-			cursor.endFill();
-			cursor.beginFill(0x00e6ff, 0.95);
-			cursor.drawCircle(0, 0, 2.5);
-			cursor.endFill();
-		}
-		drawCursor();
+		const cursorTextureUrl = './assets/spritesheet/cursor.png';
+		await PIXI.Assets.load(cursorTextureUrl);
+		const cursor = new PIXI.Sprite(PIXI.Texture.from(cursorTextureUrl));
+		cursor.anchor.set(0.5);
 		world.addChild(cursor);
 		function updateMouseFromEvent(e) {
 			const rect = app.view.getBoundingClientRect();
