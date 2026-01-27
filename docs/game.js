@@ -1,5 +1,3 @@
-import { createCRTFilter, updateCRTFilter } from './shaders.js';
-import { createPixelateFilter } from './pixelate.js';
 import { Player } from './player.js';
 import { createVines } from './vines.js';
 
@@ -65,25 +63,12 @@ async function boot() {
 		app.view.style.height = '100%';
 		app.view.style.display = 'block';
 
-		const ENABLE_CRT = true;
-		const ENABLE_PIXELATE = true;
 		const ENABLE_DEBUG_HUD = false;
-		const PIXELATE_SIZE = 4;
 		const DEBUG_SHAPES = false;
 		const scene = new PIXI.Container();
 		app.stage.addChild(scene);
 		let themeKey = loadThemeKey();
 		let theme = THEMES[themeKey];
-
-		const { filter: crtFilter, uniforms: crtUniforms } = createCRTFilter(app, theme.crt);
-		const { filter: pixelFilter, update: updatePixel } = createPixelateFilter(app, { pixelSize: PIXELATE_SIZE });
-		if (ENABLE_PIXELATE && ENABLE_CRT) {
-			scene.filters = [pixelFilter, crtFilter];
-		} else if (ENABLE_PIXELATE) {
-			scene.filters = [pixelFilter];
-		} else if (ENABLE_CRT) {
-			scene.filters = [crtFilter];
-		}
 
 		const label = new PIXI.Text('', {
 			fontFamily: 'Arial',
@@ -251,13 +236,6 @@ async function boot() {
 			app.renderer.background.color = theme.appBackground;
 			player.setColors(theme.player);
 			for (const v of vines) v.setColor(theme.vines.hue);
-			crtUniforms.u_intensity = theme.crt.intensity;
-			crtUniforms.u_brightness = theme.crt.brightness;
-			crtUniforms.u_scanStrength = theme.crt.scanStrength;
-			const gc = theme.crt.glowColor;
-			crtUniforms.u_glowColor[0] = ((gc >> 16) & 255) / 255;
-			crtUniforms.u_glowColor[1] = ((gc >> 8) & 255) / 255;
-			crtUniforms.u_glowColor[2] = (gc & 255) / 255;
 			toggleBtn.textContent = themeKey === 'dark' ? 'Dark' : 'Light';
 			saveThemeKey(themeKey);
 		}
@@ -363,10 +341,6 @@ async function boot() {
 					`renderer: ${app.renderer.width}x${app.renderer.height}\n` +
 					`dpr: ${dpr.toFixed(2)}`;
 			}
-			if (ENABLE_CRT) {
-				updateCRTFilter({ uniforms: crtUniforms }, app, dt / 60);
-			}
-			if (ENABLE_PIXELATE) updatePixel();
 			const seconds = dt / 60;
 			time += seconds;
 			cursor.position.set(mouse.x, mouse.y);
@@ -519,7 +493,7 @@ async function boot() {
 				app.renderer.resize(Math.round(rect.width), Math.round(rect.height));
 			}
 			// Keep shader uniforms in sync with new renderer size
-			if (ENABLE_PIXELATE) updatePixel();
+			
 
 			// Rebuild vines layout for new width/height
 			world.removeChild(vinesLayer);
