@@ -319,8 +319,10 @@ async function boot() {
 			const rect = app.view.getBoundingClientRect();
 			const x = e.clientX - rect.left;
 			const y = e.clientY - rect.top;
-			mouse.x = x * (app.renderer.width / rect.width);
-			mouse.y = y * (app.renderer.height / rect.height);
+			const scaledX = x * (app.renderer.width / rect.width);
+			const scaledY = y * (app.renderer.height / rect.height);
+			mouse.x = Math.max(0, Math.min(app.renderer.width, scaledX));
+			mouse.y = Math.max(0, Math.min(app.renderer.height, scaledY));
 			cursor.position.set(mouse.x, mouse.y);
 		}
 		window.addEventListener('pointermove', updateMouseFromEvent);
