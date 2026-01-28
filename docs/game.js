@@ -69,6 +69,9 @@ async function boot() {
 		const DEBUG_SHAPES = false;
 		const scene = new PIXI.Container();
 		app.stage.addChild(scene);
+		const lensMask = new PIXI.Graphics();
+		app.stage.addChild(lensMask);
+		scene.mask = lensMask;
 		const SCENE_SCALE = 1.12;
 		const CAMERA_PARALLAX = 9;
 		const CAMERA_SMOOTHING = 0.08;
@@ -88,6 +91,15 @@ async function boot() {
 			scene.pivot.set(cx, cy);
 			scene.position.set(cx, cy);
 			scene.scale.set(SCENE_SCALE);
+		}
+		function layoutLensMask() {
+			const cx = app.renderer.width / 2;
+			const cy = app.renderer.height / 2;
+			const radius = Math.min(app.renderer.width, app.renderer.height) * 0.5 * 0.98;
+			lensMask.clear();
+			lensMask.beginFill(0xffffff, 1);
+			lensMask.drawCircle(cx, cy, radius);
+			lensMask.endFill();
 		}
 		const { filter: crtFisheyeFilter, uniforms: crtFisheyeUniforms } = createCRTFisheyeFilter(app, {
 			intensity: 0.08,
@@ -314,7 +326,7 @@ async function boot() {
 		await PIXI.Assets.load(cursorTextureUrl);
 		const cursor = new PIXI.Sprite(PIXI.Texture.from(cursorTextureUrl));
 		cursor.anchor.set(0.5);
-		app.stage.addChild(cursor);
+		world.addChild(cursor);
 		function updateMouseFromEvent(e) {
 			const rect = app.view.getBoundingClientRect();
 			const x = e.clientX - rect.left;
@@ -325,7 +337,6 @@ async function boot() {
 			const cursorHalfH = (cursor.height * SCENE_SCALE) * 0.5;
 			mouse.x = Math.max(cursorHalfW, Math.min(app.renderer.width - cursorHalfW, scaledX));
 			mouse.y = Math.max(cursorHalfH, Math.min(app.renderer.height - cursorHalfH, scaledY));
-			cursor.position.set(mouse.x, mouse.y);
 		}
 		window.addEventListener('pointermove', updateMouseFromEvent);
 		window.addEventListener('pointerdown', updateMouseFromEvent);
@@ -387,13 +398,17 @@ async function boot() {
 			updateCRTFisheyeFilter({ uniforms: crtFisheyeUniforms }, app, dt / 60);
 			const seconds = dt / 60;
 			time += seconds;
-			cursor.position.set(mouse.x, mouse.y);
 			const nx = (mouse.x / app.renderer.width) * 2 - 1;
 			const ny = (mouse.y / app.renderer.height) * 2 - 1;
 			const targetX = -nx * CAMERA_PARALLAX;
 			const targetY = -ny * CAMERA_PARALLAX;
 			cameraOffset.x += (targetX - cameraOffset.x) * CAMERA_SMOOTHING;
 			cameraOffset.y += (targetY - cameraOffset.y) * CAMERA_SMOOTHING;
+			const cx = app.renderer.width / 2;
+			const cy = app.renderer.height / 2;
+			const cursorWorldX = (mouse.x - cx - cameraOffset.x) / SCENE_SCALE + cx;
+			const cursorWorldY = (mouse.y - cy - cameraOffset.y) / SCENE_SCALE + cy;
+			cursor.position.set(cursorWorldX, cursorWorldY);
 			scene.position.set(
 				app.renderer.width / 2 + cameraOffset.x,
 				app.renderer.height / 2 + cameraOffset.y,
@@ -548,6 +563,7 @@ async function boot() {
 			}
 			// Keep shader uniforms in sync with new renderer size
 			layoutScene();
+			layoutLensMask();
 			
 
 			// Rebuild vines layout for new width/height
