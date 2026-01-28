@@ -1,6 +1,7 @@
 import { Player } from './player.js';
 import { createVines } from './vines.js';
 import { createBlogIcon } from './blogIcon.js';
+import { createCRTFisheyeFilter, updateCRTFisheyeFilter } from './shaders.js';
 
 const THEMES = {
 	light: {
@@ -68,6 +69,14 @@ async function boot() {
 		const DEBUG_SHAPES = false;
 		const scene = new PIXI.Container();
 		app.stage.addChild(scene);
+		const { filter: crtFisheyeFilter, uniforms: crtFisheyeUniforms } = createCRTFisheyeFilter(app, {
+			intensity: 0.08,
+			brightness: 0.06,
+			scanStrength: 0.45,
+			curve: 0.08,
+			vignette: 0.28,
+		});
+		scene.filters = [crtFisheyeFilter];
 		let themeKey = loadThemeKey();
 		let theme = THEMES[themeKey];
 
@@ -346,6 +355,7 @@ async function boot() {
 					`renderer: ${app.renderer.width}x${app.renderer.height}\n` +
 					`dpr: ${dpr.toFixed(2)}`;
 			}
+			updateCRTFisheyeFilter({ uniforms: crtFisheyeUniforms }, app, dt / 60);
 			const seconds = dt / 60;
 			time += seconds;
 			cursor.position.set(mouse.x, mouse.y);

@@ -46,3 +46,66 @@ export function updateCRTFilter({ uniforms }, app, dt) {
 	uniforms.u_resolution[0] = app.renderer.width;
 	uniforms.u_resolution[1] = app.renderer.height;
 }
+
+export function createCRTFisheyeFilter(app, {
+	intensity = 0.12,
+	brightness = 0.08,
+	scanStrength = 0.6,
+	curve = 0.12,
+	vignette = 0.35,
+} = {}) {
+	const fragment = `
+		precision mediump float;
+		varying vec2 vTextureCoord;
+		uniform sampler2D uSampler;
+		uniform vec2 u_resolution;
+		uniform float u_time;
+		uniform float u_intensity;
+		uniform float u_brightness;
+		uniform float u_scanStrength;
+		uniform float u_curve;
+		uniform float u_vignette;
+
+		vec2 fisheye(vec2 uv) {
+			vec2 p = uv * 2.0 - 1.0;
+			float r2 = dot(p, p);
+			p *= 1.0 + u_curve * r2;
+			return (p + 1.0) * 0.5;
+		}
+
+		float scanPattern(vec2 uv) {
+			return sin(uv.y * 700.0 + u_time * 4.0) * 0.015;
+		}
+
+		void main() {
+			vec2 uv = fisheye(vTextureCoord);
+			if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+				gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+				return;
+			}
+			vec3 baseColor = texture2D(uSampler, uv).rgb;
+			float scan = scanPattern(uv * u_resolution) * u_scanStrength;
+			vec2 dv = uv - 0.5;
+			float vig = smoothstep(0.8, 0.35, dot(dv, dv));
+			vec3 color = baseColor * (1.0 + u_brightness) + vec3(scan) * u_intensity;
+			color *= mix(1.0, vig, u_vignette);
+			gl_FragColor = vec4(color, 1.0);
+		}
+	`;
+	const uniforms = {
+		u_resolution: new Float32Array([app.renderer.width, app.renderer.height]),
+		u_time: 0,
+		u_intensity: intensity,
+		u_brightness: brightness,
+		u_scanStrength: scanStrength,
+		u_curve: curve,
+		u_vignette: vignette,
+	};
+	return { filter: new PIXI.Filter(undefined, fragment, uniforms), uniforms };
+}
+
+export function updateCRTFisheyeFilter({ uniforms }, app, dt) {
+	uniforms.u_time += dt;
+	uniforms.u_resolution[0] = app.renderer.width;
+	uniforms.u_resolution[1] = app.renderer.height;
+}
