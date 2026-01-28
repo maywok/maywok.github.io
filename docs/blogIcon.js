@@ -18,6 +18,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		parallaxOffset = 6,
 		backgroundParallax = 3,
 		tiltAmount = 0.12,
+		screenScale = 1,
 	} = options;
 
 	function extractFrameIndex(name) {
@@ -117,10 +118,13 @@ export async function createBlogIcon(app, world, options = {}) {
 		const bounds = container.getLocalBounds();
 		const w = bounds.width * container.scale.x;
 		const h = bounds.height * container.scale.y;
-		container.position.set(
-			app.renderer.width - margin - w / 2,
-			app.renderer.height - margin - h / 2,
-		);
+		const screenX = app.renderer.width - margin - w / 2;
+		const screenY = app.renderer.height - margin - h / 2;
+		const cx = app.renderer.width / 2;
+		const cy = app.renderer.height / 2;
+		const worldX = (screenX - cx) / screenScale + cx;
+		const worldY = (screenY - cy) / screenScale + cy;
+		container.position.set(worldX, worldY);
 	}
 
 	world.addChild(container);

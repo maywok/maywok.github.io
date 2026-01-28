@@ -73,6 +73,15 @@ async function boot() {
 		const CAMERA_PARALLAX = 9;
 		const CAMERA_SMOOTHING = 0.08;
 		const cameraOffset = { x: 0, y: 0 };
+		const screenToWorldX = (screenX) => {
+			const cx = app.renderer.width / 2;
+			return (screenX - cx) / SCENE_SCALE + cx;
+		};
+		const screenToWorldY = (screenY) => {
+			const cy = app.renderer.height / 2;
+			return (screenY - cy) / SCENE_SCALE + cy;
+		};
+		const screenToWorldSize = (screenSize) => screenSize / SCENE_SCALE;
 		function layoutScene() {
 			const cx = app.renderer.width / 2;
 			const cy = app.renderer.height / 2;
@@ -147,6 +156,7 @@ async function boot() {
 
 		const { layout: layoutBlogIcon } = await createBlogIcon(app, world, {
 			url: '/blog',
+			screenScale: SCENE_SCALE,
 		});
 
 		function makeLinkPlatform(labelText, url, options = {}) {
@@ -218,15 +228,15 @@ async function boot() {
 			const spacing = Math.max(74, Math.min(120, app.renderer.height * 0.14));
 			const startY = centerY - spacing;
 			if (linkPlatforms[0]) {
-				linkPlatforms[0].position.set(leftX, startY);
+				linkPlatforms[0].position.set(screenToWorldX(leftX), screenToWorldY(startY));
 				linkPlatforms[0]._updatePlatformRect?.();
 			}
 			if (linkPlatforms[1]) {
-				linkPlatforms[1].position.set(leftX, startY + spacing);
+				linkPlatforms[1].position.set(screenToWorldX(leftX), screenToWorldY(startY + spacing));
 				linkPlatforms[1]._updatePlatformRect?.();
 			}
 			if (linkPlatforms[2]) {
-				linkPlatforms[2].position.set(leftX, startY + spacing * 2);
+				linkPlatforms[2].position.set(screenToWorldX(leftX), screenToWorldY(startY + spacing * 2));
 				linkPlatforms[2]._updatePlatformRect?.();
 			}
 		}
@@ -286,12 +296,16 @@ async function boot() {
 		let ph = 14;
 		let px = Math.floor((app.renderer.width - pw) / 2);
 		let py = Math.floor(app.renderer.height * 0.62);
-		platform.drawRoundedRect(px, py, pw, ph, 6);
+		let wpw = screenToWorldSize(pw);
+		let wph = screenToWorldSize(ph);
+		let wpx = screenToWorldX(px);
+		let wpy = screenToWorldY(py);
+		platform.drawRoundedRect(wpx, wpy, wpw, wph, 6);
 		platform.endFill();
 		const platformEdge = new PIXI.Graphics();
 		platformEdge.lineStyle(3, 0x00e6ff, 0.95);
-		platformEdge.moveTo(px + 6, py + ph);
-		platformEdge.lineTo(px + pw - 6, py + ph);
+		platformEdge.moveTo(wpx + 6, wpy + wph);
+		platformEdge.lineTo(wpx + wpw - 6, wpy + wph);
 		world.addChild(platform);
 		world.addChild(platformEdge);
 
@@ -510,7 +524,7 @@ async function boot() {
 			}
 
 			// slab first
-			resolveTopPlatform(px, py, pw, ph);
+			resolveTopPlatform(wpx, wpy, wpw, wph);
 			// then link platforms
 			for (const lp of linkPlatforms) {
 				lp._updatePlatformRect?.();
@@ -547,12 +561,16 @@ async function boot() {
 			const nph = 14;
 			const npx = Math.floor((app.renderer.width - npw) / 2);
 			const npy = Math.floor(app.renderer.height * 0.62);
-			platform.drawRoundedRect(npx, npy, npw, nph, 6);
+			wpw = screenToWorldSize(npw);
+			wph = screenToWorldSize(nph);
+			wpx = screenToWorldX(npx);
+			wpy = screenToWorldY(npy);
+			platform.drawRoundedRect(wpx, wpy, wpw, wph, 6);
 			platform.endFill();
 			platformEdge.clear();
 			platformEdge.lineStyle(3, 0x00e6ff, 0.95);
-			platformEdge.moveTo(npx + 6, npy + nph);
-			platformEdge.lineTo(npx + npw - 6, npy + nph);
+			platformEdge.moveTo(wpx + 6, wpy + wph);
+			platformEdge.lineTo(wpx + wpw - 6, wpy + wph);
 			// Update collision references
 			pw = npw; ph = nph; px = npx; py = npy;
 
