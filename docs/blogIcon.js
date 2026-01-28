@@ -1,3 +1,5 @@
+import { createCardMotion } from './cardMotion.js';
+
 export async function createBlogIcon(app, world, options = {}) {
 	const {
 		url = '/blog',
@@ -6,15 +8,17 @@ export async function createBlogIcon(app, world, options = {}) {
 		frozenImageUrl = './assets/spritesheet/frozenMug.png',
 		hoverImageUrl = './assets/spritesheet/hoverMug.png',
 		backgroundUrl = './assets/images/background.gif',
-		backgroundWidth = 56,
-		backgroundHeight = 104,
-		backgroundCornerRadius = 10,
+		backgroundJsonUrl = null,
+		backgroundWidth = 84,
+		backgroundHeight = 108,
+		backgroundCornerRadius = 12,
 		margin = 24,
 		animationSpeed = 0.12,
 		scale = 5,
 		parallaxOffset = 6,
 		backgroundParallax = 3,
 		tiltAmount = 0.12,
+		foilStrength = 0.45,
 	} = options;
 
 	function extractFrameIndex(name) {
@@ -35,15 +39,25 @@ export async function createBlogIcon(app, world, options = {}) {
 		));
 	}
 
-	const [frozenData, hoverData] = await Promise.all([
+	const [frozenData, hoverData, backgroundData] = await Promise.all([
 		fetch(frozenJsonUrl).then((r) => r.json()),
 		fetch(hoverJsonUrl).then((r) => r.json()),
+		backgroundJsonUrl ? fetch(backgroundJsonUrl).then((r) => r.json()) : Promise.resolve(null),
 	]);
 	await PIXI.Assets.load([frozenImageUrl, hoverImageUrl, backgroundUrl]);
 
 	const frozenTextures = buildTextures(frozenData, frozenImageUrl);
 	const hoverTextures = buildTextures(hoverData, hoverImageUrl);
-	const backgroundSprite = new PIXI.Sprite(PIXI.Texture.from(backgroundUrl));
+	let backgroundSprite = null;
+	if (backgroundData) {
+		const backgroundTextures = buildTextures(backgroundData, backgroundUrl);
+		const animatedBg = new PIXI.AnimatedSprite(backgroundTextures);
+		animatedBg.animationSpeed = animationSpeed;
+		animatedBg.play();
+		backgroundSprite = animatedBg;
+	} else {
+		backgroundSprite = new PIXI.Sprite(PIXI.Texture.from(backgroundUrl));
+	}
 	backgroundSprite.anchor.set(0.5);
 	backgroundSprite.width = backgroundWidth;
 	backgroundSprite.height = backgroundHeight;
@@ -52,6 +66,33 @@ export async function createBlogIcon(app, world, options = {}) {
 	backgroundMask.drawRoundedRect(-backgroundWidth / 2, -backgroundHeight / 2, backgroundWidth, backgroundHeight, backgroundCornerRadius);
 	backgroundMask.endFill();
 	backgroundSprite.mask = backgroundMask;
+	const foilSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
+	foilSprite.anchor.set(0.5);
+	foilSprite.width = backgroundWidth;
+	foilSprite.height = backgroundHeight;
+	foilSprite.alpha = foilStrength;
+	foilSprite.blendMode = PIXI.BLEND_MODES.SCREEN;
+	foilSprite.mask = backgroundMask;
+	const foilUniforms = {
+		u_time: 0,
+		u_offset: new Float32Array([0, 0]),
+	};
+	const foilFilter = new PIXI.Filter(undefined, `
+		precision mediump float;
+		varying vec2 vTextureCoord;
+		uniform float u_time;
+		uniform vec2 u_offset;
+		vec3 rainbow(float t) {
+			return 0.5 + 0.5 * cos(6.2831 * (vec3(0.0, 0.33, 0.67) + t));
+		}
+		void main() {
+			vec2 uv = vTextureCoord + u_offset;
+			float wave = sin((uv.x * 4.0 + uv.y * 3.0 + u_time * 1.2)) * 0.5 + 0.5;
+			vec3 col = rainbow(uv.x * 0.8 + uv.y * 0.6 + u_time * 0.25);
+			gl_FragColor = vec4(col * wave, 1.0);
+		}
+	` , foilUniforms);
+	foilSprite.filters = [foilFilter];
 	const frozenSprite = new PIXI.AnimatedSprite(frozenTextures);
 	const hoverSprite = new PIXI.AnimatedSprite(hoverTextures);
 	frozenSprite.anchor.set(0.5);
@@ -65,9 +106,20 @@ export async function createBlogIcon(app, world, options = {}) {
 	const container = new PIXI.Container();
 	container.addChild(backgroundSprite);
 	container.addChild(backgroundMask);
+	container.addChild(foilSprite);
 	container.addChild(frozenSprite);
 	container.addChild(hoverSprite);
 	container.scale.set(scale);
+	const cardMotion = createCardMotion(container, {
+		width: backgroundWidth,
+		height: backgroundHeight,
+		tiltAmount,
+		layers: [
+			{ target: hoverSprite, strength: parallaxOffset },
+			{ target: backgroundSprite, strength: backgroundParallax, invert: true },
+			{ target: foilSprite, strength: backgroundParallax + 1, invert: true },
+		],
+	});
 	container.eventMode = 'static';
 	container.cursor = 'pointer';
 	container.on('pointerover', () => {
@@ -77,21 +129,21 @@ export async function createBlogIcon(app, world, options = {}) {
 	});
 	container.on('pointermove', (event) => {
 		if (!hoverSprite.visible) return;
+		cardMotion.onPointerMove(event);
 		const local = event.getLocalPosition(container);
 		const nx = Math.max(-1, Math.min(1, local.x / (backgroundWidth / 2 || 1)));
 		const ny = Math.max(-1, Math.min(1, local.y / (backgroundHeight / 2 || 1)));
-		hoverSprite.position.set(nx * parallaxOffset, ny * parallaxOffset);
-		backgroundSprite.position.set(-nx * backgroundParallax, -ny * backgroundParallax);
-		container.skew.set(-ny * tiltAmount, nx * tiltAmount);
+		foilUniforms.u_offset[0] = nx * 0.08;
+		foilUniforms.u_offset[1] = ny * 0.08;
 	});
 	container.on('pointerout', () => {
 		hoverSprite.stop();
 		hoverSprite.visible = false;
 		frozenSprite.visible = true;
 		frozenSprite.play();
-		hoverSprite.position.set(0, 0);
-		backgroundSprite.position.set(0, 0);
-		container.skew.set(0, 0);
+		cardMotion.reset();
+		foilUniforms.u_offset[0] = 0;
+		foilUniforms.u_offset[1] = 0;
 	});
 	container.on('pointertap', () => {
 		window.open(url, '_blank', 'noopener');
@@ -109,6 +161,9 @@ export async function createBlogIcon(app, world, options = {}) {
 
 	world.addChild(container);
 	layout();
+	app.ticker.add((dt) => {
+		foilUniforms.u_time += dt / 60;
+	});
 
 	return { container, layout };
 }
