@@ -69,6 +69,17 @@ async function boot() {
 		const DEBUG_SHAPES = false;
 		const scene = new PIXI.Container();
 		app.stage.addChild(scene);
+		const SCENE_SCALE = 1.06;
+		const CAMERA_PARALLAX = 6;
+		const CAMERA_SMOOTHING = 0.08;
+		const cameraOffset = { x: 0, y: 0 };
+		function layoutScene() {
+			const cx = app.renderer.width / 2;
+			const cy = app.renderer.height / 2;
+			scene.pivot.set(cx, cy);
+			scene.position.set(cx, cy);
+			scene.scale.set(SCENE_SCALE);
+		}
 		const { filter: crtFisheyeFilter, uniforms: crtFisheyeUniforms } = createCRTFisheyeFilter(app, {
 			intensity: 0.08,
 			brightness: 0.06,
@@ -359,6 +370,16 @@ async function boot() {
 			const seconds = dt / 60;
 			time += seconds;
 			cursor.position.set(mouse.x, mouse.y);
+			const nx = (mouse.x / app.renderer.width) * 2 - 1;
+			const ny = (mouse.y / app.renderer.height) * 2 - 1;
+			const targetX = -nx * CAMERA_PARALLAX;
+			const targetY = -ny * CAMERA_PARALLAX;
+			cameraOffset.x += (targetX - cameraOffset.x) * CAMERA_SMOOTHING;
+			cameraOffset.y += (targetY - cameraOffset.y) * CAMERA_SMOOTHING;
+			scene.position.set(
+				app.renderer.width / 2 + cameraOffset.x,
+				app.renderer.height / 2 + cameraOffset.y,
+			);
 			for (const vine of vines) vine.update(time, mouse, seconds);
 
 			if (grabRequested) {
@@ -508,6 +529,7 @@ async function boot() {
 				app.renderer.resize(Math.round(rect.width), Math.round(rect.height));
 			}
 			// Keep shader uniforms in sync with new renderer size
+			layoutScene();
 			
 
 			// Rebuild vines layout for new width/height
