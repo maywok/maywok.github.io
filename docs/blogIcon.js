@@ -20,6 +20,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		tiltAmount = 0.12,
 		foilStrength = 0.18,
 		foilStrengthMax = 0.42,
+		enableFoil = false,
 	} = options;
 
 	function extractFrameIndex(name) {
@@ -67,33 +68,37 @@ export async function createBlogIcon(app, world, options = {}) {
 	backgroundMask.drawRoundedRect(-backgroundWidth / 2, -backgroundHeight / 2, backgroundWidth, backgroundHeight, backgroundCornerRadius);
 	backgroundMask.endFill();
 	backgroundSprite.mask = backgroundMask;
-	const foilSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
-	foilSprite.anchor.set(0.5);
-	foilSprite.width = backgroundWidth;
-	foilSprite.height = backgroundHeight;
-	foilSprite.alpha = foilStrength;
-	foilSprite.blendMode = PIXI.BLEND_MODES.SCREEN;
-	foilSprite.mask = backgroundMask;
-	const foilUniforms = {
-		u_time: 0,
-		u_offset: new Float32Array([0, 0]),
-	};
-	const foilFilter = new PIXI.Filter(undefined, `
-		precision mediump float;
-		varying vec2 vTextureCoord;
-		uniform float u_time;
-		uniform vec2 u_offset;
-		vec3 rainbow(float t) {
-			return 0.5 + 0.5 * cos(6.2831 * (vec3(0.0, 0.33, 0.67) + t));
-		}
-		void main() {
-			vec2 uv = vTextureCoord + u_offset;
-			float wave = sin((uv.x * 4.0 + uv.y * 3.0 + u_time * 1.2)) * 0.5 + 0.5;
-			vec3 col = rainbow(uv.x * 0.8 + uv.y * 0.6 + u_time * 0.25);
-			gl_FragColor = vec4(col * wave, 1.0);
-		}
-	` , foilUniforms);
-	foilSprite.filters = [foilFilter];
+	let foilSprite = null;
+	let foilUniforms = null;
+	if (enableFoil) {
+		foilSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
+		foilSprite.anchor.set(0.5);
+		foilSprite.width = backgroundWidth;
+		foilSprite.height = backgroundHeight;
+		foilSprite.alpha = foilStrength;
+		foilSprite.blendMode = PIXI.BLEND_MODES.SCREEN;
+		foilSprite.mask = backgroundMask;
+		foilUniforms = {
+			u_time: 0,
+			u_offset: new Float32Array([0, 0]),
+		};
+		const foilFilter = new PIXI.Filter(undefined, `
+			precision mediump float;
+			varying vec2 vTextureCoord;
+			uniform float u_time;
+			uniform vec2 u_offset;
+			vec3 rainbow(float t) {
+				return 0.5 + 0.5 * cos(6.2831 * (vec3(0.0, 0.33, 0.67) + t));
+			}
+			void main() {
+				vec2 uv = vTextureCoord + u_offset;
+				float wave = sin((uv.x * 4.0 + uv.y * 3.0 + u_time * 1.2)) * 0.5 + 0.5;
+				vec3 col = rainbow(uv.x * 0.8 + uv.y * 0.6 + u_time * 0.25);
+				gl_FragColor = vec4(col * wave, 1.0);
+			}
+		` , foilUniforms);
+		foilSprite.filters = [foilFilter];
+	}
 	const frozenSprite = new PIXI.AnimatedSprite(frozenTextures);
 	const hoverSprite = new PIXI.AnimatedSprite(hoverTextures);
 	frozenSprite.anchor.set(0.5);
@@ -107,19 +112,22 @@ export async function createBlogIcon(app, world, options = {}) {
 	const container = new PIXI.Container();
 	container.addChild(backgroundSprite);
 	container.addChild(backgroundMask);
-	container.addChild(foilSprite);
+	if (foilSprite) container.addChild(foilSprite);
 	container.addChild(frozenSprite);
 	container.addChild(hoverSprite);
 	container.scale.set(scale);
+	const motionLayers = [
+		{ target: hoverSprite, strength: parallaxOffset },
+		{ target: backgroundSprite, strength: backgroundParallax, invert: true },
+	];
+	if (foilSprite) {
+		motionLayers.push({ target: foilSprite, strength: backgroundParallax + 1, invert: true });
+	}
 	const cardMotion = createCardMotion(container, {
 		width: backgroundWidth,
 		height: backgroundHeight,
 		tiltAmount,
-		layers: [
-			{ target: hoverSprite, strength: parallaxOffset },
-			{ target: backgroundSprite, strength: backgroundParallax, invert: true },
-			{ target: foilSprite, strength: backgroundParallax + 1, invert: true },
-		],
+		layers: motionLayers,
 	});
 	container.eventMode = 'static';
 	container.cursor = 'pointer';
@@ -134,10 +142,12 @@ export async function createBlogIcon(app, world, options = {}) {
 		const local = event.getLocalPosition(container);
 		const nx = Math.max(-1, Math.min(1, local.x / (backgroundWidth / 2 || 1)));
 		const ny = Math.max(-1, Math.min(1, local.y / (backgroundHeight / 2 || 1)));
-		foilUniforms.u_offset[0] = nx * 0.08;
-		foilUniforms.u_offset[1] = ny * 0.08;
-		const tiltMag = Math.min(1, Math.hypot(nx, ny));
-		foilSprite.alpha = foilStrength + (foilStrengthMax - foilStrength) * tiltMag;
+		if (foilSprite && foilUniforms) {
+			foilUniforms.u_offset[0] = nx * 0.08;
+			foilUniforms.u_offset[1] = ny * 0.08;
+			const tiltMag = Math.min(1, Math.hypot(nx, ny));
+			foilSprite.alpha = foilStrength + (foilStrengthMax - foilStrength) * tiltMag;
+		}
 	});
 	container.on('pointerout', () => {
 		hoverSprite.stop();
@@ -145,9 +155,11 @@ export async function createBlogIcon(app, world, options = {}) {
 		frozenSprite.visible = true;
 		frozenSprite.play();
 		cardMotion.reset();
-		foilUniforms.u_offset[0] = 0;
-		foilUniforms.u_offset[1] = 0;
-		foilSprite.alpha = foilStrength;
+		if (foilSprite && foilUniforms) {
+			foilUniforms.u_offset[0] = 0;
+			foilUniforms.u_offset[1] = 0;
+			foilSprite.alpha = foilStrength;
+		}
 	});
 	container.on('pointertap', () => {
 		window.open(url, '_blank', 'noopener');
@@ -166,7 +178,7 @@ export async function createBlogIcon(app, world, options = {}) {
 	world.addChild(container);
 	layout();
 	app.ticker.add((dt) => {
-		foilUniforms.u_time += dt / 60;
+		if (foilUniforms) foilUniforms.u_time += dt / 60;
 		cardMotion.update();
 	});
 
