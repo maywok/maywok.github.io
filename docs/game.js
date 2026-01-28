@@ -69,8 +69,6 @@ async function boot() {
 		const DEBUG_SHAPES = false;
 		const scene = new PIXI.Container();
 		app.stage.addChild(scene);
-		const uiLayer = new PIXI.Container();
-		app.stage.addChild(uiLayer);
 		const SCENE_SCALE = 1.12;
 		const CAMERA_PARALLAX = 9;
 		const CAMERA_SMOOTHING = 0.08;
@@ -320,7 +318,7 @@ async function boot() {
 		await PIXI.Assets.load(cursorTextureUrl);
 		const cursor = new PIXI.Sprite(PIXI.Texture.from(cursorTextureUrl));
 		cursor.anchor.set(0.5);
-		uiLayer.addChild(cursor);
+		world.addChild(cursor);
 		function updateMouseFromEvent(e) {
 			const rect = app.view.getBoundingClientRect();
 			const x = e.clientX - rect.left;
@@ -378,6 +376,21 @@ async function boot() {
 			return best;
 		}
 
+		function invertFisheyeUV(uv, curve, iterations = 5) {
+			if (!curve || curve <= 0) return uv;
+			let px = uv.x * 2 - 1;
+			let py = uv.y * 2 - 1;
+			const tx = px;
+			const ty = py;
+			for (let i = 0; i < iterations; i++) {
+				const r2 = px * px + py * py;
+				const k = 1 + curve * r2;
+				px = tx / k;
+				py = ty / k;
+			}
+			return { x: (px + 1) * 0.5, y: (py + 1) * 0.5 };
+		}
+
 		app.ticker.add((dt) => {
 			if (ENABLE_DEBUG_HUD) {
 				const r = root.getBoundingClientRect();
@@ -400,9 +413,13 @@ async function boot() {
 			cameraOffset.y += (targetY - cameraOffset.y) * CAMERA_SMOOTHING;
 			const cx = app.renderer.width / 2;
 			const cy = app.renderer.height / 2;
-			const mouseWorldX = (mouse.x - cx - cameraOffset.x) / SCENE_SCALE + cx;
-			const mouseWorldY = (mouse.y - cy - cameraOffset.y) / SCENE_SCALE + cy;
-			cursor.position.set(mouse.x, mouse.y);
+			const uv = { x: mouse.x / app.renderer.width, y: mouse.y / app.renderer.height };
+			const undistortedUV = invertFisheyeUV(uv, crtFisheyeUniforms?.u_curve ?? 0);
+			const screenX = undistortedUV.x * app.renderer.width;
+			const screenY = undistortedUV.y * app.renderer.height;
+			const mouseWorldX = (screenX - cx - cameraOffset.x) / SCENE_SCALE + cx;
+			const mouseWorldY = (screenY - cy - cameraOffset.y) / SCENE_SCALE + cy;
+			cursor.position.set(mouseWorldX, mouseWorldY);
 			scene.position.set(
 				app.renderer.width / 2 + cameraOffset.x,
 				app.renderer.height / 2 + cameraOffset.y,
