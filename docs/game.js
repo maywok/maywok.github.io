@@ -311,7 +311,11 @@ async function boot() {
 		world.addChild(platform);
 		world.addChild(platformEdge);
 
-		const mouse = { x: app.renderer.width * 0.5, y: app.renderer.height * 0.3, down: false };
+		const mouse = {
+			x: app.renderer.width * 0.5,
+			y: app.renderer.height * 0.3,
+			down: false,
+		};
 		const cursorTextureUrl = './assets/spritesheet/cursor.png';
 		await PIXI.Assets.load(cursorTextureUrl);
 		const cursor = new PIXI.Sprite(PIXI.Texture.from(cursorTextureUrl));
@@ -396,12 +400,15 @@ async function boot() {
 			cameraOffset.y += (targetY - cameraOffset.y) * CAMERA_SMOOTHING;
 			const cx = app.renderer.width / 2;
 			const cy = app.renderer.height / 2;
+			const mouseWorldX = (mouse.x - cx - cameraOffset.x) / SCENE_SCALE + cx;
+			const mouseWorldY = (mouse.y - cy - cameraOffset.y) / SCENE_SCALE + cy;
 			cursor.position.set(mouse.x, mouse.y);
 			scene.position.set(
 				app.renderer.width / 2 + cameraOffset.x,
 				app.renderer.height / 2 + cameraOffset.y,
 			);
-			for (const vine of vines) vine.update(time, mouse, seconds);
+			const mouseWorld = { x: mouseWorldX, y: mouseWorldY, down: mouse.down };
+			for (const vine of vines) vine.update(time, mouseWorld, seconds);
 
 			if (grabRequested) {
 				grabRequested = false;
