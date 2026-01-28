@@ -6,16 +6,16 @@ import { createCRTFisheyeFilter, updateCRTFisheyeFilter } from './shaders.js';
 const THEMES = {
 	light: {
 		name: 'Light',
-		appBackground: 0xf5e6c8,
-		bg: { bg: 0xf5e6c8, dot: 0xcebfa3, stripe: 0xb9aa8d, farAlpha: 0.10, midAlpha: 0.12, nearAlpha: 0.14 },
+		appBackground: 0x000000,
+		bg: { bg: 0x000000, dot: 0x000000, stripe: 0x000000, farAlpha: 0.10, midAlpha: 0.12, nearAlpha: 0.14 },
 		player: { fill: 0x000000, glow: 0x000000, glowAlpha: 0.0 },
 		vines: { hue: 0xff5a6e },
 		crt: { intensity: 0.0, brightness: 1.0, glowColor: 0x000000, scanStrength: 0.25 },
 	},
 	dark: {
 		name: 'Dark',
-		appBackground: 0x102a3f,
-		bg: { bg: 0x102a3f, dot: 0x0e2233, stripe: 0x143247, farAlpha: 0.10, midAlpha: 0.14, nearAlpha: 0.18 },
+		appBackground: 0x000000,
+		bg: { bg: 0x000000, dot: 0x000000, stripe: 0x000000, farAlpha: 0.10, midAlpha: 0.14, nearAlpha: 0.18 },
 		player: { fill: 0xf5e6c8, glow: 0xf5e6c8, glowAlpha: 0.22 },
 		vines: { hue: 0xff5a6e },
 		crt: { intensity: 1.0, brightness: 1.2, glowColor: 0x00ff99, scanStrength: 1.0 },
@@ -72,7 +72,7 @@ async function boot() {
 		const { filter: crtFisheyeFilter, uniforms: crtFisheyeUniforms } = createCRTFisheyeFilter(app, {
 			intensity: 0.08,
 			brightness: 0.06,
-			scanStrength: 0.45,
+			scanStrength: 0.85,
 			curve: 0.08,
 			vignette: 0.28,
 		});
