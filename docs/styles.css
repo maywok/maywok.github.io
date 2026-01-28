@@ -161,7 +161,7 @@ main { padding: 24px; }
     width: 100%;
     height: 100%;
 }
-#game-root, .crt, .crt canvas { cursor: default !important; }
+#game-root, .crt, .crt canvas { cursor: none !important; }
 .crt::after {
     content: "";
     position: absolute;
