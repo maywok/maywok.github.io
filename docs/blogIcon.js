@@ -18,7 +18,8 @@ export async function createBlogIcon(app, world, options = {}) {
 		parallaxOffset = 6,
 		backgroundParallax = 3,
 		tiltAmount = 0.12,
-		foilStrength = 0.45,
+		foilStrength = 0.18,
+		foilStrengthMax = 0.42,
 	} = options;
 
 	function extractFrameIndex(name) {
@@ -135,6 +136,8 @@ export async function createBlogIcon(app, world, options = {}) {
 		const ny = Math.max(-1, Math.min(1, local.y / (backgroundHeight / 2 || 1)));
 		foilUniforms.u_offset[0] = nx * 0.08;
 		foilUniforms.u_offset[1] = ny * 0.08;
+		const tiltMag = Math.min(1, Math.hypot(nx, ny));
+		foilSprite.alpha = foilStrength + (foilStrengthMax - foilStrength) * tiltMag;
 	});
 	container.on('pointerout', () => {
 		hoverSprite.stop();
@@ -144,6 +147,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		cardMotion.reset();
 		foilUniforms.u_offset[0] = 0;
 		foilUniforms.u_offset[1] = 0;
+		foilSprite.alpha = foilStrength;
 	});
 	container.on('pointertap', () => {
 		window.open(url, '_blank', 'noopener');
