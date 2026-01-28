@@ -167,6 +167,7 @@ export async function createBlogIcon(app, world, options = {}) {
 	layout();
 	app.ticker.add((dt) => {
 		foilUniforms.u_time += dt / 60;
+		cardMotion.update();
 	});
 
 	return { container, layout };

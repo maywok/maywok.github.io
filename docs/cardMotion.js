@@ -3,6 +3,7 @@ export function createCardMotion(container, options = {}) {
 		width = 1,
 		height = 1,
 		tiltAmount = 0.12,
+		smoothing = 0.12,
 		layers = [],
 	} = options;
 
@@ -10,30 +11,37 @@ export function createCardMotion(container, options = {}) {
 		return Math.max(min, Math.min(max, v));
 	}
 
+	const state = {
+		nx: 0,
+		ny: 0,
+	};
+
 	function onPointerMove(event) {
 		const local = event.getLocalPosition(container);
-		const nx = clamp(local.x / ((width / 2) || 1), -1, 1);
-		const ny = clamp(local.y / ((height / 2) || 1), -1, 1);
+		state.nx = clamp(local.x / ((width / 2) || 1), -1, 1);
+		state.ny = clamp(local.y / ((height / 2) || 1), -1, 1);
+	}
 
+	function reset() {
+		state.nx = 0;
+		state.ny = 0;
+	}
+
+	function update() {
 		for (const layer of layers) {
 			if (!layer?.target) continue;
 			const strength = layer.strength ?? 0;
 			const invert = layer.invert ?? false;
-			const dx = (invert ? -nx : nx) * strength;
-			const dy = (invert ? -ny : ny) * strength;
-			layer.target.position.set(dx, dy);
+			const dx = (invert ? -state.nx : state.nx) * strength;
+			const dy = (invert ? -state.ny : state.ny) * strength;
+			layer.target.position.x += (dx - layer.target.position.x) * smoothing;
+			layer.target.position.y += (dy - layer.target.position.y) * smoothing;
 		}
-
-		container.skew.set(-ny * tiltAmount, nx * tiltAmount);
+		const targetSkewX = -state.ny * tiltAmount;
+		const targetSkewY = state.nx * tiltAmount;
+		container.skew.x += (targetSkewX - container.skew.x) * smoothing;
+		container.skew.y += (targetSkewY - container.skew.y) * smoothing;
 	}
 
-	function reset() {
-		for (const layer of layers) {
-			if (!layer?.target) continue;
-			layer.target.position.set(0, 0);
-		}
-		container.skew.set(0, 0);
-	}
-
-	return { onPointerMove, reset };
+	return { onPointerMove, reset, update };
 }
