@@ -69,9 +69,6 @@ async function boot() {
 		const DEBUG_SHAPES = false;
 		const scene = new PIXI.Container();
 		app.stage.addChild(scene);
-		const lensMask = new PIXI.Graphics();
-		app.stage.addChild(lensMask);
-		scene.mask = lensMask;
 		const SCENE_SCALE = 1.12;
 		const CAMERA_PARALLAX = 9;
 		const CAMERA_SMOOTHING = 0.08;
@@ -91,15 +88,6 @@ async function boot() {
 			scene.pivot.set(cx, cy);
 			scene.position.set(cx, cy);
 			scene.scale.set(SCENE_SCALE);
-		}
-		function layoutLensMask() {
-			const cx = app.renderer.width / 2;
-			const cy = app.renderer.height / 2;
-			const radius = Math.min(app.renderer.width, app.renderer.height) * 0.5 * 0.98;
-			lensMask.clear();
-			lensMask.beginFill(0xffffff, 1);
-			lensMask.drawCircle(cx, cy, radius);
-			lensMask.endFill();
 		}
 		const { filter: crtFisheyeFilter, uniforms: crtFisheyeUniforms } = createCRTFisheyeFilter(app, {
 			intensity: 0.08,
@@ -563,7 +551,6 @@ async function boot() {
 			}
 			// Keep shader uniforms in sync with new renderer size
 			layoutScene();
-			layoutLensMask();
 			
 
 			// Rebuild vines layout for new width/height
