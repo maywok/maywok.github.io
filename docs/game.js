@@ -69,8 +69,8 @@ async function boot() {
 		const DEBUG_SHAPES = false;
 		const scene = new PIXI.Container();
 		app.stage.addChild(scene);
-		const SCENE_SCALE = 1.06;
-		const CAMERA_PARALLAX = 6;
+		const SCENE_SCALE = 1.12;
+		const CAMERA_PARALLAX = 9;
 		const CAMERA_SMOOTHING = 0.08;
 		const cameraOffset = { x: 0, y: 0 };
 		function layoutScene() {
@@ -141,7 +141,7 @@ async function boot() {
 		scene.addChild(world);
 		const player = new Player(app);
 		player.setColors(theme.player);
-		const { container: vinesLayer, vines } = createVines(app, 12);
+		const { container: vinesLayer, vines } = createVines(app, 12, 6);
 		for (const v of vines) v.setColor(theme.vines.hue);
 		world.addChild(vinesLayer);
 
@@ -534,7 +534,7 @@ async function boot() {
 
 			// Rebuild vines layout for new width/height
 			world.removeChild(vinesLayer);
-			const rebuilt = createVines(app, 12);
+			const rebuilt = createVines(app, 12, 6);
 			world.addChild(rebuilt.container);
 			vines.length = 0; // mutate array in-place to keep reference
 			for (const v of rebuilt.vines) vines.push(v);

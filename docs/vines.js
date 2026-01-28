@@ -237,13 +237,14 @@ export class Vine {
 	}
 }
 
-export function createVines(app, count = 10) {
+export function createVines(app, count = 10, edgePadding = 8) {
 	const container = new PIXI.Container();
 	const vines = [];
-	const spacing = app.renderer.width / (count + 1);
+	const usableWidth = Math.max(1, app.renderer.width - edgePadding * 2);
+	const spacing = count > 1 ? (usableWidth / (count - 1)) : 0;
 	const maxLength = Math.max(120, Math.floor(app.renderer.height * 0.25));
-	for (let i = 1; i <= count; i++) {
-		const x = Math.floor(i * spacing);
+	for (let i = 0; i < count; i++) {
+		const x = Math.floor(edgePadding + i * spacing);
 		const vine = new Vine(app, x, maxLength, 24);
 		container.addChild(vine.view);
 		vines.push(vine);
