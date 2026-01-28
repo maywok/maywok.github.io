@@ -69,6 +69,8 @@ async function boot() {
 		const DEBUG_SHAPES = false;
 		const scene = new PIXI.Container();
 		app.stage.addChild(scene);
+		const uiLayer = new PIXI.Container();
+		app.stage.addChild(uiLayer);
 		const SCENE_SCALE = 1.12;
 		const CAMERA_PARALLAX = 9;
 		const CAMERA_SMOOTHING = 0.08;
@@ -314,15 +316,15 @@ async function boot() {
 		await PIXI.Assets.load(cursorTextureUrl);
 		const cursor = new PIXI.Sprite(PIXI.Texture.from(cursorTextureUrl));
 		cursor.anchor.set(0.5);
-		world.addChild(cursor);
+		uiLayer.addChild(cursor);
 		function updateMouseFromEvent(e) {
 			const rect = app.view.getBoundingClientRect();
 			const x = e.clientX - rect.left;
 			const y = e.clientY - rect.top;
 			const scaledX = x * (app.renderer.width / rect.width);
 			const scaledY = y * (app.renderer.height / rect.height);
-			const cursorHalfW = (cursor.width * SCENE_SCALE) * 0.5;
-			const cursorHalfH = (cursor.height * SCENE_SCALE) * 0.5;
+			const cursorHalfW = cursor.width * 0.5;
+			const cursorHalfH = cursor.height * 0.5;
 			mouse.x = Math.max(cursorHalfW, Math.min(app.renderer.width - cursorHalfW, scaledX));
 			mouse.y = Math.max(cursorHalfH, Math.min(app.renderer.height - cursorHalfH, scaledY));
 		}
@@ -394,9 +396,7 @@ async function boot() {
 			cameraOffset.y += (targetY - cameraOffset.y) * CAMERA_SMOOTHING;
 			const cx = app.renderer.width / 2;
 			const cy = app.renderer.height / 2;
-			const cursorWorldX = (mouse.x - cx - cameraOffset.x) / SCENE_SCALE + cx;
-			const cursorWorldY = (mouse.y - cy - cameraOffset.y) / SCENE_SCALE + cy;
-			cursor.position.set(cursorWorldX, cursorWorldY);
+			cursor.position.set(mouse.x, mouse.y);
 			scene.position.set(
 				app.renderer.width / 2 + cameraOffset.x,
 				app.renderer.height / 2 + cameraOffset.y,
