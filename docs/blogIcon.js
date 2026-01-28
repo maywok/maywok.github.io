@@ -5,10 +5,16 @@ export async function createBlogIcon(app, world, options = {}) {
 		hoverJsonUrl = './assets/spritesheet/json/hoverMug.json',
 		frozenImageUrl = './assets/spritesheet/frozenMug.png',
 		hoverImageUrl = './assets/spritesheet/hoverMug.png',
+		backgroundUrl = './assets/images/background.gif',
+		backgroundWidth = 56,
+		backgroundHeight = 104,
+		backgroundCornerRadius = 10,
 		margin = 24,
 		animationSpeed = 0.12,
 		scale = 5,
 		parallaxOffset = 6,
+		backgroundParallax = 3,
+		tiltAmount = 0.12,
 	} = options;
 
 	function extractFrameIndex(name) {
@@ -33,10 +39,19 @@ export async function createBlogIcon(app, world, options = {}) {
 		fetch(frozenJsonUrl).then((r) => r.json()),
 		fetch(hoverJsonUrl).then((r) => r.json()),
 	]);
-	await PIXI.Assets.load([frozenImageUrl, hoverImageUrl]);
+	await PIXI.Assets.load([frozenImageUrl, hoverImageUrl, backgroundUrl]);
 
 	const frozenTextures = buildTextures(frozenData, frozenImageUrl);
 	const hoverTextures = buildTextures(hoverData, hoverImageUrl);
+	const backgroundSprite = new PIXI.Sprite(PIXI.Texture.from(backgroundUrl));
+	backgroundSprite.anchor.set(0.5);
+	backgroundSprite.width = backgroundWidth;
+	backgroundSprite.height = backgroundHeight;
+	const backgroundMask = new PIXI.Graphics();
+	backgroundMask.beginFill(0xffffff, 1);
+	backgroundMask.drawRoundedRect(-backgroundWidth / 2, -backgroundHeight / 2, backgroundWidth, backgroundHeight, backgroundCornerRadius);
+	backgroundMask.endFill();
+	backgroundSprite.mask = backgroundMask;
 	const frozenSprite = new PIXI.AnimatedSprite(frozenTextures);
 	const hoverSprite = new PIXI.AnimatedSprite(hoverTextures);
 	frozenSprite.anchor.set(0.5);
@@ -48,6 +63,8 @@ export async function createBlogIcon(app, world, options = {}) {
 	hoverSprite.stop();
 
 	const container = new PIXI.Container();
+	container.addChild(backgroundSprite);
+	container.addChild(backgroundMask);
 	container.addChild(frozenSprite);
 	container.addChild(hoverSprite);
 	container.scale.set(scale);
@@ -60,11 +77,12 @@ export async function createBlogIcon(app, world, options = {}) {
 	});
 	container.on('pointermove', (event) => {
 		if (!hoverSprite.visible) return;
-		const bounds = hoverSprite.getLocalBounds();
 		const local = event.getLocalPosition(container);
-		const nx = (local.x - (bounds.x + bounds.width / 2)) / (bounds.width || 1);
-		const ny = (local.y - (bounds.y + bounds.height / 2)) / (bounds.height || 1);
+		const nx = Math.max(-1, Math.min(1, local.x / (backgroundWidth / 2 || 1)));
+		const ny = Math.max(-1, Math.min(1, local.y / (backgroundHeight / 2 || 1)));
 		hoverSprite.position.set(nx * parallaxOffset, ny * parallaxOffset);
+		backgroundSprite.position.set(-nx * backgroundParallax, -ny * backgroundParallax);
+		container.skew.set(-ny * tiltAmount, nx * tiltAmount);
 	});
 	container.on('pointerout', () => {
 		hoverSprite.stop();
@@ -72,6 +90,8 @@ export async function createBlogIcon(app, world, options = {}) {
 		frozenSprite.visible = true;
 		frozenSprite.play();
 		hoverSprite.position.set(0, 0);
+		backgroundSprite.position.set(0, 0);
+		container.skew.set(0, 0);
 	});
 	container.on('pointertap', () => {
 		window.open(url, '_blank', 'noopener');
