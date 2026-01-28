@@ -8,6 +8,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		margin = 24,
 		animationSpeed = 0.12,
 		scale = 5,
+		parallaxOffset = 6,
 	} = options;
 
 	function extractFrameIndex(name) {
@@ -57,11 +58,20 @@ export async function createBlogIcon(app, world, options = {}) {
 		hoverSprite.visible = true;
 		hoverSprite.gotoAndPlay(0);
 	});
+	container.on('pointermove', (event) => {
+		if (!hoverSprite.visible) return;
+		const bounds = hoverSprite.getLocalBounds();
+		const local = event.getLocalPosition(container);
+		const nx = (local.x - (bounds.x + bounds.width / 2)) / (bounds.width || 1);
+		const ny = (local.y - (bounds.y + bounds.height / 2)) / (bounds.height || 1);
+		hoverSprite.position.set(nx * parallaxOffset, ny * parallaxOffset);
+	});
 	container.on('pointerout', () => {
 		hoverSprite.stop();
 		hoverSprite.visible = false;
 		frozenSprite.visible = true;
 		frozenSprite.play();
+		hoverSprite.position.set(0, 0);
 	});
 	container.on('pointertap', () => {
 		window.open(url, '_blank', 'noopener');
