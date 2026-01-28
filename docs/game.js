@@ -314,7 +314,7 @@ async function boot() {
 		await PIXI.Assets.load(cursorTextureUrl);
 		const cursor = new PIXI.Sprite(PIXI.Texture.from(cursorTextureUrl));
 		cursor.anchor.set(0.5);
-		world.addChild(cursor);
+		app.stage.addChild(cursor);
 		function updateMouseFromEvent(e) {
 			const rect = app.view.getBoundingClientRect();
 			const x = e.clientX - rect.left;
