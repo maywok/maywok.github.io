@@ -22,31 +22,6 @@ body {
     min-height: 100%;
 }
 
-.startup-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 2000;
-    background: #000000;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 1;
-    transition: opacity 260ms ease;
-}
-
-.startup-overlay.fade-out {
-    opacity: 0;
-    pointer-events: none;
-}
-
-.startup-video {
-    width: min(10vw, 110px);
-    height: min(10vh, 85px);
-    object-fit: contain;
-    image-rendering: pixelated;
-    border-radius: 12px;
-}
-
 body::before {
     content: "";
     position: fixed;
