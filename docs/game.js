@@ -164,7 +164,7 @@ async function boot() {
 		const player = new Player(app);
 		player.setColors(theme.player);
 		const ENABLE_VINE_LAMPS = true;
-		const { container: vinesLayer, vines } = createVines(app, 12, 6, {
+		const vineOptions = {
 			lamp: {
 				enabled: ENABLE_VINE_LAMPS,
 				color: 0x6fd2ff,
@@ -174,7 +174,8 @@ async function boot() {
 				glowAlpha: 0.38,
 				coreAlpha: 0.96,
 			},
-		});
+		};
+		let { container: vinesLayer, vines } = createVines(app, 12, 6, vineOptions);
 		for (const v of vines) v.setColor(theme.vines.hue);
 		world.addChild(vinesLayer);
 
@@ -734,8 +735,9 @@ async function boot() {
 
 			// Rebuild vines layout for new width/height
 			world.removeChild(vinesLayer);
-			const rebuilt = createVines(app, 12, 6);
+			const rebuilt = createVines(app, 12, 6, vineOptions);
 			world.addChild(rebuilt.container);
+			vinesLayer = rebuilt.container;
 			vines.length = 0; // mutate array in-place to keep reference
 			for (const v of rebuilt.vines) vines.push(v);
 			player.onResize();
