@@ -1,7 +1,12 @@
 import { Player } from './player.js';
 import { createVines } from './vines.js';
 import { createBlogIcon } from './blogIcon.js';
-import { createCRTFisheyeFilter, updateCRTFisheyeFilter } from './shaders.js';
+import {
+	createCRTFisheyeFilter,
+	updateCRTFisheyeFilter,
+	createCRTScanlinesFilter,
+	updateCRTScanlinesFilter,
+} from './shaders.js';
 import { createPixelateFilter } from './pixelate.js';
 
 const THEMES = {
@@ -97,8 +102,14 @@ async function boot() {
 			curve: 0.08,
 			vignette: 0.28,
 		});
+		const { filter: crtScanlinesFilter, uniforms: crtScanlinesUniforms } = createCRTScanlinesFilter(app, {
+			strength: 0.42,
+			speed: 0.25,
+			noise: 0.03,
+			mask: 0.14,
+		});
 		crtFisheyeFilter.padding = 16;
-		scene.filters = [crtFisheyeFilter];
+		scene.filters = [crtFisheyeFilter, crtScanlinesFilter];
 		let themeKey = loadThemeKey();
 		let theme = THEMES[themeKey];
 
@@ -508,6 +519,7 @@ async function boot() {
 					`dpr: ${dpr.toFixed(2)}`;
 			}
 			updateCRTFisheyeFilter({ uniforms: crtFisheyeUniforms }, app, dt / 60);
+			updateCRTScanlinesFilter({ uniforms: crtScanlinesUniforms }, app, dt / 60);
 			updateCursorPixelate();
 			const seconds = dt / 60;
 			time += seconds;
