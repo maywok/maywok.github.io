@@ -159,11 +159,15 @@ async function boot() {
 			app.stage.addChild(rect);
 		}
 
+		const lightLayer = new PIXI.Container();
+		lightLayer.blendMode = PIXI.BLEND_MODES.ADD;
+		scene.addChild(lightLayer);
 		const world = new PIXI.Container();
 		scene.addChild(world);
 		const player = new Player(app);
 		player.setColors(theme.player);
 		const ENABLE_VINE_LAMPS = true;
+		const ENABLE_VINE_LAMP_LIGHTING = true;
 		const vineOptions = {
 			lamp: {
 				enabled: ENABLE_VINE_LAMPS,
@@ -178,6 +182,44 @@ async function boot() {
 		let { container: vinesLayer, vines } = createVines(app, 12, 6, vineOptions);
 		for (const v of vines) v.setColor(theme.vines.hue);
 		world.addChild(vinesLayer);
+
+		function makeLampLightTexture(color = '#2f7bff') {
+			const size = 256;
+			const canvas = document.createElement('canvas');
+			canvas.width = size;
+			canvas.height = size;
+			const ctx = canvas.getContext('2d');
+			if (!ctx) return PIXI.Texture.WHITE;
+			const cx = size / 2;
+			const cy = size / 2;
+			const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size * 0.5);
+			grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+			grad.addColorStop(0.25, `rgba(${parseInt(color.slice(1, 3), 16)},${parseInt(color.slice(3, 5), 16)},${parseInt(color.slice(5, 7), 16)},0.65)`);
+			grad.addColorStop(0.6, `rgba(${parseInt(color.slice(1, 3), 16)},${parseInt(color.slice(3, 5), 16)},${parseInt(color.slice(5, 7), 16)},0.15)`);
+			grad.addColorStop(1, 'rgba(0,0,0,0)');
+			ctx.fillStyle = grad;
+			ctx.fillRect(0, 0, size, size);
+			return PIXI.Texture.from(canvas);
+		}
+
+		const lampLightTexture = makeLampLightTexture('#2f7bff');
+		const vineLightSprites = [];
+		const lampLightRadius = 140;
+		function rebuildVineLights() {
+			lightLayer.removeChildren();
+			vineLightSprites.length = 0;
+			if (!ENABLE_VINE_LAMP_LIGHTING || !ENABLE_VINE_LAMPS) return;
+			for (let i = 0; i < vines.length; i++) {
+				const sprite = new PIXI.Sprite(lampLightTexture);
+				sprite.anchor.set(0.5);
+				sprite.alpha = 0.55;
+				const scale = lampLightRadius / (lampLightTexture.width * 0.5);
+				sprite.scale.set(scale);
+				lightLayer.addChild(sprite);
+				vineLightSprites.push(sprite);
+			}
+		}
+		rebuildVineLights();
 
 		const { container: blogIconContainer, layout: layoutBlogIcon } = await createBlogIcon(app, world, {
 			url: '/blog',
@@ -576,6 +618,16 @@ async function boot() {
 			);
 			const mouseWorld = { x: mouseWorldX, y: mouseWorldY, down: mouse.down };
 			for (const vine of vines) vine.update(time, mouseWorld, seconds);
+			if (ENABLE_VINE_LAMP_LIGHTING && ENABLE_VINE_LAMPS) {
+				for (let i = 0; i < vines.length; i++) {
+					const v = vines[i];
+					const s = vineLightSprites[i];
+					if (!s || !v?.lamp?.enabled) continue;
+					const p = v.getLampPosition();
+					s.position.set(p.x, p.y);
+					s.alpha = 0.45 + 0.1 * Math.sin(time * 2.0 + i * 0.5);
+				}
+			}
 
 			if (grabRequested) {
 				grabRequested = false;
@@ -740,6 +792,7 @@ async function boot() {
 			vinesLayer = rebuilt.container;
 			vines.length = 0; // mutate array in-place to keep reference
 			for (const v of rebuilt.vines) vines.push(v);
+			rebuildVineLights();
 			player.onResize();
 
 			// Rebuild platform for new size

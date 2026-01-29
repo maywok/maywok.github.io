@@ -78,6 +78,9 @@ export class Vine {
 	getPointsView() {
 		return { x: this.drawX, y: this.drawY, count: this.segments + 1 };
 	}
+	getLampPosition() {
+		return { x: this.drawX[this.segments], y: this.drawY[this.segments] };
+	}
 
 	static _distToSegmentSq(px, py, ax, ay, bx, by) {
 		const abx = bx - ax;
