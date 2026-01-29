@@ -490,7 +490,7 @@ async function boot() {
 		cursorContainer.filters = [cursorPixelateFilter];
 		world.addChild(cursorContainer);
 
-		const ENABLE_CLICK_AUDIO = true;
+		const ENABLE_CLICK_AUDIO = false;
 		const CLICK_AUDIO_URL = './assets/audio/clickdown.wav';
 		let clickAudioCtx = null;
 		let clickBuffer = null;
