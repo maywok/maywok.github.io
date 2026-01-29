@@ -40,8 +40,8 @@ body {
 }
 
 .startup-video {
-    width: min(20vw, 220px);
-    height: min(20vh, 170px);
+    width: min(10vw, 110px);
+    height: min(10vh, 85px);
     object-fit: contain;
     image-rendering: pixelated;
     border-radius: 12px;
