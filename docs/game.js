@@ -489,6 +489,44 @@ async function boot() {
 		const { filter: cursorPixelateFilter, update: updateCursorPixelate } = createPixelateFilter(app, { pixelSize: 2 });
 		cursorContainer.filters = [cursorPixelateFilter];
 		world.addChild(cursorContainer);
+
+		const ENABLE_CLICK_AUDIO = true;
+		const CLICK_AUDIO_URL = './assets/audio/clickdown.wav';
+		let clickAudioCtx = null;
+		let clickBuffer = null;
+		let clickLoadPromise = null;
+		async function ensureClickAudio() {
+			if (!ENABLE_CLICK_AUDIO) return null;
+			if (!clickAudioCtx) {
+				const Ctx = window.AudioContext || window.webkitAudioContext;
+				if (!Ctx) return null;
+				clickAudioCtx = new Ctx();
+			}
+			if (clickAudioCtx.state === 'suspended') {
+				try { await clickAudioCtx.resume(); } catch (_) {}
+			}
+			if (clickBuffer) return clickBuffer;
+			if (!clickLoadPromise) {
+				clickLoadPromise = (async () => {
+					const res = await fetch(CLICK_AUDIO_URL);
+					const arr = await res.arrayBuffer();
+					clickBuffer = await clickAudioCtx.decodeAudioData(arr);
+					return clickBuffer;
+				})();
+			}
+			return clickLoadPromise;
+		}
+		function playClickSlice(startRatio, endRatio, volume = 0.8) {
+			if (!clickAudioCtx || !clickBuffer) return;
+			const start = clickBuffer.duration * startRatio;
+			const duration = Math.max(0.01, clickBuffer.duration * (endRatio - startRatio));
+			const source = clickAudioCtx.createBufferSource();
+			const gain = clickAudioCtx.createGain();
+			source.buffer = clickBuffer;
+			gain.gain.value = volume;
+			source.connect(gain).connect(clickAudioCtx.destination);
+			source.start(0, start, duration);
+		}
 		function updateMouseFromEvent(e) {
 			const rect = app.view.getBoundingClientRect();
 			const x = e.clientX - rect.left;
@@ -504,8 +542,21 @@ async function boot() {
 		window.addEventListener('pointerdown', updateMouseFromEvent);
 		window.addEventListener('pointerenter', updateMouseFromEvent);
 		window.addEventListener('mousemove', updateMouseFromEvent);
-		window.addEventListener('pointerdown', () => { mouse.down = true; cursorContainer.visible = true; });
-		window.addEventListener('pointerup', () => { mouse.down = false; });
+		window.addEventListener('pointerdown', async () => {
+			mouse.down = true;
+			cursorContainer.visible = true;
+			try {
+				await ensureClickAudio();
+				playClickSlice(0.0, 0.5, 0.85);
+			} catch (_) {}
+		});
+		window.addEventListener('pointerup', async () => {
+			mouse.down = false;
+			try {
+				await ensureClickAudio();
+				playClickSlice(0.5, 1.0, 0.85);
+			} catch (_) {}
+		});
 		window.addEventListener('pointercancel', () => { mouse.down = false; });
 		window.addEventListener('blur', () => { mouse.down = false; });
 		window.addEventListener('pointerleave', () => { cursorContainer.visible = false; });
