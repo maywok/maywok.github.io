@@ -626,4 +626,8 @@ async function boot() {
 	}
 }
 
-boot();
+if (document.documentElement.classList.contains('startup-ready')) {
+	boot();
+} else {
+	window.addEventListener('mw-start', () => boot(), { once: true });
+}

@@ -22,6 +22,30 @@ body {
     min-height: 100%;
 }
 
+.startup-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: #000000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 1;
+    transition: opacity 500ms ease;
+}
+
+.startup-overlay.fade-out {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.startup-video {
+    width: 100vw;
+    height: 100vh;
+    object-fit: contain;
+    image-rendering: pixelated;
+}
+
 body::before {
     content: "";
     position: fixed;
