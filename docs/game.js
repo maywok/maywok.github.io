@@ -2,6 +2,7 @@ import { Player } from './player.js';
 import { createVines } from './vines.js';
 import { createBlogIcon } from './blogIcon.js';
 import { createCRTFisheyeFilter, updateCRTFisheyeFilter } from './shaders.js';
+import { createPixelateFilter } from './pixelate.js';
 
 const THEMES = {
 	light: {
@@ -419,10 +420,20 @@ async function boot() {
 		};
 		const cursorTextureUrl = './assets/spritesheet/cursor.png';
 		await PIXI.Assets.load(cursorTextureUrl);
-		const cursor = new PIXI.Sprite(PIXI.Texture.from(cursorTextureUrl));
+		const cursorTexture = PIXI.Texture.from(cursorTextureUrl);
+		const cursor = new PIXI.Sprite(cursorTexture);
 		cursor.anchor.set(0.5);
-		world.addChild(cursor);
-		addAssetFilterTarget(cursor);
+		const cursorGlow = new PIXI.Sprite(cursorTexture);
+		cursorGlow.anchor.set(0.5);
+		cursorGlow.tint = 0xff5aa8;
+		cursorGlow.alpha = 0.35;
+		cursorGlow.scale.set(1.35);
+		cursorGlow.blendMode = PIXI.BLEND_MODES.ADD;
+		const cursorContainer = new PIXI.Container();
+		cursorContainer.addChild(cursorGlow, cursor);
+		const { filter: cursorPixelateFilter, update: updateCursorPixelate } = createPixelateFilter(app, { pixelSize: 2 });
+		cursorContainer.filters = [crtFisheyeFilter, cursorPixelateFilter];
+		world.addChild(cursorContainer);
 		function updateMouseFromEvent(e) {
 			const rect = app.view.getBoundingClientRect();
 			const x = e.clientX - rect.left;
@@ -438,12 +449,12 @@ async function boot() {
 		window.addEventListener('pointerdown', updateMouseFromEvent);
 		window.addEventListener('pointerenter', updateMouseFromEvent);
 		window.addEventListener('mousemove', updateMouseFromEvent);
-		window.addEventListener('pointerdown', () => { mouse.down = true; cursor.visible = true; });
+		window.addEventListener('pointerdown', () => { mouse.down = true; cursorContainer.visible = true; });
 		window.addEventListener('pointerup', () => { mouse.down = false; });
 		window.addEventListener('pointercancel', () => { mouse.down = false; });
 		window.addEventListener('blur', () => { mouse.down = false; });
-		window.addEventListener('pointerleave', () => { cursor.visible = false; });
-		window.addEventListener('pointerenter', () => { cursor.visible = true; });
+		window.addEventListener('pointerleave', () => { cursorContainer.visible = false; });
+		window.addEventListener('pointerenter', () => { cursorContainer.visible = true; });
 
 		let time = 0;
 		let vineGrab = null;
@@ -507,6 +518,7 @@ async function boot() {
 					`dpr: ${dpr.toFixed(2)}`;
 			}
 			updateCRTFisheyeFilter({ uniforms: crtFisheyeUniforms }, app, dt / 60);
+			updateCursorPixelate();
 			const seconds = dt / 60;
 			time += seconds;
 			if (matrixActive) {
@@ -543,7 +555,7 @@ async function boot() {
 			const screenY = undistortedUV.y * app.renderer.height;
 			const mouseWorldX = (screenX - cx - cameraOffset.x) / SCENE_SCALE + cx;
 			const mouseWorldY = (screenY - cy - cameraOffset.y) / SCENE_SCALE + cy;
-			cursor.position.set(mouseWorldX, mouseWorldY);
+			cursorContainer.position.set(mouseWorldX, mouseWorldY);
 			scene.position.set(
 				app.renderer.width / 2 + cameraOffset.x,
 				app.renderer.height / 2 + cameraOffset.y,

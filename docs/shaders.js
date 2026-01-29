@@ -80,7 +80,7 @@ export function createCRTFisheyeFilter(app, {
 		void main() {
 			vec2 uv = fisheye(vTextureCoord);
 			if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-				gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+				gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
 				return;
 			}
 			vec3 baseColor = texture2D(uSampler, uv).rgb;
