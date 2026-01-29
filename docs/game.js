@@ -96,7 +96,12 @@ async function boot() {
 			curve: 0.08,
 			vignette: 0.28,
 		});
-		scene.filters = [crtFisheyeFilter];
+		crtFisheyeFilter.padding = 16;
+		const assetFilters = [crtFisheyeFilter];
+		const addAssetFilterTarget = (obj) => {
+			if (!obj) return;
+			obj.filters = assetFilters;
+		};
 		let themeKey = loadThemeKey();
 		let theme = THEMES[themeKey];
 
@@ -153,11 +158,13 @@ async function boot() {
 		const { container: vinesLayer, vines } = createVines(app, 12, 6);
 		for (const v of vines) v.setColor(theme.vines.hue);
 		world.addChild(vinesLayer);
+		addAssetFilterTarget(vinesLayer);
 
-		const { layout: layoutBlogIcon } = await createBlogIcon(app, world, {
+		const { container: blogIconContainer, layout: layoutBlogIcon } = await createBlogIcon(app, world, {
 			url: '/blog',
 			screenScale: SCENE_SCALE,
 		});
+		addAssetFilterTarget(blogIconContainer);
 
 		function makeLinkPlatform(labelText, url, options = {}) {
 			const { x = 80, y = 200, fontSize = 40, collisionPad = 6 } = options;
@@ -220,7 +227,10 @@ async function boot() {
 			makeLinkPlatform('GitHub', 'https://github.com/maywok', { x: 64, y: 0, fontSize: 58 }),
 			makeLinkPlatform('LinkedIn', 'https://www.linkedin.com/in/mason--walker/', { x: 64, y: 0, fontSize: 58 }),
 		];
-		for (const lp of linkPlatforms) world.addChild(lp);
+		for (const lp of linkPlatforms) {
+			world.addChild(lp);
+			addAssetFilterTarget(lp);
+		}
 
 		function layoutLinkPlatforms() {
 			const leftX = 64;
@@ -243,6 +253,7 @@ async function boot() {
 		layoutLinkPlatforms();
 
 		world.addChild(player.view);
+		addAssetFilterTarget(player.view);
 
 		const MATRIX_REVEAL_DURATION = 1.4;
 		let matrixElapsed = 0;
@@ -398,6 +409,8 @@ async function boot() {
 		platformEdge.lineTo(wpx + wpw - 6, wpy + wph);
 		world.addChild(platform);
 		world.addChild(platformEdge);
+		addAssetFilterTarget(platform);
+		addAssetFilterTarget(platformEdge);
 
 		const mouse = {
 			x: app.renderer.width * 0.5,
@@ -409,6 +422,7 @@ async function boot() {
 		const cursor = new PIXI.Sprite(PIXI.Texture.from(cursorTextureUrl));
 		cursor.anchor.set(0.5);
 		world.addChild(cursor);
+		addAssetFilterTarget(cursor);
 		function updateMouseFromEvent(e) {
 			const rect = app.view.getBoundingClientRect();
 			const x = e.clientX - rect.left;
