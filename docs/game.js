@@ -244,6 +244,96 @@ async function boot() {
 
 		world.addChild(player.view);
 
+		const MATRIX_REVEAL_DURATION = 1.4;
+		let matrixElapsed = 0;
+		let matrixActive = true;
+		scene.alpha = 0;
+
+		const matrixOverlay = new PIXI.Container();
+		app.stage.addChild(matrixOverlay);
+		const matrixSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
+		matrixSprite.width = app.renderer.width;
+		matrixSprite.height = app.renderer.height;
+		matrixOverlay.addChild(matrixSprite);
+
+		const maskRT = PIXI.RenderTexture.create({
+			width: app.renderer.width,
+			height: app.renderer.height,
+		});
+
+		const digitsCanvas = document.createElement('canvas');
+		digitsCanvas.width = 512;
+		digitsCanvas.height = 512;
+		const digitsCtx = digitsCanvas.getContext('2d');
+		const digitsTexture = PIXI.Texture.from(digitsCanvas);
+		const digitCell = 16;
+		const digitFont = '12px Minecraft, ui-monospace, Menlo, monospace';
+		let lastDigitsUpdate = 0;
+
+		function updateDigits() {
+			if (!digitsCtx) return;
+			digitsCtx.clearRect(0, 0, digitsCanvas.width, digitsCanvas.height);
+			digitsCtx.fillStyle = '#000000';
+			digitsCtx.fillRect(0, 0, digitsCanvas.width, digitsCanvas.height);
+			digitsCtx.font = digitFont;
+			digitsCtx.textAlign = 'center';
+			digitsCtx.textBaseline = 'middle';
+			for (let y = 0; y < digitsCanvas.height; y += digitCell) {
+				for (let x = 0; x < digitsCanvas.width; x += digitCell) {
+					const n = Math.floor(Math.random() * 10);
+					const alpha = 0.35 + Math.random() * 0.45;
+					digitsCtx.fillStyle = `rgba(34, 243, 200, ${alpha.toFixed(2)})`;
+					digitsCtx.fillText(String(n), x + digitCell * 0.5, y + digitCell * 0.5);
+				}
+			}
+			digitsTexture.update();
+		}
+
+		updateDigits();
+
+		const matrixFragment = `
+			precision mediump float;
+			varying vec2 vTextureCoord;
+			uniform sampler2D u_mask;
+			uniform sampler2D u_digits;
+			uniform vec2 u_resolution;
+			uniform float u_time;
+			uniform vec3 u_color;
+			uniform float u_digitScale;
+			uniform float u_progress;
+
+			float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+
+			void main() {
+				vec2 uv = vTextureCoord;
+				vec2 px = 1.0 / u_resolution;
+				float m = luma(texture2D(u_mask, uv).rgb);
+				float mr = luma(texture2D(u_mask, uv + vec2(px.x, 0.0)).rgb);
+				float mu = luma(texture2D(u_mask, uv + vec2(0.0, px.y)).rgb);
+				float edge = max(abs(m - mr), abs(m - mu));
+				float outline = smoothstep(0.02, 0.12, edge);
+
+				vec2 duv = fract(uv * u_digitScale + vec2(u_time * 0.02, u_time * 0.01));
+				float d = luma(texture2D(u_digits, duv).rgb);
+				float alpha = outline * d * (1.0 - u_progress);
+				vec3 color = u_color * d;
+				gl_FragColor = vec4(color, alpha);
+			}
+		`;
+
+		const matrixUniforms = {
+			u_mask: maskRT,
+			u_digits: digitsTexture,
+			u_resolution: new Float32Array([app.renderer.width, app.renderer.height]),
+			u_time: 0,
+			u_color: new Float32Array([34 / 255, 243 / 255, 200 / 255]),
+			u_digitScale: Math.max(4, Math.min(10, app.renderer.width / 160)),
+			u_progress: 0,
+		};
+
+		const matrixFilter = new PIXI.Filter(undefined, matrixFragment, matrixUniforms);
+		matrixSprite.filters = [matrixFilter];
+
 		const toggleBtn = document.createElement('button');
 		const ENABLE_THEME_TOGGLE = false;
 		if (ENABLE_THEME_TOGGLE) {
@@ -405,6 +495,26 @@ async function boot() {
 			updateCRTFisheyeFilter({ uniforms: crtFisheyeUniforms }, app, dt / 60);
 			const seconds = dt / 60;
 			time += seconds;
+			if (matrixActive) {
+				matrixElapsed += seconds;
+				matrixUniforms.u_time = time;
+				const t = Math.max(0, Math.min(1, matrixElapsed / MATRIX_REVEAL_DURATION));
+				const eased = t * t * (3 - 2 * t);
+				matrixUniforms.u_progress = eased;
+				scene.alpha = eased;
+				app.renderer.render(scene, { renderTexture: maskRT, clear: true });
+				if (time - lastDigitsUpdate > 0.12) {
+					lastDigitsUpdate = time;
+					updateDigits();
+				}
+				if (t >= 1) {
+					matrixActive = false;
+					matrixOverlay.removeFromParent();
+					scene.alpha = 1;
+				}
+			} else {
+				scene.alpha = 1;
+			}
 			const nx = (mouse.x / app.renderer.width) * 2 - 1;
 			const ny = (mouse.y / app.renderer.height) * 2 - 1;
 			const targetX = -nx * CAMERA_PARALLAX;
@@ -575,6 +685,12 @@ async function boot() {
 			}
 			// Keep shader uniforms in sync with new renderer size
 			layoutScene();
+			matrixSprite.width = app.renderer.width;
+			matrixSprite.height = app.renderer.height;
+			maskRT.resize(app.renderer.width, app.renderer.height);
+			matrixUniforms.u_resolution[0] = app.renderer.width;
+			matrixUniforms.u_resolution[1] = app.renderer.height;
+			matrixUniforms.u_digitScale = Math.max(4, Math.min(10, app.renderer.width / 160));
 			
 
 			// Rebuild vines layout for new width/height
