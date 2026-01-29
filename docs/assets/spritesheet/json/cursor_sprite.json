@@ -1,0 +1,16 @@
+{
+  "sprites": [
+    {
+      "fileName": "cursor_sprite.png",
+      "width": 5760,
+      "height": 2160,
+      "x": 0,
+      "y": 0
+    }
+  ],
+  "packMode": "bin",
+  "padding": 0,
+  "backgroundColor": "rgba(0, 0, 0, 0)",
+  "spriteSheetWidth": 5760,
+  "spriteSheetHeight": 2160
+}
