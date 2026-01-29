@@ -31,7 +31,7 @@ body {
     align-items: center;
     justify-content: center;
     opacity: 1;
-    transition: opacity 500ms ease;
+    transition: opacity 260ms ease;
 }
 
 .startup-overlay.fade-out {
@@ -40,8 +40,8 @@ body {
 }
 
 .startup-video {
-    width: 100vw;
-    height: 100vh;
+    width: min(40vw, 420px);
+    height: min(40vh, 320px);
     object-fit: contain;
     image-rendering: pixelated;
 }
