@@ -40,10 +40,11 @@ body {
 }
 
 .startup-video {
-    width: min(40vw, 420px);
-    height: min(40vh, 320px);
+    width: min(20vw, 220px);
+    height: min(20vh, 170px);
     object-fit: contain;
     image-rendering: pixelated;
+    border-radius: 12px;
 }
 
 body::before {
