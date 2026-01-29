@@ -95,21 +95,28 @@ async function boot() {
 			scene.position.set(cx, cy);
 			scene.scale.set(SCENE_SCALE);
 		}
-		const { filter: crtFisheyeFilter, uniforms: crtFisheyeUniforms } = createCRTFisheyeFilter(app, {
-			intensity: 0.08,
-			brightness: 0.06,
-			scanStrength: 0.85,
-			curve: 0.08,
-			vignette: 0.28,
-		});
-		const { filter: crtScanlinesFilter, uniforms: crtScanlinesUniforms } = createCRTScanlinesFilter(app, {
-			strength: 0.42,
-			speed: 0.25,
-			noise: 0.03,
-			mask: 0.14,
-		});
-		crtFisheyeFilter.padding = 16;
-		scene.filters = [crtFisheyeFilter, crtScanlinesFilter];
+		const ENABLE_CRT = false;
+		let crtFisheyeUniforms = null;
+		let crtScanlinesUniforms = null;
+		if (ENABLE_CRT) {
+			const { filter: crtFisheyeFilter, uniforms } = createCRTFisheyeFilter(app, {
+				intensity: 0.08,
+				brightness: 0.06,
+				scanStrength: 0.85,
+				curve: 0.08,
+				vignette: 0.28,
+			});
+			crtFisheyeUniforms = uniforms;
+			const scanlines = createCRTScanlinesFilter(app, {
+				strength: 0.42,
+				speed: 0.25,
+				noise: 0.03,
+				mask: 0.14,
+			});
+			crtScanlinesUniforms = scanlines.uniforms;
+			crtFisheyeFilter.padding = 16;
+			scene.filters = [crtFisheyeFilter, scanlines.filter];
+		}
 		let themeKey = loadThemeKey();
 		let theme = THEMES[themeKey];
 
@@ -652,8 +659,10 @@ async function boot() {
 					`renderer: ${app.renderer.width}x${app.renderer.height}\n` +
 					`dpr: ${dpr.toFixed(2)}`;
 			}
-			updateCRTFisheyeFilter({ uniforms: crtFisheyeUniforms }, app, dt / 60);
-			updateCRTScanlinesFilter({ uniforms: crtScanlinesUniforms }, app, dt / 60);
+			if (ENABLE_CRT && crtFisheyeUniforms && crtScanlinesUniforms) {
+				updateCRTFisheyeFilter({ uniforms: crtFisheyeUniforms }, app, dt / 60);
+				updateCRTScanlinesFilter({ uniforms: crtScanlinesUniforms }, app, dt / 60);
+			}
 			updateCursorPixelate();
 			const seconds = dt / 60;
 			time += seconds;
@@ -686,7 +695,8 @@ async function boot() {
 			const cx = app.renderer.width / 2;
 			const cy = app.renderer.height / 2;
 			const uv = { x: mouse.x / app.renderer.width, y: mouse.y / app.renderer.height };
-			const undistortedUV = invertFisheyeUV(uv, crtFisheyeUniforms?.u_curve ?? 0);
+			const curve = (ENABLE_CRT && crtFisheyeUniforms) ? (crtFisheyeUniforms.u_curve ?? 0) : 0;
+			const undistortedUV = invertFisheyeUV(uv, curve);
 			const screenX = undistortedUV.x * app.renderer.width;
 			const screenY = undistortedUV.y * app.renderer.height;
 			const mouseWorldX = (screenX - cx - cameraOffset.x) / SCENE_SCALE + cx;
