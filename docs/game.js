@@ -163,7 +163,18 @@ async function boot() {
 		scene.addChild(world);
 		const player = new Player(app);
 		player.setColors(theme.player);
-		const { container: vinesLayer, vines } = createVines(app, 12, 6);
+		const ENABLE_VINE_LAMPS = true;
+		const { container: vinesLayer, vines } = createVines(app, 12, 6, {
+			lamp: {
+				enabled: ENABLE_VINE_LAMPS,
+				color: 0x6fd2ff,
+				glowColor: 0x2f7bff,
+				radius: 7,
+				glowRadius: 28,
+				glowAlpha: 0.38,
+				coreAlpha: 0.96,
+			},
+		});
 		for (const v of vines) v.setColor(theme.vines.hue);
 		world.addChild(vinesLayer);
 

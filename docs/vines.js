@@ -1,5 +1,5 @@
 export class Vine {
-	constructor(app, x, length = 160, segments = 22) {
+	constructor(app, x, length = 160, segments = 22, options = {}) {
 		this.app = app;
 		this.x = x;
 		this.length = length;
@@ -9,6 +9,25 @@ export class Vine {
 		this.line = new PIXI.Graphics();
 		this.view.addChild(this.glow);
 		this.view.addChild(this.line);
+
+		const lamp = options?.lamp ?? {};
+		this.lamp = {
+			enabled: Boolean(lamp.enabled),
+			color: typeof lamp.color === 'number' ? lamp.color : 0x42b8ff,
+			glowColor: typeof lamp.glowColor === 'number' ? lamp.glowColor : 0x1e6bff,
+			radius: typeof lamp.radius === 'number' ? lamp.radius : 7,
+			glowRadius: typeof lamp.glowRadius === 'number' ? lamp.glowRadius : 26,
+			glowAlpha: typeof lamp.glowAlpha === 'number' ? lamp.glowAlpha : 0.35,
+			coreAlpha: typeof lamp.coreAlpha === 'number' ? lamp.coreAlpha : 0.95,
+		};
+		if (this.lamp.enabled) {
+			this.lampGlow = new PIXI.Graphics();
+			this.lampCore = new PIXI.Graphics();
+			this.lampGlow.blendMode = PIXI.BLEND_MODES.ADD;
+			this.lampCore.blendMode = PIXI.BLEND_MODES.ADD;
+			this.view.addChild(this.lampGlow);
+			this.view.addChild(this.lampCore);
+		}
 
 		this.px = new Float32Array(this.segments + 1);
 		this.py = new Float32Array(this.segments + 1);
@@ -86,6 +105,10 @@ export class Vine {
 		const hue = this.hue;
 		this.line.clear();
 		this.glow.clear();
+		if (this.lamp?.enabled) {
+			this.lampGlow.clear();
+			this.lampCore.clear();
+		}
 		this.glow.lineStyle(16, hue, 0.32);
 		this.line.lineStyle(4, hue, 1.0);
 
@@ -234,10 +257,22 @@ export class Vine {
 				this.glow.lineTo(px, py);
 			}
 		}
+
+		if (this.lamp?.enabled) {
+			const lx = this.drawX[this.segments];
+			const ly = this.drawY[this.segments];
+			const pulse = 0.85 + 0.15 * Math.sin(time * 2.1 + this.baseX * 0.03);
+			this.lampGlow.beginFill(this.lamp.glowColor, this.lamp.glowAlpha * pulse);
+			this.lampGlow.drawCircle(lx, ly, this.lamp.glowRadius);
+			this.lampGlow.endFill();
+			this.lampCore.beginFill(this.lamp.color, this.lamp.coreAlpha);
+			this.lampCore.drawCircle(lx, ly, this.lamp.radius);
+			this.lampCore.endFill();
+		}
 	}
 }
 
-export function createVines(app, count = 10, edgePadding = 8) {
+export function createVines(app, count = 10, edgePadding = 8, options = {}) {
 	const container = new PIXI.Container();
 	const vines = [];
 	const usableWidth = Math.max(1, app.renderer.width - edgePadding * 2);
@@ -245,7 +280,7 @@ export function createVines(app, count = 10, edgePadding = 8) {
 	const maxLength = Math.max(120, Math.floor(app.renderer.height * 0.25));
 	for (let i = 0; i < count; i++) {
 		const x = Math.floor(edgePadding + i * spacing);
-		const vine = new Vine(app, x, maxLength, 24);
+		const vine = new Vine(app, x, maxLength, 24, options);
 		container.addChild(vine.view);
 		vines.push(vine);
 	}
