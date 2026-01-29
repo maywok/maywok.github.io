@@ -16,14 +16,15 @@ export function createCRTFilter(app, { intensity = 0.8, brightness = 0.35, glowC
 
 		void main() {
 			vec2 uv = vTextureCoord;
-			vec3 baseColor = texture2D(uSampler, uv).rgb;
+			vec4 base = texture2D(uSampler, uv);
+			vec3 baseColor = base.rgb;
 			float wave = 0.5 + 0.5 * sin(u_time + uv.x * 6.2831);
 			float scan = scanPattern(uv * u_resolution) * u_scanStrength;
             
 			vec3 glow = u_glowColor * wave * u_intensity;
             
 			vec3 color = baseColor * (0.6 + u_brightness) + glow * 0.25 + vec3(scan);
-			gl_FragColor = vec4(color, 1.0);
+			gl_FragColor = vec4(color, base.a);
 		}
 	`;
 	const gc = glowColor;
@@ -83,13 +84,14 @@ export function createCRTFisheyeFilter(app, {
 				gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
 				return;
 			}
-			vec3 baseColor = texture2D(uSampler, uv).rgb;
+			vec4 base = texture2D(uSampler, uv);
+			vec3 baseColor = base.rgb;
 			float scan = scanPattern(uv * u_resolution) * u_scanStrength;
 			vec2 dv = uv - 0.5;
 			float vig = smoothstep(0.8, 0.35, dot(dv, dv));
 			vec3 color = baseColor * (1.0 + u_brightness) + vec3(scan) * u_intensity;
 			color *= mix(1.0, vig, u_vignette);
-			gl_FragColor = vec4(color, 1.0);
+			gl_FragColor = vec4(color, base.a);
 		}
 	`;
 	const uniforms = {
