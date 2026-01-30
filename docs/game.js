@@ -324,14 +324,31 @@ async function boot() {
 				return startY;
 			};
 			const getLauncherIconSize = () => Math.max(48, Math.min(74, app.renderer.height * 0.1));
-			const { container: blogIconContainer, layout: layoutBlogIcon } = await createBlogIcon(app, world, {
-				url: '/blog',
-				screenScale: SCENE_SCALE,
-				dockScreenX: getLauncherDockX,
-				dockScreenY: getLauncherDockY,
-				backgroundWidth: screenToWorldSize(getLauncherIconSize()),
-				backgroundHeight: screenToWorldSize(getLauncherIconSize()),
-			});
+			const withTimeout = (promise, ms, label) => {
+				let timeoutId;
+				const timeout = new Promise((_, reject) => {
+					timeoutId = window.setTimeout(() => {
+						reject(new Error(`${label} timed out after ${ms}ms`));
+					}, ms);
+				});
+				return Promise.race([promise, timeout]).finally(() => {
+					window.clearTimeout(timeoutId);
+				});
+			};
+			let layoutBlogIcon = () => {};
+			try {
+				const blogIconResult = await withTimeout(createBlogIcon(app, world, {
+					url: '/blog',
+					screenScale: SCENE_SCALE,
+					dockScreenX: getLauncherDockX,
+					dockScreenY: getLauncherDockY,
+					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
+					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
+				}), 6000, 'Blog icon');
+				if (blogIconResult?.layout) layoutBlogIcon = blogIconResult.layout;
+			} catch (err) {
+				console.warn('Blog icon init failed or timed out:', err);
+			}
 
 			world.addChild(player.view);
 		const ENABLE_THEME_TOGGLE = false;
