@@ -9,12 +9,12 @@ export async function createBlogIcon(app, world, options = {}) {
 		hoverImageUrl = './assets/spritesheet/hoverMug.png',
 		backgroundUrl = './assets/images/background.gif',
 		backgroundJsonUrl = null,
-		backgroundWidth = 76,
-		backgroundHeight = 76,
+		backgroundWidth = 56,
+		backgroundHeight = 56,
 		backgroundCornerRadius = 12,
 		margin = 24,
 		animationSpeed = 0.12,
-		scale = 4.6,
+		scale = 1.0,
 		parallaxOffset = 6,
 		backgroundParallax = 3,
 		tiltAmount = 0.12,
@@ -28,8 +28,10 @@ export async function createBlogIcon(app, world, options = {}) {
 		previewWidth = 150,
 		previewHeight = 96,
 		previewCornerRadius = 10,
-		previewOffsetX = -170,
+		previewOffsetX = 170,
 		previewOffsetY = -80,
+		dockScreenX = null,
+		dockScreenY = null,
 	} = options;
 
 	function extractFrameIndex(name) {
@@ -78,6 +80,12 @@ export async function createBlogIcon(app, world, options = {}) {
 	hoverSprite.anchor.set(0.5);
 	frozenSprite.animationSpeed = animationSpeed;
 	hoverSprite.animationSpeed = animationSpeed;
+	const baseTextureWidth = frozenTextures?.[0]?.width || frozenSprite.width || 1;
+	const baseTextureHeight = frozenTextures?.[0]?.height || frozenSprite.height || 1;
+	const targetSize = Math.min(backgroundWidth, backgroundHeight) * 0.78;
+	const scaleFactor = targetSize / Math.max(baseTextureWidth, baseTextureHeight);
+	frozenSprite.scale.set(scaleFactor);
+	hoverSprite.scale.set(scaleFactor);
 	frozenSprite.play();
 	hoverSprite.visible = false;
 	hoverSprite.stop();
@@ -188,8 +196,10 @@ export async function createBlogIcon(app, world, options = {}) {
 		const bounds = container.getLocalBounds();
 		const w = bounds.width * container.scale.x;
 		const h = bounds.height * container.scale.y;
-		const screenX = app.renderer.width - margin - w / 2;
-		const screenY = app.renderer.height - margin - h / 2;
+		const resolvedDockX = typeof dockScreenX === 'function' ? dockScreenX() : dockScreenX;
+		const resolvedDockY = typeof dockScreenY === 'function' ? dockScreenY() : dockScreenY;
+		const screenX = (resolvedDockX != null) ? resolvedDockX : (app.renderer.width - margin - w / 2);
+		const screenY = (resolvedDockY != null) ? resolvedDockY : (app.renderer.height - margin - h / 2);
 		const cx = app.renderer.width / 2;
 		const cy = app.renderer.height / 2;
 		const worldX = (screenX - cx) / screenScale + cx;

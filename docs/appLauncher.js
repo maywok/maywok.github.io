@@ -1,3 +1,5 @@
+import { createCardMotion } from './cardMotion.js';
+
 export function createAppLauncher(app, world, options = {}) {
 	const {
 		items = [],
@@ -60,6 +62,16 @@ export function createAppLauncher(app, world, options = {}) {
 			iconSize: 56,
 		};
 
+		const cardMotion = createCardMotion(iconContainer, {
+			width: state.iconSize,
+			height: state.iconSize,
+			tiltAmount: 0.12,
+			layers: [
+				{ target: glyph, strength: 3 },
+				{ target: glow, strength: 1.5, invert: true },
+			],
+		});
+
 		function drawIcon(size) {
 			state.iconSize = size;
 			const radius = Math.max(6, Math.round(size * 0.18));
@@ -100,6 +112,7 @@ export function createAppLauncher(app, world, options = {}) {
 
 			glyph.position.set(0, 0);
 			iconContainer.hitArea = new PIXI.Rectangle(-size / 2, -size / 2, size, size);
+			cardMotion.reset();
 		}
 
 		drawIcon(state.iconSize);
@@ -113,9 +126,13 @@ export function createAppLauncher(app, world, options = {}) {
 			state.hovered = true;
 			tooltip.visible = true;
 		});
+		iconContainer.on('pointermove', (event) => {
+			cardMotion.onPointerMove(event);
+		});
 		iconContainer.on('pointerout', () => {
 			state.hovered = false;
 			tooltip.visible = false;
+			cardMotion.reset();
 		});
 
 		iconContainer._updatePlatformRect = () => {
@@ -124,7 +141,7 @@ export function createAppLauncher(app, world, options = {}) {
 		};
 		iconContainer._updatePlatformRect();
 
-		return { container: iconContainer, state, drawIcon, glow, border };
+		return { container: iconContainer, state, drawIcon, glow, border, cardMotion };
 	}
 
 	function layout() {
@@ -156,6 +173,7 @@ export function createAppLauncher(app, world, options = {}) {
 			icon.container.zIndex = icon.state.hovered ? 2 : 1;
 			if (icon.glow) icon.glow.alpha = icon.state.hovered ? 0.24 : 0.08;
 			if (icon.border) icon.border.tint = icon.state.hovered ? 0xa00026 : 0xffffff;
+			icon.cardMotion?.update();
 			icon.container._updatePlatformRect?.();
 		});
 	}

@@ -260,11 +260,6 @@ async function boot() {
 			}
 			rebuildVineLights();
 
-			const { container: blogIconContainer, layout: layoutBlogIcon } = await createBlogIcon(app, world, {
-				url: '/blog',
-				screenScale: SCENE_SCALE,
-			});
-
 			const appLauncher = createAppLauncher(app, world, {
 				items: [
 					{ label: 'Resume', glyph: 'R', tooltip: 'Open Resume', url: './assets/files/mason-walker-resume.pdf' },
@@ -276,6 +271,20 @@ async function boot() {
 				screenToWorldSize,
 			});
 			appLauncher.layout();
+
+			const getLauncherDockX = () => 110;
+			const getLauncherDockY = () => {
+				const centerY = app.renderer.height * 0.52;
+				const spacing = Math.max(86, Math.min(140, app.renderer.height * 0.18));
+				const startY = centerY - spacing;
+				return startY + spacing * 3;
+			};
+			const { container: blogIconContainer, layout: layoutBlogIcon } = await createBlogIcon(app, world, {
+				url: '/blog',
+				screenScale: SCENE_SCALE,
+				dockScreenX: getLauncherDockX,
+				dockScreenY: getLauncherDockY,
+			});
 
 			world.addChild(player.view);
 		const ENABLE_THEME_TOGGLE = false;
