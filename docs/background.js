@@ -180,6 +180,8 @@ export function createCrimsonFlowBackground(app, options = {}) {
     glowAlpha = 0.65,
     parallax = 0.035,
     pixelSize = 4,
+    density = 4.2,
+    speed = 0.62,
   } = options;
 
   const container = new PIXI.Container();
@@ -194,8 +196,8 @@ export function createCrimsonFlowBackground(app, options = {}) {
     lineWidth: 0.12,
     glowWidth: 0.34,
     glowStrength: 0.35,
-    speed: 0.42,
-    density: 3.4,
+    speed,
+    density,
     pixelSize,
   });
   core.filters = [coreFilter];
@@ -211,8 +213,8 @@ export function createCrimsonFlowBackground(app, options = {}) {
     lineWidth: 0.22,
     glowWidth: 0.6,
     glowStrength: 0.9,
-    speed: 0.42,
-    density: 3.4,
+    speed,
+    density,
     pixelSize,
   });
   glow.filters = [glowFilter];
