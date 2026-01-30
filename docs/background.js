@@ -182,6 +182,7 @@ export function createCrimsonFlowBackground(app, options = {}) {
     pixelSize = 4,
     density = 4.2,
     speed = 0.62,
+    autoTick = true,
   } = options;
 
   const container = new PIXI.Container();
@@ -222,7 +223,16 @@ export function createCrimsonFlowBackground(app, options = {}) {
   container.addChild(core);
   container.addChild(glow);
 
-  function update(time, offset = { x: 0, y: 0 }) {
+  const state = {
+    internalTime: 0,
+    lastExternalUpdate: 0,
+    lastOffset: { x: 0, y: 0 },
+    tickerFn: null,
+  };
+
+  const nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+
+  function applyUniforms(time, offset) {
     coreUniforms.u_time = time;
     glowUniforms.u_time = time;
     const ox = offset.x * parallax / Math.max(1, app.renderer.width);
@@ -231,6 +241,13 @@ export function createCrimsonFlowBackground(app, options = {}) {
     coreUniforms.u_offset[1] = oy;
     glowUniforms.u_offset[0] = ox;
     glowUniforms.u_offset[1] = oy;
+  }
+
+  function update(time, offset = { x: 0, y: 0 }) {
+    state.lastExternalUpdate = nowMs();
+    state.lastOffset = offset || state.lastOffset;
+    if (Number.isFinite(time)) state.internalTime = time;
+    applyUniforms(state.internalTime, state.lastOffset);
   }
 
   function resize() {
@@ -245,7 +262,20 @@ export function createCrimsonFlowBackground(app, options = {}) {
   }
 
   function destroy() {
+    if (state.tickerFn) app.ticker.remove(state.tickerFn);
     container.destroy({ children: true });
+  }
+
+  if (autoTick && app?.ticker?.add) {
+    state.lastExternalUpdate = nowMs();
+    state.tickerFn = (dt) => {
+      const seconds = Number.isFinite(dt) ? dt / 60 : 1 / 60;
+      state.internalTime += seconds;
+      if (nowMs() - state.lastExternalUpdate > 200) {
+        applyUniforms(state.internalTime, state.lastOffset);
+      }
+    };
+    app.ticker.add(state.tickerFn);
   }
 
   return { container, update, resize, destroy };
