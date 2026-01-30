@@ -1,9 +1,8 @@
 export function createSystemHud(app, options = {}) {
 	const {
 		pixelFont = 'Minecraft, monospace',
-		status = 'ONLINE',
-		nowPlaying = 'CRIMSON FLOW',
-		location = 'EARTH',
+		city = 'SEATTLE, WA',
+		weather = 'CLEAR 72°F',
 		accent = 0x22f3c8,
 	} = options;
 
@@ -27,12 +26,12 @@ export function createSystemHud(app, options = {}) {
 		letterSpacing: 1,
 	};
 
+	const dateText = new PIXI.Text('', lineStyle);
 	const timeText = new PIXI.Text('', lineStyle);
-	const statusText = new PIXI.Text('', lineStyle);
-	const nowText = new PIXI.Text('', lineStyle);
-	const locationText = new PIXI.Text('', lineStyle);
+	const weatherText = new PIXI.Text('', lineStyle);
+	const cityText = new PIXI.Text('', lineStyle);
 
-	container.addChild(panel, header, timeText, statusText, nowText, locationText);
+	container.addChild(panel, header, dateText, timeText, weatherText, cityText);
 	app.stage.addChild(container);
 
 	let lastTimeLabel = '';
@@ -41,6 +40,10 @@ export function createSystemHud(app, options = {}) {
 		const now = new Date();
 		return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 	}
+	function formatDate() {
+		const now = new Date();
+		return now.toLocaleDateString([], { month: 'short', day: '2-digit' }).toUpperCase();
+	}
 
 	function updateText() {
 		const timeLabel = `TIME ${formatTime()}`;
@@ -48,9 +51,9 @@ export function createSystemHud(app, options = {}) {
 			lastTimeLabel = timeLabel;
 			timeText.text = timeLabel;
 		}
-		statusText.text = `STATUS ${status}`;
-		nowText.text = `NOW PLAYING ${nowPlaying}`;
-		locationText.text = `LOCATION ${location}`;
+		dateText.text = `DATE ${formatDate()}`;
+		weatherText.text = `WEATHER ${weather}`;
+		cityText.text = `CITY ${city}`;
 	}
 
 	function layout() {
@@ -60,20 +63,20 @@ export function createSystemHud(app, options = {}) {
 		const gap = 6;
 
 		header.position.set(padX, padY);
-		timeText.position.set(padX, header.y + header.height + gap);
-		statusText.position.set(padX, timeText.y + timeText.height + gap);
-		nowText.position.set(padX, statusText.y + statusText.height + gap);
-		locationText.position.set(padX, nowText.y + nowText.height + gap);
+		dateText.position.set(padX, header.y + header.height + gap);
+		timeText.position.set(padX, dateText.y + dateText.height + gap);
+		weatherText.position.set(padX, timeText.y + timeText.height + gap);
+		cityText.position.set(padX, weatherText.y + weatherText.height + gap);
 
-		const bounds = locationText.getLocalBounds();
+		const bounds = cityText.getLocalBounds();
 		const width = Math.max(
 			header.width,
+			dateText.width,
 			timeText.width,
-			statusText.width,
-			nowText.width,
-			locationText.width,
+			weatherText.width,
+			cityText.width,
 		) + padX * 2;
-		const height = locationText.y + bounds.height + padY;
+		const height = cityText.y + bounds.height + padY;
 
 		panel.clear();
 		panel.beginFill(0x050d0b, 0.65);

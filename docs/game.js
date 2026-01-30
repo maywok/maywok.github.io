@@ -198,9 +198,8 @@ async function boot() {
 			const world = new PIXI.Container();
 			scene.addChild(world);
 			const systemHud = createSystemHud(app, {
-				status: 'ONLINE',
-				nowPlaying: 'CRIMSON FLOW',
-				location: 'EARTH',
+				city: 'SEATTLE, WA',
+				weather: 'CLEAR 72°F',
 			});
 			const player = new Player(app);
 			player.setColors(theme.player);
