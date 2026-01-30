@@ -165,13 +165,23 @@ async function boot() {
 			const interaction = app.renderer.plugins.interaction;
 			const defaultMapPositionToPoint = interaction.mapPositionToPoint.bind(interaction);
 			interaction.mapPositionToPoint = (point, x, y) => {
-				const w = app.renderer.width || 1;
-				const h = app.renderer.height || 1;
+				const w = app.renderer.width || 0;
+				const h = app.renderer.height || 0;
+				if (w <= 0 || h <= 0) {
+					defaultMapPositionToPoint(point, x, y);
+					return;
+				}
 				const nx = x / w;
 				const ny = y / h;
-				const { x: ux, y: uy } = inverseFisheye(nx, ny, crtFisheyeUniforms.u_curve);
-				point.x = ux * w;
-				point.y = uy * h;
+				const { x: ux, y: uy } = inverseFisheye(nx, ny, crtFisheyeUniforms?.u_curve ?? 0);
+				const mx = ux * w;
+				const my = uy * h;
+				if (!Number.isFinite(mx) || !Number.isFinite(my)) {
+					defaultMapPositionToPoint(point, x, y);
+					return;
+				}
+				point.x = Math.max(0, Math.min(w, mx));
+				point.y = Math.max(0, Math.min(h, my));
 			};
 			let themeKey = loadThemeKey();
 			let theme = THEMES[themeKey];
@@ -550,14 +560,22 @@ async function boot() {
 		}
 		function updateMouseFromEvent(e) {
 			const rect = app.view.getBoundingClientRect();
+			if (!rect || rect.width <= 0 || rect.height <= 0) return;
 			const x = e.clientX - rect.left;
 			const y = e.clientY - rect.top;
-			const scaledX = x * (app.renderer.width / rect.width);
-			const scaledY = y * (app.renderer.height / rect.height);
+			const w = app.renderer.width;
+			const h = app.renderer.height;
+			if (w <= 0 || h <= 0) return;
+			const scaledX = x * (w / rect.width);
+			const scaledY = y * (h / rect.height);
 			const cursorHalfW = cursor.width * 0.5;
 			const cursorHalfH = cursor.height * 0.5;
-			mouse.x = Math.max(cursorHalfW, Math.min(app.renderer.width - cursorHalfW, scaledX));
-			mouse.y = Math.max(cursorHalfH, Math.min(app.renderer.height - cursorHalfH, scaledY));
+			const nextX = Math.max(cursorHalfW, Math.min(w - cursorHalfW, scaledX));
+			const nextY = Math.max(cursorHalfH, Math.min(h - cursorHalfH, scaledY));
+			if (Number.isFinite(nextX) && Number.isFinite(nextY)) {
+				mouse.x = nextX;
+				mouse.y = nextY;
+			}
 		}
 		window.addEventListener('pointermove', updateMouseFromEvent);
 		window.addEventListener('pointerdown', updateMouseFromEvent);
@@ -634,6 +652,10 @@ async function boot() {
 		}
 
 		app.ticker.add((dt) => {
+			if (!Number.isFinite(mouse.x) || !Number.isFinite(mouse.y)) {
+				mouse.x = app.renderer.width * 0.5;
+				mouse.y = app.renderer.height * 0.5;
+			}
 			if (ENABLE_DEBUG_HUD) {
 				const r = root.getBoundingClientRect();
 				const c = app.view.getBoundingClientRect();
