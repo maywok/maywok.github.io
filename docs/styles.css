@@ -50,11 +50,12 @@ body {
 .portfolio-overlay {
     position: fixed;
     inset: 0;
-    z-index: 900;
+    z-index: 1;
     opacity: 0;
     pointer-events: none;
     background: #000000;
-    transition: opacity 400ms ease;
+    transform: translateX(8%);
+    transition: opacity 480ms ease, transform 520ms cubic-bezier(.22,1,.36,1);
 }
 
 .portfolio-video {
@@ -67,12 +68,13 @@ body {
 
 html.portfolio-active .portfolio-overlay {
     opacity: 1;
-    pointer-events: auto;
+    transform: translateX(0);
+    pointer-events: none;
 }
 
-html.portfolio-active #game-root {
-    opacity: 0;
-    pointer-events: none;
+#game-root {
+    position: relative;
+    z-index: 2;
 }
 
 body::before {
