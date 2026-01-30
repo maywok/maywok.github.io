@@ -22,10 +22,13 @@ export function createAppLauncher(app, world, options = {}) {
 		bounce: 0.35,
 		floorFriction: 0.88,
 		margin: 16,
-		mousePushRadius: 90,
-		mousePushForce: 2200,
+		mousePushRadius: 26,
+		mousePushForce: 9000,
+		mouseGrabRadius: 34,
 	};
 	let externalBodiesProvider = null;
+	let lastMouseWorld = null;
+	let lastMouseVel = { x: 0, y: 0 };
 	if (app?.stage) {
 		if (!app.stage.eventMode || app.stage.eventMode === 'none') {
 			app.stage.eventMode = 'static';
@@ -116,6 +119,8 @@ export function createAppLauncher(app, world, options = {}) {
 			iconSize: 56,
 			radius: 28,
 			dragging: false,
+			grabbed: false,
+			grabOffset: { x: 0, y: 0 },
 			dragOffset: { x: 0, y: 0 },
 			vx: 0,
 			vy: 0,
@@ -244,6 +249,19 @@ export function createAppLauncher(app, world, options = {}) {
 		const maxY = screenToWorldY(app.renderer.height - PHYSICS.margin);
 		const mouseR = screenToWorldSize(PHYSICS.mousePushRadius);
 		const mouseForce = PHYSICS.mousePushForce;
+		const grabR = screenToWorldSize(PHYSICS.mouseGrabRadius);
+		if (mouseWorld) {
+			if (lastMouseWorld && dtSeconds > 0) {
+				lastMouseVel = {
+					x: (mouseWorld.x - lastMouseWorld.x) / dtSeconds,
+					y: (mouseWorld.y - lastMouseWorld.y) / dtSeconds,
+				};
+			}
+			lastMouseWorld = { x: mouseWorld.x, y: mouseWorld.y };
+		}
+		if (!mouseWorld?.down) {
+			icons.forEach((icon) => { icon.state.grabbed = false; });
+		}
 		icons.forEach((icon) => {
 			const scale = icon.state.hovered ? 1.08 : 1.0;
 			const amp = icon.state.hovered ? 6 : 3;
@@ -254,7 +272,26 @@ export function createAppLauncher(app, world, options = {}) {
 				const targetY = icon.state.base.y + bounce - popOut;
 				icon.container.position.x += (targetX - icon.container.position.x) * 0.12;
 				icon.container.position.y += (targetY - icon.container.position.y) * 0.12;
-			} else if (!icon.state.dragging) {
+			} else {
+				if (mouseWorld?.down) {
+					const dx = icon.container.position.x - mouseWorld.x;
+					const dy = icon.container.position.y - mouseWorld.y;
+					const dist = Math.hypot(dx, dy) || 1;
+					if (dist < grabR) {
+						if (!icon.state.grabbed) {
+							icon.state.grabbed = true;
+							icon.state.grabOffset.x = icon.container.position.x - mouseWorld.x;
+							icon.state.grabOffset.y = icon.container.position.y - mouseWorld.y;
+						}
+						icon.state.vx = lastMouseVel.x;
+						icon.state.vy = lastMouseVel.y;
+						icon.container.position.x = mouseWorld.x + icon.state.grabOffset.x;
+						icon.container.position.y = mouseWorld.y + icon.state.grabOffset.y;
+					} else {
+						icon.state.grabbed = false;
+					}
+				}
+				if (!icon.state.dragging && !icon.state.grabbed) {
 				if (mouseWorld) {
 					const dx = icon.container.position.x - mouseWorld.x;
 					const dy = icon.container.position.y - mouseWorld.y;
@@ -274,6 +311,7 @@ export function createAppLauncher(app, world, options = {}) {
 					icon.container.position.x = minX;
 					icon.state.vx *= -PHYSICS.bounce;
 				}
+			}
 				if (icon.container.position.x > maxX) {
 					icon.container.position.x = maxX;
 					icon.state.vx *= -PHYSICS.bounce;
@@ -289,7 +327,7 @@ export function createAppLauncher(app, world, options = {}) {
 				}
 			}
 			icon.container.scale.set(scale);
-			icon.container.zIndex = icon.state.dragging ? 3 : (icon.state.hovered ? 2 : 1);
+			icon.container.zIndex = (icon.state.dragging || icon.state.grabbed) ? 3 : (icon.state.hovered ? 2 : 1);
 			if (icon.glow) icon.glow.alpha = icon.state.hovered ? 0.24 : 0.08;
 			if (icon.border) icon.border.tint = icon.state.hovered ? 0xa00026 : 0xffffff;
 			icon.cardMotion?.update();
@@ -354,6 +392,7 @@ export function createAppLauncher(app, world, options = {}) {
 			icon.state.vx = 0;
 			icon.state.vy = 0;
 			icon.state.lastDragTime = 0;
+			icon.state.grabbed = false;
 			if (!dragState.enabled) {
 				icon.state.free.x = icon.state.base.x;
 				icon.state.free.y = icon.state.base.y;

@@ -168,6 +168,8 @@ export async function createBlogIcon(app, world, options = {}) {
 		phase: Math.random() * 6.28,
 		dragEnabled: false,
 		dragging: false,
+		grabbed: false,
+		grabOffset: { x: 0, y: 0 },
 		dragOffset: { x: 0, y: 0 },
 		vx: 0,
 		vy: 0,
@@ -175,6 +177,8 @@ export async function createBlogIcon(app, world, options = {}) {
 		radius: Math.max(backgroundWidth, backgroundHeight) * 0.5,
 		radiusScaled: Math.max(backgroundWidth, backgroundHeight) * 0.5,
 		mouseProvider: null,
+		lastMouse: null,
+		mouseVel: { x: 0, y: 0 },
 	};
 	const PHYSICS = {
 		gravity: 1400,
@@ -182,8 +186,9 @@ export async function createBlogIcon(app, world, options = {}) {
 		bounce: 0.35,
 		floorFriction: 0.88,
 		margin: 16,
-		mousePushRadius: 90,
-		mousePushForce: 2200,
+		mousePushRadius: 26,
+		mousePushForce: 9000,
+		mouseGrabRadius: 34,
 	};
 	const screenToWorldX = (screenX) => {
 		const cx = app.renderer.width / 2;
@@ -304,6 +309,18 @@ export async function createBlogIcon(app, world, options = {}) {
 		const maxX = screenToWorldX(app.renderer.width - PHYSICS.margin);
 		const minY = screenToWorldY(PHYSICS.margin);
 		const maxY = screenToWorldY(app.renderer.height - PHYSICS.margin);
+		const mouse = state.mouseProvider?.();
+		const dtSeconds = dt / 60;
+		if (mouse) {
+			if (state.lastMouse && dtSeconds > 0) {
+				state.mouseVel = {
+					x: (mouse.x - state.lastMouse.x) / dtSeconds,
+					y: (mouse.y - state.lastMouse.y) / dtSeconds,
+				};
+			}
+			state.lastMouse = { x: mouse.x, y: mouse.y };
+		}
+		if (!mouse?.down) state.grabbed = false;
 		if (!state.dragEnabled) {
 			const bob = Math.sin(app.ticker.lastTime * 0.003 + state.phase) * (3 / screenScale);
 			const targetX = state.base.x;
@@ -311,8 +328,27 @@ export async function createBlogIcon(app, world, options = {}) {
 			container.position.x += (targetX - container.position.x) * 0.12 * dt;
 			container.position.y += (targetY - container.position.y) * 0.12 * dt;
 			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
-		} else if (!state.dragging) {
-			const mouse = state.mouseProvider?.();
+		} else if (mouse?.down) {
+			const dx = container.position.x - mouse.x;
+			const dy = container.position.y - mouse.y;
+			const dist = Math.hypot(dx, dy) || 1;
+			const grabR = screenToWorldX(PHYSICS.mouseGrabRadius) - screenToWorldX(0);
+			if (dist < grabR) {
+				if (!state.grabbed) {
+					state.grabbed = true;
+					state.grabOffset.x = container.position.x - mouse.x;
+					state.grabOffset.y = container.position.y - mouse.y;
+				}
+				state.vx = state.mouseVel.x;
+				state.vy = state.mouseVel.y;
+				container.position.x = mouse.x + state.grabOffset.x;
+				container.position.y = mouse.y + state.grabOffset.y;
+			} else {
+				state.grabbed = false;
+			}
+			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
+		}
+		if (state.dragEnabled && !state.dragging && !state.grabbed) {
 			if (mouse) {
 				const dx = container.position.x - mouse.x;
 				const dy = container.position.y - mouse.y;
@@ -364,6 +400,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		state.vx = 0;
 		state.vy = 0;
 		state.lastDragTime = 0;
+		state.grabbed = false;
 		if (!state.dragEnabled) {
 			state.free.x = state.base.x;
 			state.free.y = state.base.y;
