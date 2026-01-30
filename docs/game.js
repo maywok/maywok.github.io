@@ -87,6 +87,8 @@ async function boot() {
 				background: THEMES[loadThemeKey()].appBackground,
 				antialias: true,
 			});
+		app.start?.();
+		app.ticker?.start?.();
 			app.stage.roundPixels = true;
 			if (PIXI.settings) {
 				PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
