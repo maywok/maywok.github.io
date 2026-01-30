@@ -1,6 +1,7 @@
 import { Player } from './player.js';
 import { createVines } from './vines.js';
 import { createBlogIcon } from './blogIcon.js';
+import { createCrimsonFlowBackground } from './background.js';
 import {
 	createCRTFisheyeFilter,
 	updateCRTFisheyeFilter,
@@ -94,6 +95,14 @@ async function boot() {
 			const DEBUG_SHAPES = false;
 			const scene = new PIXI.Container();
 			app.stage.addChild(scene);
+			const { container: flowBackground, update: updateFlowBackground, resize: resizeFlowBackground } = createCrimsonFlowBackground(app, {
+				lineColor: 0x6f001b,
+				glowColor: 0xa00026,
+				bgColor: 0x000000,
+				glowAlpha: 0.55,
+				parallax: 0.06,
+			});
+			scene.addChild(flowBackground);
 			const SCENE_SCALE = 1.12;
 			const CAMERA_PARALLAX = 9;
 			const CAMERA_SMOOTHING = 0.08;
@@ -680,6 +689,7 @@ async function boot() {
 			const targetY = -ny * CAMERA_PARALLAX;
 			cameraOffset.x += (targetX - cameraOffset.x) * CAMERA_SMOOTHING;
 			cameraOffset.y += (targetY - cameraOffset.y) * CAMERA_SMOOTHING;
+				updateFlowBackground(time, cameraOffset);
 			const cx = app.renderer.width / 2;
 			const cy = app.renderer.height / 2;
 			const uv = { x: mouse.x / app.renderer.width, y: mouse.y / app.renderer.height };
@@ -860,6 +870,7 @@ async function boot() {
 			// Keep shader uniforms in sync with new renderer size
 			layoutScene();
 			layoutLeftPortal();
+			resizeFlowBackground();
 			
 
 			// Rebuild vines layout for new width/height
