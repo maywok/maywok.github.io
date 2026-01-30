@@ -401,8 +401,7 @@ async function boot() {
 			down: false,
 		};
 		const cursorTextureUrl = './assets/spritesheet/cursor.png';
-		const cursorAnimTextureUrl = './assets/spritesheet/cursor_sprite.png';
-		await PIXI.Assets.load([cursorTextureUrl, cursorAnimTextureUrl]);
+		await PIXI.Assets.load([cursorTextureUrl]);
 		const cursorTexture = PIXI.Texture.from(cursorTextureUrl);
 		const cursor = new PIXI.Sprite(cursorTexture);
 		cursor.anchor.set(0.5);
@@ -414,19 +413,19 @@ async function boot() {
 		cursorGlow.blendMode = PIXI.BLEND_MODES.ADD;
 		const USE_ANIMATED_CURSOR = true;
 		const CURSOR_ANIM_MAX_FRAMES = 240;
-		const cursorAnimTexture = PIXI.Texture.from(cursorAnimTextureUrl);
 		let cursorAnim = null;
-		const frameW = Math.max(1, Math.round(cursorTexture.width));
-		const frameH = Math.max(1, Math.round(cursorTexture.height));
-		const cols = Math.floor(cursorAnimTexture.baseTexture.width / frameW);
-		const rows = Math.floor(cursorAnimTexture.baseTexture.height / frameH);
+		const fallbackFrame = 32;
+		const frameW = Math.max(1, Math.min(fallbackFrame, Math.round(cursorTexture.height) || fallbackFrame));
+		const frameH = Math.max(1, Math.min(fallbackFrame, Math.round(cursorTexture.height) || fallbackFrame));
+		const cols = Math.floor(cursorTexture.baseTexture.width / frameW);
+		const rows = Math.floor(cursorTexture.baseTexture.height / frameH);
 		if (USE_ANIMATED_CURSOR && cols > 0 && rows > 0) {
 			const frames = [];
 			for (let y = 0; y < rows; y++) {
 				for (let x = 0; x < cols; x++) {
 					if (frames.length >= CURSOR_ANIM_MAX_FRAMES) break;
 					frames.push(new PIXI.Texture(
-						cursorAnimTexture.baseTexture,
+						cursorTexture.baseTexture,
 						new PIXI.Rectangle(x * frameW, y * frameH, frameW, frameH),
 					));
 				}
@@ -435,12 +434,12 @@ async function boot() {
 			if (frames.length > 0) {
 				cursorAnim = new PIXI.AnimatedSprite(frames);
 				cursorAnim.anchor.set(0.5);
-				cursorAnim.animationSpeed = 0.2;
+				cursorAnim.animationSpeed = 0.22;
 				cursorAnim.play();
 			}
 		}
 		const cursorContainer = new PIXI.Container();
-		if (cursorAnim) cursorContainer.addChild(cursorGlow, cursorAnim, cursor);
+		if (cursorAnim && cursorAnim.totalFrames > 1) cursorContainer.addChild(cursorGlow, cursorAnim);
 		else cursorContainer.addChild(cursorGlow, cursor);
 		const { filter: cursorPixelateFilter, update: updateCursorPixelate } = createPixelateFilter(app, { pixelSize: 2 });
 		cursorContainer.filters = [cursorPixelateFilter];
