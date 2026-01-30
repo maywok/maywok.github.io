@@ -403,6 +403,7 @@ async function boot() {
 		const cursorTextureUrl = './assets/spritesheet/cursor.png';
 		await PIXI.Assets.load([cursorTextureUrl]);
 		const cursorTexture = PIXI.Texture.from(cursorTextureUrl);
+		const cursorBase = cursorTexture.baseTexture;
 		const cursor = new PIXI.Sprite(cursorTexture);
 		cursor.anchor.set(0.5);
 		const cursorGlow = new PIXI.Sprite(cursorTexture);
@@ -417,15 +418,18 @@ async function boot() {
 		const fallbackFrame = 32;
 		const frameW = Math.max(1, Math.min(fallbackFrame, Math.round(cursorTexture.height) || fallbackFrame));
 		const frameH = Math.max(1, Math.min(fallbackFrame, Math.round(cursorTexture.height) || fallbackFrame));
-		const cols = Math.floor(cursorTexture.baseTexture.width / frameW);
-		const rows = Math.floor(cursorTexture.baseTexture.height / frameH);
+		const cols = Math.floor(cursorBase.width / frameW);
+		const rows = Math.floor(cursorBase.height / frameH);
+		const firstFrameTexture = new PIXI.Texture(cursorBase, new PIXI.Rectangle(0, 0, frameW, frameH));
+		cursor.texture = firstFrameTexture;
+		cursorGlow.texture = firstFrameTexture;
 		if (USE_ANIMATED_CURSOR && cols > 0 && rows > 0) {
 			const frames = [];
 			for (let y = 0; y < rows; y++) {
 				for (let x = 0; x < cols; x++) {
 					if (frames.length >= CURSOR_ANIM_MAX_FRAMES) break;
 					frames.push(new PIXI.Texture(
-						cursorTexture.baseTexture,
+						cursorBase,
 						new PIXI.Rectangle(x * frameW, y * frameH, frameW, frameH),
 					));
 				}
