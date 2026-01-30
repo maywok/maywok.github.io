@@ -161,6 +161,7 @@ export async function createBlogIcon(app, world, options = {}) {
 	const state = {
 		hovered: false,
 		base: { x: 0, y: 0 },
+		free: { x: 0, y: 0 },
 		previewAlpha: 0,
 		previewTarget: 0,
 		currentScale: scale,
@@ -219,6 +220,10 @@ export async function createBlogIcon(app, world, options = {}) {
 		const worldY = (screenY - cy) / screenScale + cy;
 		state.base.x = worldX;
 		state.base.y = worldY;
+		if (!state.dragEnabled) {
+			state.free.x = worldX;
+			state.free.y = worldY;
+		}
 		container.position.set(worldX, worldY);
 		preview.position.set(worldX + previewOffsetX / screenScale, worldY + previewOffsetY / screenScale);
 	}
@@ -236,10 +241,24 @@ export async function createBlogIcon(app, world, options = {}) {
 			if (!state.dragEnabled || !state.dragging) return;
 			const pos = event.getLocalPosition(world);
 			container.position.set(pos.x + state.dragOffset.x, pos.y + state.dragOffset.y);
+			state.free.x = container.position.x;
+			state.free.y = container.position.y;
 			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
 		});
-		app.stage.on('pointerup', () => { state.dragging = false; });
-		app.stage.on('pointerupoutside', () => { state.dragging = false; });
+		app.stage.on('pointerup', () => {
+			if (state.dragging) {
+				state.free.x = container.position.x;
+				state.free.y = container.position.y;
+			}
+			state.dragging = false;
+		});
+		app.stage.on('pointerupoutside', () => {
+			if (state.dragging) {
+				state.free.x = container.position.x;
+				state.free.y = container.position.y;
+			}
+			state.dragging = false;
+		});
 	}
 	app.ticker.add((dt) => {
 		cardMotion.update();
@@ -247,14 +266,20 @@ export async function createBlogIcon(app, world, options = {}) {
 		state.currentScale += (targetScale - state.currentScale) * 0.18 * dt;
 		container.scale.set(state.currentScale);
 		const popOut = state.hovered ? 4 / screenScale : 0;
+		const bob = Math.sin(app.ticker.lastTime * 0.003 + state.phase) * (3 / screenScale);
 		if (!state.dragEnabled) {
-			const bob = Math.sin(app.ticker.lastTime * 0.003 + state.phase) * (3 / screenScale);
 			const targetX = state.base.x;
 			const targetY = state.base.y - popOut + bob;
 			container.position.x += (targetX - container.position.x) * 0.12 * dt;
 			container.position.y += (targetY - container.position.y) * 0.12 * dt;
 			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
 		} else if (!state.dragging) {
+			const targetX = state.free.x;
+			const targetY = state.free.y + bob;
+			container.position.x += (targetX - container.position.x) * 0.15 * dt;
+			container.position.y += (targetY - container.position.y) * 0.15 * dt;
+			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
+		} else {
 			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
 		}
 		state.previewAlpha += (state.previewTarget - state.previewAlpha) * 0.12 * dt;
@@ -268,6 +293,13 @@ export async function createBlogIcon(app, world, options = {}) {
 	function setDragEnabled(enabled) {
 		state.dragEnabled = Boolean(enabled);
 		if (!state.dragEnabled) state.dragging = false;
+		if (state.dragEnabled) {
+			state.free.x = container.position.x;
+			state.free.y = container.position.y;
+		} else {
+			state.free.x = state.base.x;
+			state.free.y = state.base.y;
+		}
 		container.cursor = state.dragEnabled ? 'move' : 'pointer';
 	}
 

@@ -33,11 +33,19 @@ export function createAppLauncher(app, world, options = {}) {
 			);
 		});
 		app.stage.on('pointerup', () => {
-			if (dragState.active) dragState.active.state.dragging = false;
+			if (dragState.active) {
+				dragState.active.state.free.x = dragState.active.container.position.x;
+				dragState.active.state.free.y = dragState.active.container.position.y;
+				dragState.active.state.dragging = false;
+			}
 			dragState.active = null;
 		});
 		app.stage.on('pointerupoutside', () => {
-			if (dragState.active) dragState.active.state.dragging = false;
+			if (dragState.active) {
+				dragState.active.state.free.x = dragState.active.container.position.x;
+				dragState.active.state.free.y = dragState.active.container.position.y;
+				dragState.active.state.dragging = false;
+			}
 			dragState.active = null;
 		});
 	}
@@ -87,6 +95,7 @@ export function createAppLauncher(app, world, options = {}) {
 			index,
 			hovered: false,
 			base: { x: 0, y: 0 },
+			free: { x: 0, y: 0 },
 			phase: index * 0.9,
 			iconSize: 56,
 			dragging: false,
@@ -196,6 +205,10 @@ export function createAppLauncher(app, world, options = {}) {
 			const y = screenToWorldY(startY + spacing * idx);
 			icon.state.base.x = x;
 			icon.state.base.y = y;
+			if (!dragState.enabled) {
+				icon.state.free.x = x;
+				icon.state.free.y = y;
+			}
 			icon.container.position.set(x, y);
 			icon.drawIcon(screenToWorldSize(iconSize));
 			icon.container._updatePlatformRect?.();
@@ -205,14 +218,19 @@ export function createAppLauncher(app, world, options = {}) {
 	function update(time) {
 		icons.forEach((icon) => {
 			const scale = icon.state.hovered ? 1.08 : 1.0;
+			const amp = icon.state.hovered ? 6 : 3;
+			const bounce = Math.sin(time * 3 + icon.state.phase) * amp;
+			const popOut = icon.state.hovered ? 4 : 0;
 			if (!dragState.enabled) {
-				const amp = icon.state.hovered ? 6 : 3;
-				const bounce = Math.sin(time * 3 + icon.state.phase) * amp;
-				const popOut = icon.state.hovered ? 4 : 0;
 				const targetX = icon.state.base.x;
 				const targetY = icon.state.base.y + bounce - popOut;
 				icon.container.position.x += (targetX - icon.container.position.x) * 0.12;
 				icon.container.position.y += (targetY - icon.container.position.y) * 0.12;
+			} else if (!icon.state.dragging) {
+				const targetX = icon.state.free.x;
+				const targetY = icon.state.free.y + bounce * 0.85;
+				icon.container.position.x += (targetX - icon.container.position.x) * 0.15;
+				icon.container.position.y += (targetY - icon.container.position.y) * 0.15;
 			}
 			icon.container.scale.set(scale);
 			icon.container.zIndex = icon.state.dragging ? 3 : (icon.state.hovered ? 2 : 1);
@@ -229,6 +247,15 @@ export function createAppLauncher(app, world, options = {}) {
 			dragState.active.state.dragging = false;
 			dragState.active = null;
 		}
+		icons.forEach((icon) => {
+			if (dragState.enabled) {
+				icon.state.free.x = icon.container.position.x;
+				icon.state.free.y = icon.container.position.y;
+			} else {
+				icon.state.free.x = icon.state.base.x;
+				icon.state.free.y = icon.state.base.y;
+			}
+		});
 		icons.forEach((icon) => {
 			icon.container.cursor = dragState.enabled ? 'move' : 'pointer';
 		});
