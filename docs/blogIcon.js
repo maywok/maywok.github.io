@@ -320,7 +320,13 @@ export async function createBlogIcon(app, world, options = {}) {
 			}
 			state.lastMouse = { x: mouse.x, y: mouse.y };
 		}
-		if (!mouse?.down) state.grabbed = false;
+		if (!mouse?.down) {
+			state.grabbed = false;
+			if (state.dragging) {
+				state.dragging = false;
+				state.lastDragTime = 0;
+			}
+		}
 		if (!state.dragEnabled) {
 			const bob = Math.sin(app.ticker.lastTime * 0.003 + state.phase) * (3 / screenScale);
 			const targetX = state.base.x;

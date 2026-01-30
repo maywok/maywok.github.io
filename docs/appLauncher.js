@@ -260,7 +260,14 @@ export function createAppLauncher(app, world, options = {}) {
 			lastMouseWorld = { x: mouseWorld.x, y: mouseWorld.y };
 		}
 		if (!mouseWorld?.down) {
-			icons.forEach((icon) => { icon.state.grabbed = false; });
+			icons.forEach((icon) => {
+				icon.state.grabbed = false;
+				if (icon.state.dragging) {
+					icon.state.dragging = false;
+					icon.state.lastDragTime = 0;
+				}
+			});
+			if (dragState.active) dragState.active = null;
 		}
 		icons.forEach((icon) => {
 			const scale = icon.state.hovered ? 1.08 : 1.0;
