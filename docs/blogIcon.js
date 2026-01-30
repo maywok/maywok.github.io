@@ -164,6 +164,10 @@ export async function createBlogIcon(app, world, options = {}) {
 		previewAlpha: 0,
 		previewTarget: 0,
 		currentScale: scale,
+		phase: Math.random() * 6.28,
+		dragEnabled: false,
+		dragging: false,
+		dragOffset: { x: 0, y: 0 },
 	};
 
 	container.eventMode = 'static';
@@ -190,7 +194,15 @@ export async function createBlogIcon(app, world, options = {}) {
 		cardMotion.reset();
 	});
 	container.on('pointertap', () => {
+		if (state.dragEnabled) return;
 		window.open(url, '_blank', 'noopener');
+	});
+	container.on('pointerdown', (event) => {
+		if (!state.dragEnabled) return;
+		const pos = event.getLocalPosition(world);
+		state.dragging = true;
+		state.dragOffset.x = container.position.x - pos.x;
+		state.dragOffset.y = container.position.y - pos.y;
 	});
 
 	function layout() {
@@ -213,14 +225,38 @@ export async function createBlogIcon(app, world, options = {}) {
 
 	world.addChild(container);
 	layout();
+	if (app?.stage) {
+		if (!app.stage.eventMode || app.stage.eventMode === 'none') {
+			app.stage.eventMode = 'static';
+		}
+		if (!app.stage.hitArea) {
+			app.stage.hitArea = app.screen;
+		}
+		app.stage.on('pointermove', (event) => {
+			if (!state.dragEnabled || !state.dragging) return;
+			const pos = event.getLocalPosition(world);
+			container.position.set(pos.x + state.dragOffset.x, pos.y + state.dragOffset.y);
+			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
+		});
+		app.stage.on('pointerup', () => { state.dragging = false; });
+		app.stage.on('pointerupoutside', () => { state.dragging = false; });
+	}
 	app.ticker.add((dt) => {
 		cardMotion.update();
 		const targetScale = state.hovered ? scale * 1.05 : scale;
 		state.currentScale += (targetScale - state.currentScale) * 0.18 * dt;
 		container.scale.set(state.currentScale);
 		const popOut = state.hovered ? 4 / screenScale : 0;
-		container.position.set(state.base.x, state.base.y - popOut);
-		preview.position.set(state.base.x + previewOffsetX / screenScale, state.base.y + previewOffsetY / screenScale - popOut);
+		if (!state.dragEnabled) {
+			const bob = Math.sin(app.ticker.lastTime * 0.003 + state.phase) * (3 / screenScale);
+			const targetX = state.base.x;
+			const targetY = state.base.y - popOut + bob;
+			container.position.x += (targetX - container.position.x) * 0.12 * dt;
+			container.position.y += (targetY - container.position.y) * 0.12 * dt;
+			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
+		} else if (!state.dragging) {
+			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
+		}
 		state.previewAlpha += (state.previewTarget - state.previewAlpha) * 0.12 * dt;
 		preview.alpha = state.previewAlpha;
 		preview.scale.set(0.96 + 0.04 * state.previewAlpha);
@@ -229,5 +265,11 @@ export async function createBlogIcon(app, world, options = {}) {
 		}
 	});
 
-	return { container, layout };
+	function setDragEnabled(enabled) {
+		state.dragEnabled = Boolean(enabled);
+		if (!state.dragEnabled) state.dragging = false;
+		container.cursor = state.dragEnabled ? 'move' : 'pointer';
+	}
+
+	return { container, layout, setDragEnabled };
 }

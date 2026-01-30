@@ -317,6 +317,36 @@ async function boot() {
 				screenToWorldSize,
 			});
 			appLauncher.layout();
+			let blogIconSetDragEnabled = null;
+			const dragToggleBtn = document.createElement('button');
+			let dragEnabled = false;
+			const applyDragEnabled = (enabled) => {
+				dragEnabled = Boolean(enabled);
+				dragToggleBtn.textContent = dragEnabled ? 'Lock Icons' : 'Unlock Icons';
+				dragToggleBtn.setAttribute('aria-pressed', dragEnabled ? 'true' : 'false');
+				appLauncher.setDragEnabled?.(dragEnabled);
+				if (blogIconSetDragEnabled) blogIconSetDragEnabled(dragEnabled);
+			};
+			dragToggleBtn.type = 'button';
+			Object.assign(dragToggleBtn.style, {
+				position: 'fixed',
+				top: '16px',
+				right: '16px',
+				zIndex: 1200,
+				pointerEvents: 'auto',
+				padding: '8px 12px',
+				borderRadius: '10px',
+				border: '1px solid rgba(34,243,200,0.6)',
+				background: 'rgba(5, 13, 11, 0.78)',
+				color: 'rgba(234, 251, 255, 0.95)',
+				fontFamily: 'Minecraft, ui-monospace, Menlo, monospace',
+				fontSize: '12px',
+				cursor: 'pointer',
+				letterSpacing: '0.8px',
+			});
+			dragToggleBtn.addEventListener('click', () => applyDragEnabled(!dragEnabled));
+			document.body.appendChild(dragToggleBtn);
+			applyDragEnabled(false);
 
 			const getLauncherDockX = () => {
 				const leftX = 110;
@@ -352,6 +382,10 @@ async function boot() {
 					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
 				}), 6000, 'Blog icon');
 				if (blogIconResult?.layout) layoutBlogIcon = blogIconResult.layout;
+				if (blogIconResult?.setDragEnabled) {
+					blogIconSetDragEnabled = blogIconResult.setDragEnabled;
+					blogIconSetDragEnabled(dragEnabled);
+				}
 			} catch (err) {
 				console.warn('Blog icon init failed or timed out:', err);
 			}

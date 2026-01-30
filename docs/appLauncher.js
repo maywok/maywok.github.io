@@ -12,6 +12,35 @@ export function createAppLauncher(app, world, options = {}) {
 	const container = new PIXI.Container();
 	container.sortableChildren = true;
 	world.addChild(container);
+	const dragState = {
+		enabled: false,
+		active: null,
+	};
+	if (app?.stage) {
+		if (!app.stage.eventMode || app.stage.eventMode === 'none') {
+			app.stage.eventMode = 'static';
+		}
+		if (!app.stage.hitArea) {
+			app.stage.hitArea = app.screen;
+		}
+		app.stage.on('pointermove', (event) => {
+			if (!dragState.enabled || !dragState.active) return;
+			const pos = event.getLocalPosition(world);
+			const icon = dragState.active;
+			icon.container.position.set(
+				pos.x + icon.state.dragOffset.x,
+				pos.y + icon.state.dragOffset.y,
+			);
+		});
+		app.stage.on('pointerup', () => {
+			if (dragState.active) dragState.active.state.dragging = false;
+			dragState.active = null;
+		});
+		app.stage.on('pointerupoutside', () => {
+			if (dragState.active) dragState.active.state.dragging = false;
+			dragState.active = null;
+		});
+	}
 
 	const icons = items.map((item, index) => createAppIcon(item, index));
 	for (const icon of icons) container.addChild(icon.container);
@@ -60,6 +89,8 @@ export function createAppLauncher(app, world, options = {}) {
 			base: { x: 0, y: 0 },
 			phase: index * 0.9,
 			iconSize: 56,
+			dragging: false,
+			dragOffset: { x: 0, y: 0 },
 		};
 
 		const cardMotion = createCardMotion(iconContainer, {
@@ -120,7 +151,16 @@ export function createAppLauncher(app, world, options = {}) {
 		iconContainer.eventMode = 'static';
 		iconContainer.cursor = 'pointer';
 		iconContainer.on('pointertap', () => {
+			if (dragState.enabled) return;
 			window.open(item.url, '_blank', 'noopener');
+		});
+		iconContainer.on('pointerdown', (event) => {
+			if (!dragState.enabled) return;
+			const pos = event.getLocalPosition(world);
+			state.dragging = true;
+			dragState.active = { container: iconContainer, state };
+			state.dragOffset.x = iconContainer.position.x - pos.x;
+			state.dragOffset.y = iconContainer.position.y - pos.y;
 		});
 		iconContainer.on('pointerover', () => {
 			state.hovered = true;
@@ -164,17 +204,33 @@ export function createAppLauncher(app, world, options = {}) {
 
 	function update(time) {
 		icons.forEach((icon) => {
-			const amp = icon.state.hovered ? 6 : 3;
-			const bounce = Math.sin(time * 3 + icon.state.phase) * amp;
-			const popOut = icon.state.hovered ? 4 : 0;
 			const scale = icon.state.hovered ? 1.08 : 1.0;
-			icon.container.position.set(icon.state.base.x, icon.state.base.y + bounce - popOut);
+			if (!dragState.enabled) {
+				const amp = icon.state.hovered ? 6 : 3;
+				const bounce = Math.sin(time * 3 + icon.state.phase) * amp;
+				const popOut = icon.state.hovered ? 4 : 0;
+				const targetX = icon.state.base.x;
+				const targetY = icon.state.base.y + bounce - popOut;
+				icon.container.position.x += (targetX - icon.container.position.x) * 0.12;
+				icon.container.position.y += (targetY - icon.container.position.y) * 0.12;
+			}
 			icon.container.scale.set(scale);
-			icon.container.zIndex = icon.state.hovered ? 2 : 1;
+			icon.container.zIndex = icon.state.dragging ? 3 : (icon.state.hovered ? 2 : 1);
 			if (icon.glow) icon.glow.alpha = icon.state.hovered ? 0.24 : 0.08;
 			if (icon.border) icon.border.tint = icon.state.hovered ? 0xa00026 : 0xffffff;
 			icon.cardMotion?.update();
 			icon.container._updatePlatformRect?.();
+		});
+	}
+
+	function setDragEnabled(enabled) {
+		dragState.enabled = Boolean(enabled);
+		if (!dragState.enabled && dragState.active) {
+			dragState.active.state.dragging = false;
+			dragState.active = null;
+		}
+		icons.forEach((icon) => {
+			icon.container.cursor = dragState.enabled ? 'move' : 'pointer';
 		});
 	}
 
@@ -183,6 +239,7 @@ export function createAppLauncher(app, world, options = {}) {
 		icons: icons.map((icon) => icon.container),
 		layout,
 		update,
+		setDragEnabled,
 		platforms: icons.map((icon) => icon.container),
 	};
 }
