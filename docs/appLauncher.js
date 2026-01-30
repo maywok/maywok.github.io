@@ -21,7 +21,7 @@ export function createAppLauncher(app, world, options = {}) {
 		const label = new PIXI.Text(item.label, {
 			fontFamily: pixelFont,
 			fontSize: 12,
-			fill: 0xbafdf0,
+			fill: 0xeafbff,
 			align: 'center',
 			letterSpacing: 1,
 		});
@@ -66,7 +66,7 @@ export function createAppLauncher(app, world, options = {}) {
 			const inner = size - 4;
 
 			glow.clear();
-			glow.beginFill(0x22f3c8, 0.08);
+			glow.beginFill(0xe4ff5a, 0.08);
 			glow.drawRoundedRect(-size / 2 - glowPad, -size / 2 - glowPad, size + glowPad * 2, size + glowPad * 2, radius + 4);
 			glow.endFill();
 
@@ -123,7 +123,7 @@ export function createAppLauncher(app, world, options = {}) {
 		};
 		iconContainer._updatePlatformRect();
 
-		return { container: iconContainer, state, drawIcon };
+		return { container: iconContainer, state, drawIcon, glow, border };
 	}
 
 	function layout() {
@@ -151,6 +151,8 @@ export function createAppLauncher(app, world, options = {}) {
 			const scale = icon.state.hovered ? 1.06 : 1.0;
 			icon.container.position.set(icon.state.base.x, icon.state.base.y + bounce);
 			icon.container.scale.set(scale);
+			if (icon.glow) icon.glow.alpha = icon.state.hovered ? 0.22 : 0.08;
+			if (icon.border) icon.border.tint = icon.state.hovered ? 0xa00026 : 0xffffff;
 			icon.container._updatePlatformRect?.();
 		});
 	}
