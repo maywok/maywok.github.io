@@ -16,7 +16,7 @@ const THEMES = {
 		appBackground: 0x000000,
 		bg: { bg: 0x000000, dot: 0x000000, stripe: 0x000000, farAlpha: 0.10, midAlpha: 0.12, nearAlpha: 0.14 },
 		player: { fill: 0x000000, glow: 0x000000, glowAlpha: 0.0 },
-		vines: { hue: 0xff5a6e },
+		vines: { hue: 0xffffff },
 		crt: { intensity: 0.0, brightness: 1.0, glowColor: 0x000000, scanStrength: 0.25 },
 	},
 	dark: {
@@ -24,7 +24,7 @@ const THEMES = {
 		appBackground: 0x000000,
 		bg: { bg: 0x000000, dot: 0x000000, stripe: 0x000000, farAlpha: 0.10, midAlpha: 0.14, nearAlpha: 0.18 },
 		player: { fill: 0xf5e6c8, glow: 0xf5e6c8, glowAlpha: 0.22 },
-		vines: { hue: 0xff5a6e },
+		vines: { hue: 0xffffff },
 		crt: { intensity: 1.0, brightness: 1.2, glowColor: 0x00ff99, scanStrength: 1.0 },
 	},
 };
@@ -202,11 +202,11 @@ async function boot() {
 			const vineOptions = {
 				lamp: {
 					enabled: ENABLE_VINE_LAMPS,
-					color: 0x6fd2ff,
-					glowColor: 0x2f7bff,
+					color: 0x9bff6a,
+					glowColor: 0x37ff7a,
 					radius: 7,
 					glowRadius: 28,
-					glowAlpha: 0.38,
+					glowAlpha: 0.4,
 					coreAlpha: 0.96,
 				},
 			};
@@ -233,7 +233,7 @@ async function boot() {
 				return PIXI.Texture.from(canvas);
 			}
 
-			const lampLightTexture = makeLampLightTexture('#2f7bff');
+			const lampLightTexture = makeLampLightTexture('#37ff7a');
 			const vineLightSprites = [];
 			const lampLightRadius = 140;
 			function rebuildVineLights() {
