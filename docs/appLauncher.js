@@ -8,6 +8,7 @@ export function createAppLauncher(app, world, options = {}) {
 	} = options;
 
 	const container = new PIXI.Container();
+	container.sortableChildren = true;
 	world.addChild(container);
 
 	const icons = items.map((item, index) => createAppIcon(item, index));
@@ -148,10 +149,12 @@ export function createAppLauncher(app, world, options = {}) {
 		icons.forEach((icon) => {
 			const amp = icon.state.hovered ? 6 : 3;
 			const bounce = Math.sin(time * 3 + icon.state.phase) * amp;
-			const scale = icon.state.hovered ? 1.06 : 1.0;
-			icon.container.position.set(icon.state.base.x, icon.state.base.y + bounce);
+			const popOut = icon.state.hovered ? 4 : 0;
+			const scale = icon.state.hovered ? 1.08 : 1.0;
+			icon.container.position.set(icon.state.base.x, icon.state.base.y + bounce - popOut);
 			icon.container.scale.set(scale);
-			if (icon.glow) icon.glow.alpha = icon.state.hovered ? 0.22 : 0.08;
+			icon.container.zIndex = icon.state.hovered ? 2 : 1;
+			if (icon.glow) icon.glow.alpha = icon.state.hovered ? 0.24 : 0.08;
 			if (icon.border) icon.border.tint = icon.state.hovered ? 0xa00026 : 0xffffff;
 			icon.container._updatePlatformRect?.();
 		});
