@@ -10,6 +10,7 @@ import {
 } from './shaders.js';
 import { createPixelateFilter } from './pixelate.js';
 import { createAppLauncher } from './appLauncher.js';
+import { createSystemHud } from './systemHud.js';
 
 const THEMES = {
 	light: {
@@ -196,6 +197,11 @@ async function boot() {
 			scene.addChild(lightLayer);
 			const world = new PIXI.Container();
 			scene.addChild(world);
+			const systemHud = createSystemHud(app, {
+				status: 'ONLINE',
+				nowPlaying: 'CRIMSON FLOW',
+				location: 'EARTH',
+			});
 			const player = new Player(app);
 			player.setColors(theme.player);
 			const ENABLE_VINE_LAMPS = true;
@@ -595,6 +601,7 @@ async function boot() {
 			updateCRTScanlinesFilter({ uniforms: crtScanlinesUniforms }, app, dt / 60);
 			updateCursorPixelate();
 			appLauncher.update(time);
+			systemHud.update(time);
 			if (!portfolioActive) {
 				const edgeWidth = Math.max(1, leftPortalWidth);
 				const edgeFactor = Math.max(0, Math.min(1, 1 - mouse.x / edgeWidth));
@@ -837,6 +844,7 @@ async function boot() {
 
 			// Reposition link platforms relative to new size
 			appLauncher.layout();
+			systemHud.layout();
 			layoutBlogIcon();
 		}
 		window.addEventListener('resize', onResize);
