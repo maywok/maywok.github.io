@@ -99,7 +99,7 @@ async function boot() {
 				intensity: 0.08,
 				brightness: 0.06,
 				scanStrength: 0.85,
-				curve: 0.04,
+				curve: 0.03,
 				vignette: 0.28,
 			});
 			const { filter: crtScanlinesFilter, uniforms: crtScanlinesUniforms } = createCRTScanlinesFilter(app, {
