@@ -421,7 +421,11 @@ async function boot() {
 			down: false,
 		};
 		const cursorTextureUrl = './assets/spritesheet/cursor.png';
-		await PIXI.Assets.load([cursorTextureUrl]);
+		try {
+			await withTimeout(PIXI.Assets.load([cursorTextureUrl]), 2500, 'Cursor texture');
+		} catch (err) {
+			console.warn('Cursor texture load failed or timed out:', err);
+		}
 		const cursorTexture = PIXI.Texture.from(cursorTextureUrl);
 		const cursorBase = cursorTexture.baseTexture;
 		const cursor = new PIXI.Sprite(cursorTexture);
