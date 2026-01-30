@@ -72,7 +72,11 @@ async function boot() {
 
 		if (document.fonts && document.fonts.load) {
 			try {
-				await document.fonts.load('16px Minecraft');
+				const fontPromise = document.fonts.load('16px Minecraft');
+				const fontTimeout = new Promise((resolve) => {
+					window.setTimeout(resolve, 1500);
+				});
+				await Promise.race([fontPromise, fontTimeout]);
 				await new Promise((r) => requestAnimationFrame(() => r()));
 			} catch (_) {
 			}
