@@ -200,6 +200,7 @@ async function boot() {
 			const systemHud = createSystemHud(app, {
 				city: 'SEATTLE, WA',
 				weather: 'CLEAR 72°F',
+				parent: scene,
 			});
 			const player = new Player(app);
 			player.setColors(theme.player);

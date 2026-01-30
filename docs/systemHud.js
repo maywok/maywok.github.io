@@ -4,6 +4,7 @@ export function createSystemHud(app, options = {}) {
 		city = 'SEATTLE, WA',
 		weather = 'CLEAR 72°F',
 		accent = 0x22f3c8,
+		parent,
 	} = options;
 
 	const container = new PIXI.Container();
@@ -109,7 +110,7 @@ export function createSystemHud(app, options = {}) {
 			{ icon: iconCity, key: 'pin', phase: 3.6 },
 		],
 	};
-	app.stage.addChild(container);
+	(parent || app.stage).addChild(container);
 
 	let lastTimeLabel = '';
 
@@ -139,7 +140,7 @@ export function createSystemHud(app, options = {}) {
 		const iconGap = 6;
 		const w = Math.ceil(bounds.width + padX * 2 + iconSize + iconGap);
 		const h = Math.ceil(bounds.height + padY * 2);
-		panel.drawRoundedRect(x, y, w, h, 6);
+		panel.drawRect(x, y, w, h);
 		if (icon) {
 			const res = drawPixelIcon(icon, ICONS[icon._iconKey], iconSize, accent);
 			const ix = x + padX;
@@ -162,7 +163,7 @@ export function createSystemHud(app, options = {}) {
 		panel.clear();
 		panel.beginFill(0x050d0b, 0.75);
 		panel.lineStyle(1, accent, 0.6);
-		panel.drawRoundedRect(0, 0, Math.max(200, app.renderer.width - margin * 2), barHeight, 8);
+		panel.drawRect(0, 0, Math.max(200, app.renderer.width - margin * 2), barHeight);
 		panel.endFill();
 
 		let x = 12;
@@ -191,13 +192,14 @@ export function createSystemHud(app, options = {}) {
 	function update(dt = 0) {
 		updateText();
 		iconState.t += dt / 60;
+		const accel = Math.min(2.2, 0.6 + iconState.t * 0.18);
 		for (const entry of iconState.base) {
-			const wobble = Math.sin(iconState.t * 2.4 + entry.phase) * 1.2;
-			const pulse = 0.92 + 0.08 * Math.sin(iconState.t * 2.0 + entry.phase * 1.3);
+			const wobble = Math.sin(iconState.t * 3.2 + entry.phase) * 0.4;
 			const base = entry.icon._basePos;
-			if (base) entry.icon.position.set(base.x, base.y + wobble * 0.35);
-			entry.icon.scale.set(pulse);
-			entry.icon.alpha = 0.85 + 0.15 * Math.sin(iconState.t * 1.6 + entry.phase);
+			if (base) entry.icon.position.set(base.x, base.y + wobble);
+			const blink = (Math.sin(iconState.t * 7.5 * accel + entry.phase) + 1) * 0.5;
+			entry.icon.alpha = 0.25 + 0.75 * blink;
+			entry.icon.scale.set(1.0);
 		}
 	}
 
