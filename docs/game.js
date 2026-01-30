@@ -447,14 +447,15 @@ async function boot() {
 		world.addChild(cursorContainer);
 
 			const leftPortal = new PIXI.Container();
+			const leftGlowSoft = new PIXI.Graphics();
 			const leftGlow = new PIXI.Graphics();
 			const leftArrow = new PIXI.Graphics();
-			leftPortal.addChild(leftGlow, leftArrow);
+			leftPortal.addChild(leftGlowSoft, leftGlow, leftArrow);
 			world.addChild(leftPortal);
 		leftArrow.eventMode = 'static';
 		leftArrow.cursor = 'pointer';
 		leftArrow.on('pointertap', () => setPortfolioActive(true));
-			let leftPortalWidth = 100;
+			let leftPortalWidth = 84;
 		let leftPortalProgress = 0;
 			function drawPixelArrow(graphics, size, fillColor) {
 				const px = Math.max(1, Math.round(size / 6));
@@ -477,20 +478,40 @@ async function boot() {
 				graphics.pivot.set(w / 2, h / 2);
 			}
 		function layoutLeftPortal() {
-				leftPortalWidth = Math.max(70, Math.min(140, app.renderer.width * 0.12));
+				leftPortalWidth = Math.max(56, Math.min(110, app.renderer.width * 0.095));
 				const h = app.renderer.height;
 				const portalW = screenToWorldSize(leftPortalWidth);
 				const portalH = screenToWorldSize(h);
 				leftPortal.position.set(screenToWorldX(0), screenToWorldY(0));
-			leftGlow.clear();
+
+				const bulge = portalW * 0.65;
+				const midY = portalH * 0.5;
+				const curveX = portalW + bulge;
+				const edgeX = portalW * 0.55;
+
+				leftGlowSoft.clear();
+				leftGlowSoft.beginFill(0x9bff6a, 0.06);
+				leftGlowSoft.moveTo(0, 0);
+				leftGlowSoft.lineTo(edgeX, 0);
+				leftGlowSoft.quadraticCurveTo(curveX, midY, edgeX, portalH);
+				leftGlowSoft.lineTo(0, portalH);
+				leftGlowSoft.closePath();
+				leftGlowSoft.endFill();
+
+				leftGlow.clear();
 				leftGlow.beginFill(0x9bff6a, 0.12);
-				leftGlow.drawRect(0, 0, portalW, portalH);
-			leftGlow.endFill();
-				const arrowSize = screenToWorldSize(Math.max(16, Math.min(30, app.renderer.height * 0.04)));
-			leftArrow.clear();
+				leftGlow.moveTo(0, 0);
+				leftGlow.lineTo(portalW * 0.45, 0);
+				leftGlow.quadraticCurveTo(portalW + bulge * 0.35, midY, portalW * 0.45, portalH);
+				leftGlow.lineTo(0, portalH);
+				leftGlow.closePath();
+				leftGlow.endFill();
+
+				const arrowSize = screenToWorldSize(Math.max(12, Math.min(22, app.renderer.height * 0.03)));
+				leftArrow.clear();
 				drawPixelArrow(leftArrow, arrowSize, 0xb6ff74);
-				leftArrow.position.set(portalW * 0.58, portalH * 0.5);
-				leftArrow.hitArea = new PIXI.Circle(0, 0, arrowSize * 0.75);
+				leftArrow.position.set(portalW * 0.52, portalH * 0.5);
+				leftArrow.hitArea = new PIXI.Circle(0, 0, arrowSize * 0.7);
 		}
 		layoutLeftPortal();
 
@@ -634,13 +655,15 @@ async function boot() {
 				const edgeWidth = Math.max(1, leftPortalWidth);
 				const edgeFactor = Math.max(0, Math.min(1, 1 - mouse.x / edgeWidth));
 				leftPortalProgress += (edgeFactor - leftPortalProgress) * 0.18;
-					leftGlow.alpha = 0.04 + 0.18 * leftPortalProgress;
-					leftArrow.alpha = 0.05 + 0.55 * leftPortalProgress;
-					const scale = 0.75 + 0.15 * leftPortalProgress;
+					leftGlowSoft.alpha = 0.02 + 0.12 * leftPortalProgress;
+					leftGlow.alpha = 0.03 + 0.16 * leftPortalProgress;
+					leftArrow.alpha = 0.04 + 0.5 * leftPortalProgress;
+					const scale = 0.68 + 0.14 * leftPortalProgress;
 				leftArrow.scale.set(scale);
 				leftPortal.visible = true;
 			} else {
 				leftPortalProgress += (0 - leftPortalProgress) * 0.2;
+				leftGlowSoft.alpha = 0;
 				leftGlow.alpha = 0;
 				leftArrow.alpha = 0;
 				leftPortal.visible = false;
