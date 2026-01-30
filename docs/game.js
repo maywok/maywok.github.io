@@ -575,7 +575,12 @@ async function boot() {
 			const cx = app.renderer.width / 2;
 			const cy = app.renderer.height / 2;
 			const uv = { x: mouse.x / app.renderer.width, y: mouse.y / app.renderer.height };
-			const undistortedUV = invertFisheyeUV(uv, crtFisheyeUniforms?.u_curve ?? 0);
+			let undistortedUV = invertFisheyeUV(uv, crtFisheyeUniforms?.u_curve ?? 0);
+			if (!Number.isFinite(undistortedUV.x) || !Number.isFinite(undistortedUV.y)) {
+				undistortedUV = { x: uv.x, y: uv.y };
+			}
+			undistortedUV.x = Math.max(0, Math.min(1, undistortedUV.x));
+			undistortedUV.y = Math.max(0, Math.min(1, undistortedUV.y));
 			const screenX = undistortedUV.x * app.renderer.width;
 			const screenY = undistortedUV.y * app.renderer.height;
 			const mouseWorldX = (screenX - cx - cameraOffset.x) / SCENE_SCALE + cx;
