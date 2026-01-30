@@ -48,6 +48,25 @@ async function boot() {
 			throw new Error('Missing #game-root element');
 		}
 
+		const portfolioOverlay = document.getElementById('portfolio-overlay');
+		const portfolioVideo = document.getElementById('portfolio-video');
+		let portfolioActive = false;
+		const setPortfolioActive = (next) => {
+			portfolioActive = next;
+			document.documentElement.classList.toggle('portfolio-active', next);
+			if (portfolioOverlay) {
+				portfolioOverlay.setAttribute('aria-hidden', next ? 'false' : 'true');
+			}
+			if (portfolioVideo) {
+				if (next) {
+					const p = portfolioVideo.play();
+					if (p && typeof p.catch === 'function') p.catch(() => {});
+				} else {
+					portfolioVideo.pause();
+				}
+			}
+		};
+
 		if (document.fonts && document.fonts.load) {
 			try {
 				await document.fonts.load('16px Minecraft');
@@ -75,6 +94,8 @@ async function boot() {
 			const DEBUG_SHAPES = false;
 			const scene = new PIXI.Container();
 			app.stage.addChild(scene);
+			const uiLayer = new PIXI.Container();
+			app.stage.addChild(uiLayer);
 			const SCENE_SCALE = 1.12;
 			const CAMERA_PARALLAX = 9;
 			const CAMERA_SMOOTHING = 0.08;
@@ -427,6 +448,37 @@ async function boot() {
 		cursorContainer.filters = [cursorPixelateFilter];
 		world.addChild(cursorContainer);
 
+		const leftPortal = new PIXI.Container();
+		const leftGlow = new PIXI.Graphics();
+		const leftArrow = new PIXI.Graphics();
+		leftPortal.addChild(leftGlow, leftArrow);
+		uiLayer.addChild(leftPortal);
+		leftArrow.eventMode = 'static';
+		leftArrow.cursor = 'pointer';
+		leftArrow.on('pointertap', () => setPortfolioActive(true));
+		let leftPortalWidth = 120;
+		let leftPortalProgress = 0;
+		function layoutLeftPortal() {
+			leftPortalWidth = Math.max(90, Math.min(180, app.renderer.width * 0.16));
+			const h = app.renderer.height;
+			leftGlow.clear();
+			leftGlow.beginFill(0x6cffde, 0.22);
+			leftGlow.drawRect(0, 0, leftPortalWidth, h);
+			leftGlow.endFill();
+			const arrowSize = Math.max(28, Math.min(60, app.renderer.height * 0.065));
+			leftArrow.clear();
+			leftArrow.lineStyle(2, 0xb7fff0, 0.9);
+			leftArrow.beginFill(0x9bffe7, 0.95);
+			leftArrow.moveTo(-arrowSize * 0.55, 0);
+			leftArrow.lineTo(arrowSize * 0.45, -arrowSize * 0.6);
+			leftArrow.lineTo(arrowSize * 0.45, arrowSize * 0.6);
+			leftArrow.closePath();
+			leftArrow.endFill();
+			leftArrow.position.set(leftPortalWidth * 0.55, h * 0.5);
+			leftArrow.hitArea = new PIXI.Circle(0, 0, arrowSize * 0.9);
+		}
+		layoutLeftPortal();
+
 		const ENABLE_CLICK_AUDIO = false;
 		const CLICK_AUDIO_URL = './assets/audio/clickdown.wav';
 		let clickAudioCtx = null;
@@ -563,6 +615,21 @@ async function boot() {
 			updateCRTFisheyeFilter({ uniforms: crtFisheyeUniforms }, app, dt / 60);
 			updateCRTScanlinesFilter({ uniforms: crtScanlinesUniforms }, app, dt / 60);
 			updateCursorPixelate();
+			if (!portfolioActive) {
+				const edgeWidth = Math.max(1, leftPortalWidth);
+				const edgeFactor = Math.max(0, Math.min(1, 1 - mouse.x / edgeWidth));
+				leftPortalProgress += (edgeFactor - leftPortalProgress) * 0.18;
+				leftGlow.alpha = 0.08 + 0.55 * leftPortalProgress;
+				leftArrow.alpha = leftPortalProgress;
+				const scale = 0.85 + 0.25 * leftPortalProgress;
+				leftArrow.scale.set(scale);
+				leftPortal.visible = true;
+			} else {
+				leftPortalProgress += (0 - leftPortalProgress) * 0.2;
+				leftGlow.alpha = 0;
+				leftArrow.alpha = 0;
+				leftPortal.visible = false;
+			}
 			const seconds = dt / 60;
 			time += seconds;
 			scene.alpha = 1;
@@ -751,6 +818,7 @@ async function boot() {
 			}
 			// Keep shader uniforms in sync with new renderer size
 			layoutScene();
+			layoutLeftPortal();
 			
 
 			// Rebuild vines layout for new width/height
