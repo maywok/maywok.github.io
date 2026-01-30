@@ -9,6 +9,7 @@ import {
 	updateCRTScanlinesFilter,
 } from './shaders.js';
 import { createPixelateFilter } from './pixelate.js';
+import { createAppLauncher } from './appLauncher.js';
 
 const THEMES = {
 	light: {
@@ -257,90 +258,17 @@ async function boot() {
 				screenScale: SCENE_SCALE,
 			});
 
-			function makeLinkPlatform(labelText, url, options = {}) {
-				const { x = 80, y = 200, fontSize = 40, collisionPad = 6 } = options;
-
-				const container = new PIXI.Container();
-				container.x = x;
-				container.y = y;
-
-				const text = new PIXI.Text(labelText, {
-					fontFamily: 'Minecraft, monospace',
-					fontSize,
-					fill: 0x22f3c8,
-					align: 'left',
-					letterSpacing: 2,
-					dropShadow: false,
-				});
-				container.addChild(text);
-
-				function redrawHitArea() {
-					const b = text.getLocalBounds();
-					const w = Math.ceil(b.width + collisionPad * 2);
-					const h = Math.ceil(b.height + collisionPad * 2);
-					container.hitArea = new PIXI.Rectangle(b.x - collisionPad, b.y - collisionPad, w, h);
-				}
-				redrawHitArea();
-
-				container.eventMode = 'static';
-				container.cursor = 'pointer';
-				container.on('pointertap', () => {
-					window.open(url, '_blank', 'noopener');
-				});
-
-				container.on('pointerover', () => {
-					container.scale.set(1.03);
-					text.style.fill = 0xeafffb;
-					redrawHitArea();
-				});
-				container.on('pointerout', () => {
-					container.scale.set(1.0);
-					text.style.fill = 0x22f3c8;
-					redrawHitArea();
-				});
-
-				container._updatePlatformRect = () => {
-					const gb = container.getBounds();
-					container._platformRect = {
-						x: gb.x - collisionPad,
-						y: gb.y - collisionPad,
-						w: gb.width + collisionPad * 2,
-						h: gb.height + collisionPad * 2,
-					};
-				};
-				container._updatePlatformRect();
-
-				return container;
-			}
-
-			const linkPlatforms = [
-				makeLinkPlatform('Resume', './assets/files/mason-walker-resume.pdf', { x: 64, y: 0, fontSize: 58 }),
-				makeLinkPlatform('GitHub', 'https://github.com/maywok', { x: 64, y: 0, fontSize: 58 }),
-				makeLinkPlatform('LinkedIn', 'https://www.linkedin.com/in/mason--walker/', { x: 64, y: 0, fontSize: 58 }),
-			];
-			for (const lp of linkPlatforms) {
-				world.addChild(lp);
-			}
-
-			function layoutLinkPlatforms() {
-				const leftX = 64;
-				const centerY = app.renderer.height * 0.5;
-				const spacing = Math.max(74, Math.min(120, app.renderer.height * 0.14));
-				const startY = centerY - spacing;
-				if (linkPlatforms[0]) {
-					linkPlatforms[0].position.set(screenToWorldX(leftX), screenToWorldY(startY));
-					linkPlatforms[0]._updatePlatformRect?.();
-				}
-				if (linkPlatforms[1]) {
-					linkPlatforms[1].position.set(screenToWorldX(leftX), screenToWorldY(startY + spacing));
-					linkPlatforms[1]._updatePlatformRect?.();
-				}
-				if (linkPlatforms[2]) {
-					linkPlatforms[2].position.set(screenToWorldX(leftX), screenToWorldY(startY + spacing * 2));
-					linkPlatforms[2]._updatePlatformRect?.();
-				}
-			}
-			layoutLinkPlatforms();
+			const appLauncher = createAppLauncher(app, world, {
+				items: [
+					{ label: 'Resume', glyph: 'R', tooltip: 'Open Resume', url: './assets/files/mason-walker-resume.pdf' },
+					{ label: 'GitHub', glyph: 'G', tooltip: 'View GitHub', url: 'https://github.com/maywok' },
+					{ label: 'LinkedIn', glyph: 'L', tooltip: 'Open LinkedIn', url: 'https://www.linkedin.com/in/mason--walker/' },
+				],
+				screenToWorldX,
+				screenToWorldY,
+				screenToWorldSize,
+			});
+			appLauncher.layout();
 
 			world.addChild(player.view);
 		const ENABLE_THEME_TOGGLE = false;
@@ -666,6 +594,7 @@ async function boot() {
 			updateCRTFisheyeFilter({ uniforms: crtFisheyeUniforms }, app, dt / 60);
 			updateCRTScanlinesFilter({ uniforms: crtScanlinesUniforms }, app, dt / 60);
 			updateCursorPixelate();
+			appLauncher.update(time);
 			if (!portfolioActive) {
 				const edgeWidth = Math.max(1, leftPortalWidth);
 				const edgeFactor = Math.max(0, Math.min(1, 1 - mouse.x / edgeWidth));
@@ -854,7 +783,7 @@ async function boot() {
 			// slab first
 			resolveTopPlatform(wpx, wpy, wpw, wph);
 			// then link platforms
-			for (const lp of linkPlatforms) {
+			for (const lp of appLauncher.platforms) {
 				lp._updatePlatformRect?.();
 				const r = lp._platformRect;
 				if (!r) continue;
@@ -907,7 +836,7 @@ async function boot() {
 			pw = npw; ph = nph; px = npx; py = npy;
 
 			// Reposition link platforms relative to new size
-			layoutLinkPlatforms();
+			appLauncher.layout();
 			layoutBlogIcon();
 		}
 		window.addEventListener('resize', onResize);
