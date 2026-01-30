@@ -110,6 +110,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		panelBorderGraphic.clear();
 		panelBorderGraphic.lineStyle(1.5, panelBorder, panelBorderAlpha);
 		panelBorderGraphic.drawRoundedRect(-backgroundWidth / 2 + 1, -backgroundHeight / 2 + 1, backgroundWidth - 2, backgroundHeight - 2, Math.max(4, backgroundCornerRadius - 2));
+		labelText.style.fontSize = Math.max(10, Math.round(backgroundWidth * 0.18));
 		labelText.position.set(0, backgroundHeight / 2 + 6);
 	}
 	drawPanel();

@@ -143,6 +143,36 @@ async function boot() {
 			});
 			crtFisheyeFilter.padding = 16;
 			scene.filters = [crtFisheyeFilter, crtScanlinesFilter];
+
+			const inverseFisheye = (nx, ny, curve) => {
+				if (!curve || curve <= 0) return { x: nx, y: ny };
+				const px = nx * 2 - 1;
+				const py = ny * 2 - 1;
+				const r2p = px * px + py * py;
+				if (r2p <= 1e-6) return { x: nx, y: ny };
+				const rp = Math.sqrt(r2p);
+				let r = rp;
+				for (let i = 0; i < 6; i++) {
+					const f = r + curve * r * r * r - rp;
+					const df = 1 + 3 * curve * r * r;
+					r = r - f / df;
+				}
+				const scale = (r > 0) ? (r / rp) : 1;
+				const ux = (px * scale + 1) * 0.5;
+				const uy = (py * scale + 1) * 0.5;
+				return { x: ux, y: uy };
+			};
+			const interaction = app.renderer.plugins.interaction;
+			const defaultMapPositionToPoint = interaction.mapPositionToPoint.bind(interaction);
+			interaction.mapPositionToPoint = (point, x, y) => {
+				const w = app.renderer.width || 1;
+				const h = app.renderer.height || 1;
+				const nx = x / w;
+				const ny = y / h;
+				const { x: ux, y: uy } = inverseFisheye(nx, ny, crtFisheyeUniforms.u_curve);
+				point.x = ux * w;
+				point.y = uy * h;
+			};
 			let themeKey = loadThemeKey();
 			let theme = THEMES[themeKey];
 
@@ -272,18 +302,25 @@ async function boot() {
 			});
 			appLauncher.layout();
 
-			const getLauncherDockX = () => 110;
+			const getLauncherDockX = () => {
+				const leftX = 110;
+				const spacing = Math.max(86, Math.min(140, app.renderer.height * 0.18));
+				return leftX + spacing;
+			};
 			const getLauncherDockY = () => {
 				const centerY = app.renderer.height * 0.52;
 				const spacing = Math.max(86, Math.min(140, app.renderer.height * 0.18));
 				const startY = centerY - spacing;
-				return startY + spacing * 3;
+				return startY;
 			};
+			const getLauncherIconSize = () => Math.max(48, Math.min(74, app.renderer.height * 0.1));
 			const { container: blogIconContainer, layout: layoutBlogIcon } = await createBlogIcon(app, world, {
 				url: '/blog',
 				screenScale: SCENE_SCALE,
 				dockScreenX: getLauncherDockX,
 				dockScreenY: getLauncherDockY,
+				backgroundWidth: screenToWorldSize(getLauncherIconSize()),
+				backgroundHeight: screenToWorldSize(getLauncherIconSize()),
 			});
 
 			world.addChild(player.view);
