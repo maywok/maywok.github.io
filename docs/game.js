@@ -168,9 +168,9 @@ async function boot() {
 				const uy = (py * scale + 1) * 0.5;
 				return { x: ux, y: uy };
 			};
-			const interaction = app.renderer.plugins.interaction;
-			const defaultMapPositionToPoint = interaction.mapPositionToPoint.bind(interaction);
-			interaction.mapPositionToPoint = (point, x, y) => {
+			const interaction = app.renderer?.plugins?.interaction || app.renderer?.events;
+			const defaultMapPositionToPoint = interaction?.mapPositionToPoint?.bind?.(interaction);
+			if (defaultMapPositionToPoint) interaction.mapPositionToPoint = (point, x, y) => {
 				const w = app.renderer.width || 0;
 				const h = app.renderer.height || 0;
 				if (w <= 0 || h <= 0) {
