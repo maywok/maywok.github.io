@@ -95,28 +95,21 @@ async function boot() {
 			scene.position.set(cx, cy);
 			scene.scale.set(SCENE_SCALE);
 		}
-		const ENABLE_CRT = false;
-		let crtFisheyeUniforms = null;
-		let crtScanlinesUniforms = null;
-		if (ENABLE_CRT) {
-			const { filter: crtFisheyeFilter, uniforms } = createCRTFisheyeFilter(app, {
-				intensity: 0.08,
-				brightness: 0.06,
-				scanStrength: 0.85,
-				curve: 0.08,
-				vignette: 0.28,
-			});
-			crtFisheyeUniforms = uniforms;
-			const scanlines = createCRTScanlinesFilter(app, {
-				strength: 0.42,
-				speed: 0.25,
-				noise: 0.03,
-				mask: 0.14,
-			});
-			crtScanlinesUniforms = scanlines.uniforms;
-			crtFisheyeFilter.padding = 16;
-			scene.filters = [crtFisheyeFilter, scanlines.filter];
-		}
+		const { filter: crtFisheyeFilter, uniforms: crtFisheyeUniforms } = createCRTFisheyeFilter(app, {
+			intensity: 0.08,
+			brightness: 0.06,
+			scanStrength: 0.85,
+			curve: 0.08,
+			vignette: 0.28,
+		});
+		const { filter: crtScanlinesFilter, uniforms: crtScanlinesUniforms } = createCRTScanlinesFilter(app, {
+			strength: 0.42,
+			speed: 0.25,
+			noise: 0.03,
+			mask: 0.14,
+		});
+		crtFisheyeFilter.padding = 16;
+		scene.filters = [crtFisheyeFilter, crtScanlinesFilter];
 		let themeKey = loadThemeKey();
 		let theme = THEMES[themeKey];
 
@@ -195,92 +188,7 @@ async function boot() {
 			const canvas = document.createElement('canvas');
 			canvas.width = size;
 			canvas.height = size;
-			const ctx = canvas.getContext('2d');
-			if (!ctx) return PIXI.Texture.WHITE;
-			const cx = size / 2;
-			const cy = size / 2;
-			const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size * 0.5);
-			grad.addColorStop(0, 'rgba(255,255,255,0.95)');
-			grad.addColorStop(0.25, `rgba(${parseInt(color.slice(1, 3), 16)},${parseInt(color.slice(3, 5), 16)},${parseInt(color.slice(5, 7), 16)},0.65)`);
-			grad.addColorStop(0.6, `rgba(${parseInt(color.slice(1, 3), 16)},${parseInt(color.slice(3, 5), 16)},${parseInt(color.slice(5, 7), 16)},0.15)`);
-			grad.addColorStop(1, 'rgba(0,0,0,0)');
-			ctx.fillStyle = grad;
-			ctx.fillRect(0, 0, size, size);
-			return PIXI.Texture.from(canvas);
-		}
-
-		const lampLightTexture = makeLampLightTexture('#2f7bff');
-		const vineLightSprites = [];
-		const lampLightRadius = 140;
-		function rebuildVineLights() {
-			lightLayer.removeChildren();
-			vineLightSprites.length = 0;
-			if (!ENABLE_VINE_LAMP_LIGHTING || !ENABLE_VINE_LAMPS) return;
-			for (let i = 0; i < vines.length; i++) {
-				const sprite = new PIXI.Sprite(lampLightTexture);
-				sprite.anchor.set(0.5);
-				sprite.alpha = 0.55;
-				const scale = lampLightRadius / (lampLightTexture.width * 0.5);
-				sprite.scale.set(scale);
-				lightLayer.addChild(sprite);
-				vineLightSprites.push(sprite);
-			}
-		}
-		rebuildVineLights();
-
-		const { container: blogIconContainer, layout: layoutBlogIcon } = await createBlogIcon(app, world, {
-			url: '/blog',
-			screenScale: SCENE_SCALE,
-		});
-
-		function makeLinkPlatform(labelText, url, options = {}) {
-			const { x = 80, y = 200, fontSize = 40, collisionPad = 6 } = options;
-
-			const container = new PIXI.Container();
-			container.x = x;
-			container.y = y;
-
-			const text = new PIXI.Text(labelText, {
-				fontFamily: 'Minecraft, monospace',
-				fontSize,
-				fill: 0x22f3c8,
-				align: 'left',
-				letterSpacing: 2,
-				dropShadow: false,
-			});
-			container.addChild(text);
-
-			function redrawHitArea() {
-				const b = text.getLocalBounds();
-				const w = Math.ceil(b.width + collisionPad * 2);
-				const h = Math.ceil(b.height + collisionPad * 2);
-				container.hitArea = new PIXI.Rectangle(b.x - collisionPad, b.y - collisionPad, w, h);
-			}
-			redrawHitArea();
-
-			container.eventMode = 'static';
-			container.cursor = 'pointer';
-			container.on('pointertap', () => {
-				window.open(url, '_blank', 'noopener');
-			});
-
-			container.on('pointerover', () => {
-				container.scale.set(1.03);
-				text.style.fill = 0xeafffb;
-				redrawHitArea();
-			});
-			container.on('pointerout', () => {
-				container.scale.set(1.0);
-				text.style.fill = 0x22f3c8;
-				redrawHitArea();
-			});
-
-			container._updatePlatformRect = () => {
-				const gb = text.getBounds();
-				container._platformRect = {
-					x: gb.x - collisionPad,
-					y: gb.y - collisionPad,
-					w: gb.width + collisionPad * 2,
+			scene.alpha = 1;
 					h: gb.height + collisionPad * 2,
 				};
 			};
@@ -659,33 +567,12 @@ async function boot() {
 					`renderer: ${app.renderer.width}x${app.renderer.height}\n` +
 					`dpr: ${dpr.toFixed(2)}`;
 			}
-			if (ENABLE_CRT && crtFisheyeUniforms && crtScanlinesUniforms) {
-				updateCRTFisheyeFilter({ uniforms: crtFisheyeUniforms }, app, dt / 60);
-				updateCRTScanlinesFilter({ uniforms: crtScanlinesUniforms }, app, dt / 60);
-			}
+			updateCRTFisheyeFilter({ uniforms: crtFisheyeUniforms }, app, dt / 60);
+			updateCRTScanlinesFilter({ uniforms: crtScanlinesUniforms }, app, dt / 60);
 			updateCursorPixelate();
 			const seconds = dt / 60;
 			time += seconds;
-			if (matrixActive) {
-				matrixElapsed += seconds;
-				matrixUniforms.u_time = time;
-				const t = Math.max(0, Math.min(1, matrixElapsed / MATRIX_REVEAL_DURATION));
-				const eased = t * t * (3 - 2 * t);
-				matrixUniforms.u_progress = eased;
-				scene.alpha = eased;
-				app.renderer.render(scene, { renderTexture: maskRT, clear: true });
-				if (time - lastDigitsUpdate > 0.12) {
-					lastDigitsUpdate = time;
-					updateDigits();
-				}
-				if (t >= 1) {
-					matrixActive = false;
-					matrixOverlay.removeFromParent();
-					scene.alpha = 1;
-				}
-			} else {
-				scene.alpha = 1;
-			}
+			scene.alpha = 1;
 			const nx = (mouse.x / app.renderer.width) * 2 - 1;
 			const ny = (mouse.y / app.renderer.height) * 2 - 1;
 			const targetX = -nx * CAMERA_PARALLAX;
@@ -695,8 +582,7 @@ async function boot() {
 			const cx = app.renderer.width / 2;
 			const cy = app.renderer.height / 2;
 			const uv = { x: mouse.x / app.renderer.width, y: mouse.y / app.renderer.height };
-			const curve = (ENABLE_CRT && crtFisheyeUniforms) ? (crtFisheyeUniforms.u_curve ?? 0) : 0;
-			const undistortedUV = invertFisheyeUV(uv, curve);
+			const undistortedUV = invertFisheyeUV(uv, crtFisheyeUniforms?.u_curve ?? 0);
 			const screenX = undistortedUV.x * app.renderer.width;
 			const screenY = undistortedUV.y * app.renderer.height;
 			const mouseWorldX = (screenX - cx - cameraOffset.x) / SCENE_SCALE + cx;
@@ -867,12 +753,6 @@ async function boot() {
 			}
 			// Keep shader uniforms in sync with new renderer size
 			layoutScene();
-			matrixSprite.width = app.renderer.width;
-			matrixSprite.height = app.renderer.height;
-			maskRT.resize(app.renderer.width, app.renderer.height);
-			matrixUniforms.u_resolution[0] = app.renderer.width;
-			matrixUniforms.u_resolution[1] = app.renderer.height;
-			matrixUniforms.u_digitScale = Math.max(4, Math.min(10, app.renderer.width / 160));
 			
 
 			// Rebuild vines layout for new width/height
