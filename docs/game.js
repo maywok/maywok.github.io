@@ -56,269 +56,266 @@ async function boot() {
 			}
 		}
 
-		const app = new PIXI.Application({
-			resizeTo: root,
-			background: THEMES[loadThemeKey()].appBackground,
-			antialias: true,
-		});
-		app.stage.roundPixels = true;
-		if (PIXI.settings) {
-			PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
-			PIXI.settings.ROUND_PIXELS = true;
-		}
-		root.appendChild(app.view);
-		app.view.style.width = '100%';
-		app.view.style.height = '100%';
-		app.view.style.display = 'block';
-
-		const ENABLE_DEBUG_HUD = false;
-		const DEBUG_SHAPES = false;
-		const scene = new PIXI.Container();
-		app.stage.addChild(scene);
-		const SCENE_SCALE = 1.12;
-		const CAMERA_PARALLAX = 9;
-		const CAMERA_SMOOTHING = 0.08;
-		const cameraOffset = { x: 0, y: 0 };
-		const screenToWorldX = (screenX) => {
-			const cx = app.renderer.width / 2;
-			return (screenX - cx) / SCENE_SCALE + cx;
-		};
-		const screenToWorldY = (screenY) => {
-			const cy = app.renderer.height / 2;
-			return (screenY - cy) / SCENE_SCALE + cy;
-		};
-		const screenToWorldSize = (screenSize) => screenSize / SCENE_SCALE;
-		function layoutScene() {
-			const cx = app.renderer.width / 2;
-			const cy = app.renderer.height / 2;
-			scene.pivot.set(cx, cy);
-			scene.position.set(cx, cy);
-			scene.scale.set(SCENE_SCALE);
-		}
-		const { filter: crtFisheyeFilter, uniforms: crtFisheyeUniforms } = createCRTFisheyeFilter(app, {
-			intensity: 0.08,
-			brightness: 0.06,
-			scanStrength: 0.85,
-			curve: 0.08,
-			vignette: 0.28,
-		});
-		const { filter: crtScanlinesFilter, uniforms: crtScanlinesUniforms } = createCRTScanlinesFilter(app, {
-			strength: 0.42,
-			speed: 0.25,
-			noise: 0.03,
-			mask: 0.14,
-		});
-		crtFisheyeFilter.padding = 16;
-		scene.filters = [crtFisheyeFilter, crtScanlinesFilter];
-		let themeKey = loadThemeKey();
-		let theme = THEMES[themeKey];
-
-		const label = new PIXI.Text('', {
-			fontFamily: 'Arial',
-			fontSize: 28,
-			fill: 0x00ffcc,
-			stroke: 0x003333,
-			strokeThickness: 4,
-			dropShadow: false,
-		});
-		if (DEBUG_SHAPES) {
-			label.text = 'PIXI running';
-			label.x = 24;
-			label.y = 24;
-			app.stage.addChild(label);
-		}
-
-		const debugHud = new PIXI.Text('', {
-			fontFamily: 'Arial',
-			fontSize: 12,
-			fill: 0xffffff,
-			stroke: 0x000000,
-			strokeThickness: 3,
-		});
-		debugHud.alpha = 0.9;
-		debugHud.x = 10;
-		debugHud.y = 10;
-		if (ENABLE_DEBUG_HUD) app.stage.addChild(debugHud);
-
-		let circle = null;
-		if (DEBUG_SHAPES) {
-			circle = new PIXI.Graphics();
-			circle.beginFill(0xff0066);
+		scene.alpha = 1;
 			circle.drawCircle(0, 0, 40);
 			circle.endFill();
-			circle.x = app.renderer.width - 80;
-			circle.y = 80;
-			app.stage.addChild(circle);
-		}
 
-		if (DEBUG_SHAPES) {
-			const rect = new PIXI.Graphics();
-			rect.beginFill(0x22ccff, 0.6);
-			rect.drawRoundedRect(120, 120, 220, 140, 16);
-			rect.endFill();
-			app.stage.addChild(rect);
-		}
+			const app = new PIXI.Application({
+				resizeTo: root,
+				background: THEMES[loadThemeKey()].appBackground,
+				antialias: true,
+			});
+			app.stage.roundPixels = true;
+			if (PIXI.settings) {
+				PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
+				PIXI.settings.ROUND_PIXELS = true;
+			}
+			root.appendChild(app.view);
+			app.view.style.width = '100%';
+			app.view.style.height = '100%';
+			app.view.style.display = 'block';
 
-		const lightLayer = new PIXI.Container();
-		lightLayer.blendMode = PIXI.BLEND_MODES.ADD;
-		scene.addChild(lightLayer);
-		const world = new PIXI.Container();
-		scene.addChild(world);
-		const player = new Player(app);
-		player.setColors(theme.player);
-		const ENABLE_VINE_LAMPS = true;
-		const ENABLE_VINE_LAMP_LIGHTING = true;
-		const vineOptions = {
-			lamp: {
-				enabled: ENABLE_VINE_LAMPS,
-				color: 0x6fd2ff,
-				glowColor: 0x2f7bff,
-				radius: 7,
-				glowRadius: 28,
-				glowAlpha: 0.38,
-				coreAlpha: 0.96,
-			},
-		};
-		let { container: vinesLayer, vines } = createVines(app, 12, 6, vineOptions);
-		for (const v of vines) v.setColor(theme.vines.hue);
-		world.addChild(vinesLayer);
-
-		function makeLampLightTexture(color = '#2f7bff') {
-			const size = 256;
-			const canvas = document.createElement('canvas');
-			canvas.width = size;
-			canvas.height = size;
-			scene.alpha = 1;
-					h: gb.height + collisionPad * 2,
-				};
+			const ENABLE_DEBUG_HUD = false;
+			const DEBUG_SHAPES = false;
+			const scene = new PIXI.Container();
+			app.stage.addChild(scene);
+			const SCENE_SCALE = 1.12;
+			const CAMERA_PARALLAX = 9;
+			const CAMERA_SMOOTHING = 0.08;
+			const cameraOffset = { x: 0, y: 0 };
+			const screenToWorldX = (screenX) => {
+				const cx = app.renderer.width / 2;
+				return (screenX - cx) / SCENE_SCALE + cx;
 			};
-			container._updatePlatformRect();
-
-			return container;
-		}
-
-		const linkPlatforms = [
-			makeLinkPlatform('Resume', './assets/files/mason-walker-resume.pdf', { x: 64, y: 0, fontSize: 58 }),
-			makeLinkPlatform('GitHub', 'https://github.com/maywok', { x: 64, y: 0, fontSize: 58 }),
-			makeLinkPlatform('LinkedIn', 'https://www.linkedin.com/in/mason--walker/', { x: 64, y: 0, fontSize: 58 }),
-		];
-		for (const lp of linkPlatforms) {
-			world.addChild(lp);
-		}
-
-		function layoutLinkPlatforms() {
-			const leftX = 64;
-			const centerY = app.renderer.height * 0.5;
-			const spacing = Math.max(74, Math.min(120, app.renderer.height * 0.14));
-			const startY = centerY - spacing;
-			if (linkPlatforms[0]) {
-				linkPlatforms[0].position.set(screenToWorldX(leftX), screenToWorldY(startY));
-				linkPlatforms[0]._updatePlatformRect?.();
+			const screenToWorldY = (screenY) => {
+				const cy = app.renderer.height / 2;
+				return (screenY - cy) / SCENE_SCALE + cy;
+			};
+			const screenToWorldSize = (screenSize) => screenSize / SCENE_SCALE;
+			function layoutScene() {
+				const cx = app.renderer.width / 2;
+				const cy = app.renderer.height / 2;
+				scene.pivot.set(cx, cy);
+				scene.position.set(cx, cy);
+				scene.scale.set(SCENE_SCALE);
 			}
-			if (linkPlatforms[1]) {
-				linkPlatforms[1].position.set(screenToWorldX(leftX), screenToWorldY(startY + spacing));
-				linkPlatforms[1]._updatePlatformRect?.();
+			const { filter: crtFisheyeFilter, uniforms: crtFisheyeUniforms } = createCRTFisheyeFilter(app, {
+				intensity: 0.08,
+				brightness: 0.06,
+				scanStrength: 0.85,
+				curve: 0.08,
+				vignette: 0.28,
+			});
+			const { filter: crtScanlinesFilter, uniforms: crtScanlinesUniforms } = createCRTScanlinesFilter(app, {
+				strength: 0.42,
+				speed: 0.25,
+				noise: 0.03,
+				mask: 0.14,
+			});
+			crtFisheyeFilter.padding = 16;
+			scene.filters = [crtFisheyeFilter, crtScanlinesFilter];
+			let themeKey = loadThemeKey();
+			let theme = THEMES[themeKey];
+
+			const label = new PIXI.Text('', {
+				fontFamily: 'Arial',
+				fontSize: 28,
+				fill: 0x00ffcc,
+				stroke: 0x003333,
+				strokeThickness: 4,
+				dropShadow: false,
+			});
+			if (DEBUG_SHAPES) {
+				label.text = 'PIXI running';
+				label.x = 24;
+				label.y = 24;
+				app.stage.addChild(label);
 			}
-			if (linkPlatforms[2]) {
-				linkPlatforms[2].position.set(screenToWorldX(leftX), screenToWorldY(startY + spacing * 2));
-				linkPlatforms[2]._updatePlatformRect?.();
+
+			const debugHud = new PIXI.Text('', {
+				fontFamily: 'Arial',
+				fontSize: 12,
+				fill: 0xffffff,
+				stroke: 0x000000,
+				strokeThickness: 3,
+			});
+			debugHud.alpha = 0.9;
+			debugHud.x = 10;
+			debugHud.y = 10;
+			if (ENABLE_DEBUG_HUD) app.stage.addChild(debugHud);
+
+			let circle = null;
+			if (DEBUG_SHAPES) {
+				circle = new PIXI.Graphics();
+				circle.beginFill(0xff0066);
+				circle.drawCircle(0, 0, 40);
+				circle.endFill();
+				circle.x = app.renderer.width - 80;
+				circle.y = 80;
+				app.stage.addChild(circle);
 			}
-		}
-		layoutLinkPlatforms();
 
-		world.addChild(player.view);
+			if (DEBUG_SHAPES) {
+				const rect = new PIXI.Graphics();
+				rect.beginFill(0x22ccff, 0.6);
+				rect.drawRoundedRect(120, 120, 220, 140, 16);
+				rect.endFill();
+				app.stage.addChild(rect);
+			}
 
-		const MATRIX_REVEAL_DURATION = 1.4;
-		let matrixElapsed = 0;
-		let matrixActive = true;
-		scene.alpha = 0;
+			const lightLayer = new PIXI.Container();
+			lightLayer.blendMode = PIXI.BLEND_MODES.ADD;
+			scene.addChild(lightLayer);
+			const world = new PIXI.Container();
+			scene.addChild(world);
+			const player = new Player(app);
+			player.setColors(theme.player);
+			const ENABLE_VINE_LAMPS = true;
+			const ENABLE_VINE_LAMP_LIGHTING = true;
+			const vineOptions = {
+				lamp: {
+					enabled: ENABLE_VINE_LAMPS,
+					color: 0x6fd2ff,
+					glowColor: 0x2f7bff,
+					radius: 7,
+					glowRadius: 28,
+					glowAlpha: 0.38,
+					coreAlpha: 0.96,
+				},
+			};
+			let { container: vinesLayer, vines } = createVines(app, 12, 6, vineOptions);
+			for (const v of vines) v.setColor(theme.vines.hue);
+			world.addChild(vinesLayer);
 
-		const matrixOverlay = new PIXI.Container();
-		app.stage.addChild(matrixOverlay);
-		const matrixSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
-		matrixSprite.width = app.renderer.width;
-		matrixSprite.height = app.renderer.height;
-		matrixOverlay.addChild(matrixSprite);
+			function makeLampLightTexture(color = '#2f7bff') {
+				const size = 256;
+				const canvas = document.createElement('canvas');
+				canvas.width = size;
+				canvas.height = size;
+				const ctx = canvas.getContext('2d');
+				if (!ctx) return PIXI.Texture.WHITE;
+				const cx = size / 2;
+				const cy = size / 2;
+				const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size * 0.5);
+				grad.addColorStop(0, 'rgba(255,255,255,0.95)');
+				grad.addColorStop(0.25, `rgba(${parseInt(color.slice(1, 3), 16)},${parseInt(color.slice(3, 5), 16)},${parseInt(color.slice(5, 7), 16)},0.65)`);
+				grad.addColorStop(0.6, `rgba(${parseInt(color.slice(1, 3), 16)},${parseInt(color.slice(3, 5), 16)},${parseInt(color.slice(5, 7), 16)},0.15)`);
+				grad.addColorStop(1, 'rgba(0,0,0,0)');
+				ctx.fillStyle = grad;
+				ctx.fillRect(0, 0, size, size);
+				return PIXI.Texture.from(canvas);
+			}
 
-		const maskRT = PIXI.RenderTexture.create({
-			width: app.renderer.width,
-			height: app.renderer.height,
-		});
-
-		const digitsCanvas = document.createElement('canvas');
-		digitsCanvas.width = 512;
-		digitsCanvas.height = 512;
-		const digitsCtx = digitsCanvas.getContext('2d');
-		const digitsTexture = PIXI.Texture.from(digitsCanvas);
-		const digitCell = 16;
-		const digitFont = '12px Minecraft, ui-monospace, Menlo, monospace';
-		let lastDigitsUpdate = 0;
-
-		function updateDigits() {
-			if (!digitsCtx) return;
-			digitsCtx.clearRect(0, 0, digitsCanvas.width, digitsCanvas.height);
-			digitsCtx.fillStyle = '#000000';
-			digitsCtx.fillRect(0, 0, digitsCanvas.width, digitsCanvas.height);
-			digitsCtx.font = digitFont;
-			digitsCtx.textAlign = 'center';
-			digitsCtx.textBaseline = 'middle';
-			for (let y = 0; y < digitsCanvas.height; y += digitCell) {
-				for (let x = 0; x < digitsCanvas.width; x += digitCell) {
-					const n = Math.floor(Math.random() * 10);
-					const alpha = 0.35 + Math.random() * 0.45;
-					digitsCtx.fillStyle = `rgba(34, 243, 200, ${alpha.toFixed(2)})`;
-					digitsCtx.fillText(String(n), x + digitCell * 0.5, y + digitCell * 0.5);
+			const lampLightTexture = makeLampLightTexture('#2f7bff');
+			const vineLightSprites = [];
+			const lampLightRadius = 140;
+			function rebuildVineLights() {
+				lightLayer.removeChildren();
+				vineLightSprites.length = 0;
+				if (!ENABLE_VINE_LAMP_LIGHTING || !ENABLE_VINE_LAMPS) return;
+				for (let i = 0; i < vines.length; i++) {
+					const sprite = new PIXI.Sprite(lampLightTexture);
+					sprite.anchor.set(0.5);
+					sprite.alpha = 0.55;
+					const scale = lampLightRadius / (lampLightTexture.width * 0.5);
+					sprite.scale.set(scale);
+					lightLayer.addChild(sprite);
+					vineLightSprites.push(sprite);
 				}
 			}
-			digitsTexture.update();
-		}
+			rebuildVineLights();
 
-		updateDigits();
+			const { container: blogIconContainer, layout: layoutBlogIcon } = await createBlogIcon(app, world, {
+				url: '/blog',
+				screenScale: SCENE_SCALE,
+			});
 
-		const matrixFragment = `
-			precision mediump float;
-			varying vec2 vTextureCoord;
-			uniform sampler2D u_mask;
-			uniform sampler2D u_digits;
-			uniform vec2 u_resolution;
-			uniform float u_time;
-			uniform vec3 u_color;
-			uniform float u_digitScale;
-			uniform float u_progress;
+			function makeLinkPlatform(labelText, url, options = {}) {
+				const { x = 80, y = 200, fontSize = 40, collisionPad = 6 } = options;
 
-			float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+				const container = new PIXI.Container();
+				container.x = x;
+				container.y = y;
 
-			void main() {
-				vec2 uv = vTextureCoord;
-				vec2 px = 1.0 / u_resolution;
-				float m = luma(texture2D(u_mask, uv).rgb);
-				float mr = luma(texture2D(u_mask, uv + vec2(px.x, 0.0)).rgb);
-				float mu = luma(texture2D(u_mask, uv + vec2(0.0, px.y)).rgb);
-				float edge = max(abs(m - mr), abs(m - mu));
-				float outline = smoothstep(0.02, 0.12, edge);
+				const text = new PIXI.Text(labelText, {
+					fontFamily: 'Minecraft, monospace',
+					fontSize,
+					fill: 0x22f3c8,
+					align: 'left',
+					letterSpacing: 2,
+					dropShadow: false,
+				});
+				container.addChild(text);
 
-				vec2 duv = fract(uv * u_digitScale + vec2(u_time * 0.02, u_time * 0.01));
-				float d = luma(texture2D(u_digits, duv).rgb);
-				float alpha = outline * d * (1.0 - u_progress);
-				vec3 color = u_color * d;
-				gl_FragColor = vec4(color, alpha);
+				function redrawHitArea() {
+					const b = text.getLocalBounds();
+					const w = Math.ceil(b.width + collisionPad * 2);
+					const h = Math.ceil(b.height + collisionPad * 2);
+					container.hitArea = new PIXI.Rectangle(b.x - collisionPad, b.y - collisionPad, w, h);
+				}
+				redrawHitArea();
+
+				container.eventMode = 'static';
+				container.cursor = 'pointer';
+				container.on('pointertap', () => {
+					window.open(url, '_blank', 'noopener');
+				});
+
+				container.on('pointerover', () => {
+					container.scale.set(1.03);
+					text.style.fill = 0xeafffb;
+					redrawHitArea();
+				});
+				container.on('pointerout', () => {
+					container.scale.set(1.0);
+					text.style.fill = 0x22f3c8;
+					redrawHitArea();
+				});
+
+				container._updatePlatformRect = () => {
+					const gb = container.getBounds();
+					container._platformRect = {
+						x: gb.x - collisionPad,
+						y: gb.y - collisionPad,
+						w: gb.width + collisionPad * 2,
+						h: gb.height + collisionPad * 2,
+					};
+				};
+				container._updatePlatformRect();
+
+				return container;
 			}
-		`;
 
-		const matrixUniforms = {
-			u_mask: maskRT,
-			u_digits: digitsTexture,
-			u_resolution: new Float32Array([app.renderer.width, app.renderer.height]),
-			u_time: 0,
-			u_color: new Float32Array([34 / 255, 243 / 255, 200 / 255]),
-			u_digitScale: Math.max(4, Math.min(10, app.renderer.width / 160)),
-			u_progress: 0,
-		};
+			const linkPlatforms = [
+				makeLinkPlatform('Resume', './assets/files/mason-walker-resume.pdf', { x: 64, y: 0, fontSize: 58 }),
+				makeLinkPlatform('GitHub', 'https://github.com/maywok', { x: 64, y: 0, fontSize: 58 }),
+				makeLinkPlatform('LinkedIn', 'https://www.linkedin.com/in/mason--walker/', { x: 64, y: 0, fontSize: 58 }),
+			];
+			for (const lp of linkPlatforms) {
+				world.addChild(lp);
+			}
 
-		const matrixFilter = new PIXI.Filter(undefined, matrixFragment, matrixUniforms);
-		matrixSprite.filters = [matrixFilter];
+			function layoutLinkPlatforms() {
+				const leftX = 64;
+				const centerY = app.renderer.height * 0.5;
+				const spacing = Math.max(74, Math.min(120, app.renderer.height * 0.14));
+				const startY = centerY - spacing;
+				if (linkPlatforms[0]) {
+					linkPlatforms[0].position.set(screenToWorldX(leftX), screenToWorldY(startY));
+					linkPlatforms[0]._updatePlatformRect?.();
+				}
+				if (linkPlatforms[1]) {
+					linkPlatforms[1].position.set(screenToWorldX(leftX), screenToWorldY(startY + spacing));
+					linkPlatforms[1]._updatePlatformRect?.();
+				}
+				if (linkPlatforms[2]) {
+					linkPlatforms[2].position.set(screenToWorldX(leftX), screenToWorldY(startY + spacing * 2));
+					linkPlatforms[2]._updatePlatformRect?.();
+				}
+			}
+			layoutLinkPlatforms();
 
-		const toggleBtn = document.createElement('button');
+			world.addChild(player.view);
 		const ENABLE_THEME_TOGGLE = false;
 		if (ENABLE_THEME_TOGGLE) {
 			toggleBtn.type = 'button';
