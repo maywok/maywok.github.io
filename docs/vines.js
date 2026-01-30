@@ -62,7 +62,7 @@ export class Vine {
 		this._mouseLatched = false;
 		this.grabRadius = 18;
 		this._grabbedIndex = -1;
-		this.hue = 0xff5a6e;
+		this.hue = 0xffffff;
 	}
 
 	setColor(hue) {
