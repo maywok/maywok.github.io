@@ -169,6 +169,24 @@ export async function createBlogIcon(app, world, options = {}) {
 		dragEnabled: false,
 		dragging: false,
 		dragOffset: { x: 0, y: 0 },
+		vx: 0,
+		vy: 0,
+		lastDragTime: 0,
+	};
+	const PHYSICS = {
+		gravity: 1400,
+		airDamp: 0.992,
+		bounce: 0.35,
+		floorFriction: 0.88,
+		margin: 16,
+	};
+	const screenToWorldX = (screenX) => {
+		const cx = app.renderer.width / 2;
+		return (screenX - cx) / screenScale + cx;
+	};
+	const screenToWorldY = (screenY) => {
+		const cy = app.renderer.height / 2;
+		return (screenY - cy) / screenScale + cy;
 	};
 
 	container.eventMode = 'static';
@@ -204,6 +222,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		state.dragging = true;
 		state.dragOffset.x = container.position.x - pos.x;
 		state.dragOffset.y = container.position.y - pos.y;
+		state.lastDragTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 	});
 
 	function layout() {
@@ -240,7 +259,16 @@ export async function createBlogIcon(app, world, options = {}) {
 		app.stage.on('pointermove', (event) => {
 			if (!state.dragEnabled || !state.dragging) return;
 			const pos = event.getLocalPosition(world);
-			container.position.set(pos.x + state.dragOffset.x, pos.y + state.dragOffset.y);
+			const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+			const nextX = pos.x + state.dragOffset.x;
+			const nextY = pos.y + state.dragOffset.y;
+			if (state.lastDragTime) {
+				const dt = Math.max(0.001, (now - state.lastDragTime) / 1000);
+				state.vx = (nextX - container.position.x) / dt;
+				state.vy = (nextY - container.position.y) / dt;
+			}
+			state.lastDragTime = now;
+			container.position.set(nextX, nextY);
 			state.free.x = container.position.x;
 			state.free.y = container.position.y;
 			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
@@ -266,18 +294,40 @@ export async function createBlogIcon(app, world, options = {}) {
 		state.currentScale += (targetScale - state.currentScale) * 0.18 * dt;
 		container.scale.set(state.currentScale);
 		const popOut = state.hovered ? 4 / screenScale : 0;
-		const bob = Math.sin(app.ticker.lastTime * 0.003 + state.phase) * (3 / screenScale);
+		const minX = screenToWorldX(PHYSICS.margin);
+		const maxX = screenToWorldX(app.renderer.width - PHYSICS.margin);
+		const minY = screenToWorldY(PHYSICS.margin);
+		const maxY = screenToWorldY(app.renderer.height - PHYSICS.margin);
 		if (!state.dragEnabled) {
+			const bob = Math.sin(app.ticker.lastTime * 0.003 + state.phase) * (3 / screenScale);
 			const targetX = state.base.x;
 			const targetY = state.base.y - popOut + bob;
 			container.position.x += (targetX - container.position.x) * 0.12 * dt;
 			container.position.y += (targetY - container.position.y) * 0.12 * dt;
 			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
 		} else if (!state.dragging) {
-			const targetX = state.free.x;
-			const targetY = state.free.y + bob;
-			container.position.x += (targetX - container.position.x) * 0.15 * dt;
-			container.position.y += (targetY - container.position.y) * 0.15 * dt;
+			state.vy += PHYSICS.gravity * (dt / 60);
+			state.vx *= PHYSICS.airDamp;
+			state.vy *= PHYSICS.airDamp;
+			container.position.x += state.vx * (dt / 60);
+			container.position.y += state.vy * (dt / 60);
+			if (container.position.x < minX) {
+				container.position.x = minX;
+				state.vx *= -PHYSICS.bounce;
+			}
+			if (container.position.x > maxX) {
+				container.position.x = maxX;
+				state.vx *= -PHYSICS.bounce;
+			}
+			if (container.position.y < minY) {
+				container.position.y = minY;
+				state.vy *= -PHYSICS.bounce;
+			}
+			if (container.position.y > maxY) {
+				container.position.y = maxY;
+				if (state.vy > 0) state.vy = 0;
+				state.vx *= PHYSICS.floorFriction;
+			}
 			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
 		} else {
 			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
@@ -293,10 +343,10 @@ export async function createBlogIcon(app, world, options = {}) {
 	function setDragEnabled(enabled) {
 		state.dragEnabled = Boolean(enabled);
 		if (!state.dragEnabled) state.dragging = false;
-		if (state.dragEnabled) {
-			state.free.x = container.position.x;
-			state.free.y = container.position.y;
-		} else {
+		state.vx = 0;
+		state.vy = 0;
+		state.lastDragTime = 0;
+		if (!state.dragEnabled) {
 			state.free.x = state.base.x;
 			state.free.y = state.base.y;
 		}

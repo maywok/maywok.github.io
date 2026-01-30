@@ -730,7 +730,8 @@ async function boot() {
 			updateCRTFisheyeFilter({ uniforms: crtFisheyeUniforms }, app, dt / 60);
 			updateCRTScanlinesFilter({ uniforms: crtScanlinesUniforms }, app, dt / 60);
 			updateCursorPixelate();
-			appLauncher.update(time);
+			const seconds = dt / 60;
+			appLauncher.update(time, seconds);
 			systemHud.update(time);
 			if (!portfolioActive) {
 				const edgeWidth = Math.max(1, leftPortalWidth);
@@ -749,7 +750,6 @@ async function boot() {
 				leftArrow.alpha = 0;
 				leftPortal.visible = false;
 			}
-			const seconds = dt / 60;
 			time += seconds;
 			scene.alpha = 1;
 			const nx = (mouse.x / app.renderer.width) * 2 - 1;

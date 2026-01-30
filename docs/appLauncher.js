@@ -16,6 +16,13 @@ export function createAppLauncher(app, world, options = {}) {
 		enabled: false,
 		active: null,
 	};
+	const PHYSICS = {
+		gravity: 1400,
+		airDamp: 0.992,
+		bounce: 0.35,
+		floorFriction: 0.88,
+		margin: 16,
+	};
 	if (app?.stage) {
 		if (!app.stage.eventMode || app.stage.eventMode === 'none') {
 			app.stage.eventMode = 'static';
@@ -27,10 +34,16 @@ export function createAppLauncher(app, world, options = {}) {
 			if (!dragState.enabled || !dragState.active) return;
 			const pos = event.getLocalPosition(world);
 			const icon = dragState.active;
-			icon.container.position.set(
-				pos.x + icon.state.dragOffset.x,
-				pos.y + icon.state.dragOffset.y,
-			);
+			const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+			const nextX = pos.x + icon.state.dragOffset.x;
+			const nextY = pos.y + icon.state.dragOffset.y;
+			if (icon.state.lastDragTime) {
+				const dt = Math.max(0.001, (now - icon.state.lastDragTime) / 1000);
+				icon.state.vx = (nextX - icon.container.position.x) / dt;
+				icon.state.vy = (nextY - icon.container.position.y) / dt;
+			}
+			icon.state.lastDragTime = now;
+			icon.container.position.set(nextX, nextY);
 		});
 		app.stage.on('pointerup', () => {
 			if (dragState.active) {
@@ -100,6 +113,9 @@ export function createAppLauncher(app, world, options = {}) {
 			iconSize: 56,
 			dragging: false,
 			dragOffset: { x: 0, y: 0 },
+			vx: 0,
+			vy: 0,
+			lastDragTime: 0,
 		};
 
 		const cardMotion = createCardMotion(iconContainer, {
@@ -170,6 +186,7 @@ export function createAppLauncher(app, world, options = {}) {
 			dragState.active = { container: iconContainer, state };
 			state.dragOffset.x = iconContainer.position.x - pos.x;
 			state.dragOffset.y = iconContainer.position.y - pos.y;
+			state.lastDragTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 		});
 		iconContainer.on('pointerover', () => {
 			state.hovered = true;
@@ -215,7 +232,11 @@ export function createAppLauncher(app, world, options = {}) {
 		});
 	}
 
-	function update(time) {
+	function update(time, dtSeconds = 1 / 60) {
+		const minX = screenToWorldX(PHYSICS.margin);
+		const maxX = screenToWorldX(app.renderer.width - PHYSICS.margin);
+		const minY = screenToWorldY(PHYSICS.margin);
+		const maxY = screenToWorldY(app.renderer.height - PHYSICS.margin);
 		icons.forEach((icon) => {
 			const scale = icon.state.hovered ? 1.08 : 1.0;
 			const amp = icon.state.hovered ? 6 : 3;
@@ -227,10 +248,28 @@ export function createAppLauncher(app, world, options = {}) {
 				icon.container.position.x += (targetX - icon.container.position.x) * 0.12;
 				icon.container.position.y += (targetY - icon.container.position.y) * 0.12;
 			} else if (!icon.state.dragging) {
-				const targetX = icon.state.free.x;
-				const targetY = icon.state.free.y + bounce * 0.85;
-				icon.container.position.x += (targetX - icon.container.position.x) * 0.15;
-				icon.container.position.y += (targetY - icon.container.position.y) * 0.15;
+				icon.state.vy += PHYSICS.gravity * dtSeconds;
+				icon.state.vx *= PHYSICS.airDamp;
+				icon.state.vy *= PHYSICS.airDamp;
+				icon.container.position.x += icon.state.vx * dtSeconds;
+				icon.container.position.y += icon.state.vy * dtSeconds;
+				if (icon.container.position.x < minX) {
+					icon.container.position.x = minX;
+					icon.state.vx *= -PHYSICS.bounce;
+				}
+				if (icon.container.position.x > maxX) {
+					icon.container.position.x = maxX;
+					icon.state.vx *= -PHYSICS.bounce;
+				}
+				if (icon.container.position.y < minY) {
+					icon.container.position.y = minY;
+					icon.state.vy *= -PHYSICS.bounce;
+				}
+				if (icon.container.position.y > maxY) {
+					icon.container.position.y = maxY;
+					if (icon.state.vy > 0) icon.state.vy = 0;
+					icon.state.vx *= PHYSICS.floorFriction;
+				}
 			}
 			icon.container.scale.set(scale);
 			icon.container.zIndex = icon.state.dragging ? 3 : (icon.state.hovered ? 2 : 1);
@@ -248,10 +287,10 @@ export function createAppLauncher(app, world, options = {}) {
 			dragState.active = null;
 		}
 		icons.forEach((icon) => {
-			if (dragState.enabled) {
-				icon.state.free.x = icon.container.position.x;
-				icon.state.free.y = icon.container.position.y;
-			} else {
+			icon.state.vx = 0;
+			icon.state.vy = 0;
+			icon.state.lastDragTime = 0;
+			if (!dragState.enabled) {
 				icon.state.free.x = icon.state.base.x;
 				icon.state.free.y = icon.state.base.y;
 			}
