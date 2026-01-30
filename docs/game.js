@@ -101,6 +101,7 @@ async function boot() {
 				bgColor: 0x000000,
 				glowAlpha: 0.55,
 				parallax: 0.06,
+				pixelSize: 6,
 			});
 			scene.addChild(flowBackground);
 			const SCENE_SCALE = 1.12;

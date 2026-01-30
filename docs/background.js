@@ -92,6 +92,7 @@ function createFlowFilter(app, options = {}) {
     glowStrength = 0.45,
     speed = 0.45,
     density = 3.2,
+    pixelSize = 4,
   } = options;
 
   const fragment = `
@@ -107,6 +108,7 @@ function createFlowFilter(app, options = {}) {
     uniform float u_glowStrength;
     uniform float u_speed;
     uniform float u_density;
+    uniform float u_pixelSize;
 
     float hash(vec2 p) {
       return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453123);
@@ -136,8 +138,10 @@ function createFlowFilter(app, options = {}) {
 
     void main() {
       vec2 uv = vTextureCoord;
+      vec2 pixelUV = floor(uv * u_resolution / u_pixelSize) * u_pixelSize / u_resolution;
       vec2 aspect = vec2(u_resolution.x / u_resolution.y, 1.0);
       vec2 p = (uv - 0.5) * aspect;
+      p = (pixelUV - 0.5) * aspect;
       p += u_offset;
       float t = u_time * u_speed;
       float n = fbm(p * 1.2 + vec2(t * 0.12, -t * 0.09));
@@ -162,6 +166,7 @@ function createFlowFilter(app, options = {}) {
     u_glowStrength: glowStrength,
     u_speed: speed,
     u_density: density,
+    u_pixelSize: pixelSize,
   };
 
   return { filter: new PIXI.Filter(undefined, fragment, uniforms), uniforms };
@@ -174,6 +179,7 @@ export function createCrimsonFlowBackground(app, options = {}) {
     bgColor = 0x000000,
     glowAlpha = 0.65,
     parallax = 0.035,
+    pixelSize = 4,
   } = options;
 
   const container = new PIXI.Container();
@@ -190,6 +196,7 @@ export function createCrimsonFlowBackground(app, options = {}) {
     glowStrength: 0.35,
     speed: 0.42,
     density: 3.4,
+    pixelSize,
   });
   core.filters = [coreFilter];
 
@@ -206,6 +213,7 @@ export function createCrimsonFlowBackground(app, options = {}) {
     glowStrength: 0.9,
     speed: 0.42,
     density: 3.4,
+    pixelSize,
   });
   glow.filters = [glowFilter];
 
