@@ -4,6 +4,7 @@ export function createSystemHud(app, options = {}) {
 		city = 'SEATTLE, WA',
 		weather = 'CLEAR 72°F',
 		accent = 0x22f3c8,
+		topOffset = 0,
 		parent,
 	} = options;
 
@@ -186,7 +187,7 @@ export function createSystemHud(app, options = {}) {
 		b = drawBadge(x, y, cityText, iconCity);
 		panel.endFill();
 
-		container.position.set(margin, margin);
+		container.position.set(margin, margin + topOffset);
 	}
 
 	function update(dt = 0) {
