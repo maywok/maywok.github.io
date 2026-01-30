@@ -56,11 +56,7 @@ async function boot() {
 			}
 		}
 
-		scene.alpha = 1;
-			circle.drawCircle(0, 0, 40);
-			circle.endFill();
-
-			const app = new PIXI.Application({
+		const app = new PIXI.Application({
 				resizeTo: root,
 				background: THEMES[loadThemeKey()].appBackground,
 				antialias: true,
