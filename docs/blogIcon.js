@@ -172,6 +172,9 @@ export async function createBlogIcon(app, world, options = {}) {
 		vx: 0,
 		vy: 0,
 		lastDragTime: 0,
+		radius: Math.max(backgroundWidth, backgroundHeight) * 0.5,
+		radiusScaled: Math.max(backgroundWidth, backgroundHeight) * 0.5,
+		mouseProvider: null,
 	};
 	const PHYSICS = {
 		gravity: 1400,
@@ -179,6 +182,8 @@ export async function createBlogIcon(app, world, options = {}) {
 		bounce: 0.35,
 		floorFriction: 0.88,
 		margin: 16,
+		mousePushRadius: 90,
+		mousePushForce: 2200,
 	};
 	const screenToWorldX = (screenX) => {
 		const cx = app.renderer.width / 2;
@@ -293,6 +298,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		const targetScale = state.hovered ? scale * 1.05 : scale;
 		state.currentScale += (targetScale - state.currentScale) * 0.18 * dt;
 		container.scale.set(state.currentScale);
+		state.radiusScaled = state.radius * state.currentScale;
 		const popOut = state.hovered ? 4 / screenScale : 0;
 		const minX = screenToWorldX(PHYSICS.margin);
 		const maxX = screenToWorldX(app.renderer.width - PHYSICS.margin);
@@ -306,6 +312,18 @@ export async function createBlogIcon(app, world, options = {}) {
 			container.position.y += (targetY - container.position.y) * 0.12 * dt;
 			preview.position.set(container.position.x + previewOffsetX / screenScale, container.position.y + previewOffsetY / screenScale);
 		} else if (!state.dragging) {
+			const mouse = state.mouseProvider?.();
+			if (mouse) {
+				const dx = container.position.x - mouse.x;
+				const dy = container.position.y - mouse.y;
+				const dist = Math.hypot(dx, dy) || 1;
+				const mouseR = screenToWorldX(PHYSICS.mousePushRadius) - screenToWorldX(0);
+				if (dist < mouseR) {
+					const push = (1 - dist / mouseR) * PHYSICS.mousePushForce;
+					state.vx += (dx / dist) * push * (dt / 60);
+					state.vy += (dy / dist) * push * (dt / 60);
+				}
+			}
 			state.vy += PHYSICS.gravity * (dt / 60);
 			state.vx *= PHYSICS.airDamp;
 			state.vy *= PHYSICS.airDamp;
@@ -353,5 +371,13 @@ export async function createBlogIcon(app, world, options = {}) {
 		container.cursor = state.dragEnabled ? 'move' : 'pointer';
 	}
 
-	return { container, layout, setDragEnabled };
+	function setMouseProvider(provider) {
+		state.mouseProvider = provider;
+	}
+
+	function getBody() {
+		return { container, state };
+	}
+
+	return { container, layout, setDragEnabled, setMouseProvider, getBody };
 }

@@ -22,7 +22,10 @@ export function createAppLauncher(app, world, options = {}) {
 		bounce: 0.35,
 		floorFriction: 0.88,
 		margin: 16,
+		mousePushRadius: 90,
+		mousePushForce: 2200,
 	};
+	let externalBodiesProvider = null;
 	if (app?.stage) {
 		if (!app.stage.eventMode || app.stage.eventMode === 'none') {
 			app.stage.eventMode = 'static';
@@ -111,6 +114,7 @@ export function createAppLauncher(app, world, options = {}) {
 			free: { x: 0, y: 0 },
 			phase: index * 0.9,
 			iconSize: 56,
+			radius: 28,
 			dragging: false,
 			dragOffset: { x: 0, y: 0 },
 			vx: 0,
@@ -130,6 +134,7 @@ export function createAppLauncher(app, world, options = {}) {
 
 		function drawIcon(size) {
 			state.iconSize = size;
+			state.radius = Math.max(12, size * 0.52);
 			const radius = Math.max(6, Math.round(size * 0.18));
 			const glowPad = Math.round(size * 0.12);
 			const inner = size - 4;
@@ -232,11 +237,13 @@ export function createAppLauncher(app, world, options = {}) {
 		});
 	}
 
-	function update(time, dtSeconds = 1 / 60) {
+	function update(time, dtSeconds = 1 / 60, mouseWorld = null) {
 		const minX = screenToWorldX(PHYSICS.margin);
 		const maxX = screenToWorldX(app.renderer.width - PHYSICS.margin);
 		const minY = screenToWorldY(PHYSICS.margin);
 		const maxY = screenToWorldY(app.renderer.height - PHYSICS.margin);
+		const mouseR = screenToWorldSize(PHYSICS.mousePushRadius);
+		const mouseForce = PHYSICS.mousePushForce;
 		icons.forEach((icon) => {
 			const scale = icon.state.hovered ? 1.08 : 1.0;
 			const amp = icon.state.hovered ? 6 : 3;
@@ -248,6 +255,16 @@ export function createAppLauncher(app, world, options = {}) {
 				icon.container.position.x += (targetX - icon.container.position.x) * 0.12;
 				icon.container.position.y += (targetY - icon.container.position.y) * 0.12;
 			} else if (!icon.state.dragging) {
+				if (mouseWorld) {
+					const dx = icon.container.position.x - mouseWorld.x;
+					const dy = icon.container.position.y - mouseWorld.y;
+					const dist = Math.hypot(dx, dy) || 1;
+					if (dist < mouseR) {
+						const push = (1 - dist / mouseR) * mouseForce;
+						icon.state.vx += (dx / dist) * push * dtSeconds;
+						icon.state.vy += (dy / dist) * push * dtSeconds;
+					}
+				}
 				icon.state.vy += PHYSICS.gravity * dtSeconds;
 				icon.state.vx *= PHYSICS.airDamp;
 				icon.state.vy *= PHYSICS.airDamp;
@@ -278,6 +295,53 @@ export function createAppLauncher(app, world, options = {}) {
 			icon.cardMotion?.update();
 			icon.container._updatePlatformRect?.();
 		});
+		if (dragState.enabled) {
+			const bodies = icons.map((icon) => ({
+				container: icon.container,
+				state: icon.state,
+				radius: icon.state.radius * icon.container.scale.x,
+			}));
+			const externalBodies = externalBodiesProvider ? externalBodiesProvider() : [];
+			if (externalBodies?.length) {
+				for (const ext of externalBodies) {
+					if (!ext?.container || !ext?.state) continue;
+					bodies.push({
+						container: ext.container,
+						state: ext.state,
+						radius: (ext.state.radiusScaled ?? ext.state.radius ?? 24) * (ext.container.scale?.x ?? 1),
+					});
+				}
+			}
+			for (let i = 0; i < bodies.length; i++) {
+				for (let j = i + 1; j < bodies.length; j++) {
+					const a = bodies[i];
+					const b = bodies[j];
+					const dx = b.container.position.x - a.container.position.x;
+					const dy = b.container.position.y - a.container.position.y;
+					const dist = Math.hypot(dx, dy) || 1;
+					const minDist = a.radius + b.radius;
+					if (dist < minDist) {
+						const nx = dx / dist;
+						const ny = dy / dist;
+						const overlap = (minDist - dist) * 0.5;
+						a.container.position.x -= nx * overlap;
+						a.container.position.y -= ny * overlap;
+						b.container.position.x += nx * overlap;
+						b.container.position.y += ny * overlap;
+						const rvx = (b.state.vx ?? 0) - (a.state.vx ?? 0);
+						const rvy = (b.state.vy ?? 0) - (a.state.vy ?? 0);
+						const rel = rvx * nx + rvy * ny;
+						if (rel < 0) {
+							const impulse = -(1 + PHYSICS.bounce) * rel * 0.5;
+							a.state.vx -= impulse * nx;
+							a.state.vy -= impulse * ny;
+							b.state.vx += impulse * nx;
+							b.state.vy += impulse * ny;
+						}
+					}
+				}
+			}
+		}
 	}
 
 	function setDragEnabled(enabled) {
@@ -300,12 +364,22 @@ export function createAppLauncher(app, world, options = {}) {
 		});
 	}
 
+	function setExternalBodiesProvider(provider) {
+		externalBodiesProvider = provider;
+	}
+
+	function getBodies() {
+		return icons.map((icon) => ({ container: icon.container, state: icon.state }));
+	}
+
 	return {
 		container,
 		icons: icons.map((icon) => icon.container),
 		layout,
 		update,
 		setDragEnabled,
+		setExternalBodiesProvider,
+		getBodies,
 		platforms: icons.map((icon) => icon.container),
 	};
 }

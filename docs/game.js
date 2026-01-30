@@ -318,6 +318,8 @@ async function boot() {
 			});
 			appLauncher.layout();
 			let blogIconSetDragEnabled = null;
+			let blogIconGetBody = null;
+			let blogIconSetMouseProvider = null;
 			const dragToggleBtn = document.createElement('button');
 			let dragEnabled = false;
 			const applyDragEnabled = (enabled) => {
@@ -347,6 +349,7 @@ async function boot() {
 			dragToggleBtn.addEventListener('click', () => applyDragEnabled(!dragEnabled));
 			document.body.appendChild(dragToggleBtn);
 			applyDragEnabled(false);
+			let lastMouseWorld = { x: app.renderer.width / 2, y: app.renderer.height / 2 };
 
 			const getLauncherDockX = () => {
 				const leftX = 110;
@@ -386,9 +389,15 @@ async function boot() {
 					blogIconSetDragEnabled = blogIconResult.setDragEnabled;
 					blogIconSetDragEnabled(dragEnabled);
 				}
+				if (blogIconResult?.getBody) blogIconGetBody = blogIconResult.getBody;
+				if (blogIconResult?.setMouseProvider) blogIconSetMouseProvider = blogIconResult.setMouseProvider;
 			} catch (err) {
 				console.warn('Blog icon init failed or timed out:', err);
 			}
+			if (appLauncher?.setExternalBodiesProvider) {
+				appLauncher.setExternalBodiesProvider(() => (blogIconGetBody ? [blogIconGetBody()] : []));
+			}
+			if (blogIconSetMouseProvider) blogIconSetMouseProvider(() => lastMouseWorld);
 
 			world.addChild(player.view);
 		const ENABLE_THEME_TOGGLE = false;
@@ -509,6 +518,7 @@ async function boot() {
 		const cursorContainer = new PIXI.Container();
 		if (cursorAnim && cursorAnim.totalFrames > 1) cursorContainer.addChild(cursorGlow, cursorAnim);
 		else cursorContainer.addChild(cursorGlow, cursor);
+		cursorContainer.eventMode = 'none';
 		const { filter: cursorPixelateFilter, update: updateCursorPixelate } = createPixelateFilter(app, { pixelSize: 2 });
 		cursorContainer.filters = [cursorPixelateFilter];
 		world.addChild(cursorContainer);
@@ -731,7 +741,6 @@ async function boot() {
 			updateCRTScanlinesFilter({ uniforms: crtScanlinesUniforms }, app, dt / 60);
 			updateCursorPixelate();
 			const seconds = dt / 60;
-			appLauncher.update(time, seconds);
 			systemHud.update(time);
 			if (!portfolioActive) {
 				const edgeWidth = Math.max(1, leftPortalWidth);
@@ -778,6 +787,8 @@ async function boot() {
 				app.renderer.height / 2 + cameraOffset.y,
 			);
 			const mouseWorld = { x: mouseWorldX, y: mouseWorldY, down: mouse.down };
+			lastMouseWorld = mouseWorld;
+			appLauncher.update(time, seconds, mouseWorld);
 			for (const vine of vines) vine.update(time, mouseWorld, seconds);
 			if (ENABLE_VINE_LAMP_LIGHTING && ENABLE_VINE_LAMPS) {
 				for (let i = 0; i < vines.length; i++) {
