@@ -269,10 +269,12 @@ export async function createBlogIcon(app, world, options = {}) {
 		iframe.style.pointerEvents = 'none';
 
 		const bodyStripes = document.createElement('div');
+		const htmlPreviewScale = 0.4;
+		const htmlPreviewZoom = 1 / htmlPreviewScale;
 		iframe.style.transformOrigin = '0 0';
-		iframe.style.transform = 'scale(0.5)';
-		iframe.style.width = '200%';
-		iframe.style.height = '200%';
+		iframe.style.transform = `scale(${htmlPreviewScale})`;
+		iframe.style.width = `${htmlPreviewZoom * 100}%`;
+		iframe.style.height = `${htmlPreviewZoom * 100}%`;
 
 		htmlPreviewBody.appendChild(iframe);
 		htmlPreview.appendChild(htmlPreviewBody);
@@ -537,10 +539,14 @@ export async function createBlogIcon(app, world, options = {}) {
 			const cy = app.renderer.height / 2;
 			const screenX = (preview.position.x - cx) * screenScale + cx;
 			const screenY = (preview.position.y - cy) * screenScale + cy;
-			const contentW = (previewWidth - 4) * scaleX;
-			const contentH = (previewHeight - chromeHeight - 4) * scaleY;
-			const contentLeft = rect.left + (screenX - previewWidth / 2 + 2) * scaleX;
-			const contentTop = rect.top + (screenY - previewHeight / 2 + chromeHeight + 2) * scaleY;
+			const previewScale = preview.scale?.x || 1;
+			const scaledPreviewWidth = previewWidth * previewScale;
+			const scaledPreviewHeight = previewHeight * previewScale;
+			const scaledChromeHeight = chromeHeight * previewScale;
+			const contentW = (previewWidth - 4) * previewScale * scaleX;
+			const contentH = (previewHeight - chromeHeight - 4) * previewScale * scaleY;
+			const contentLeft = rect.left + (screenX - scaledPreviewWidth / 2 + 2 * previewScale) * scaleX;
+			const contentTop = rect.top + (screenY - scaledPreviewHeight / 2 + scaledChromeHeight + 2 * previewScale) * scaleY;
 			htmlPreview.style.left = `${contentLeft}px`;
 			htmlPreview.style.top = `${contentTop}px`;
 			htmlPreview.style.width = `${contentW}px`;
