@@ -95,6 +95,22 @@ export function createAppLauncher(app, world, options = {}) {
 		});
 		glyph.anchor.set(0.5);
 
+		const baseTextures = item.spriteTextures || null;
+		const hoverTextures = item.hoverTextures || null;
+		const iconSprite = baseTextures ? new PIXI.AnimatedSprite(baseTextures) : null;
+		const hoverSprite = hoverTextures ? new PIXI.AnimatedSprite(hoverTextures) : null;
+		if (iconSprite) {
+			iconSprite.anchor.set(0.5);
+			iconSprite.animationSpeed = item.spriteAnimationSpeed ?? 0.12;
+			iconSprite.play();
+		}
+		if (hoverSprite) {
+			hoverSprite.anchor.set(0.5);
+			hoverSprite.animationSpeed = item.spriteAnimationSpeed ?? 0.12;
+			hoverSprite.visible = false;
+			hoverSprite.stop();
+		}
+
 		const tooltip = new PIXI.Container();
 		const tooltipBg = new PIXI.Graphics();
 		const tooltipText = new PIXI.Text(item.tooltip || item.label, {
@@ -108,7 +124,10 @@ export function createAppLauncher(app, world, options = {}) {
 		tooltip.addChild(tooltipBg, tooltipText);
 		tooltip.visible = false;
 
-		iconContainer.addChild(glow, bg, border, glyph, label, tooltip);
+		iconContainer.addChild(glow, bg, border);
+		if (iconSprite) iconContainer.addChild(iconSprite);
+		if (hoverSprite) iconContainer.addChild(hoverSprite);
+		iconContainer.addChild(glyph, label, tooltip);
 
 		const state = {
 			index,
@@ -127,14 +146,16 @@ export function createAppLauncher(app, world, options = {}) {
 			lastDragTime: 0,
 		};
 
+		const motionLayers = [
+			{ target: iconSprite || glyph, strength: 3 },
+			{ target: glow, strength: 1.5, invert: true },
+		];
+		if (hoverSprite) motionLayers.unshift({ target: hoverSprite, strength: 3 });
 		const cardMotion = createCardMotion(iconContainer, {
 			width: state.iconSize,
 			height: state.iconSize,
 			tiltAmount: 0.12,
-			layers: [
-				{ target: glyph, strength: 3 },
-				{ target: glow, strength: 1.5, invert: true },
-			],
+			layers: motionLayers,
 		});
 
 		function drawIcon(size) {
@@ -143,19 +164,24 @@ export function createAppLauncher(app, world, options = {}) {
 			const radius = Math.max(6, Math.round(size * 0.18));
 			const glowPad = Math.round(size * 0.12);
 			const inner = size - 4;
+			const panelFill = item.panelFill ?? 0x22f3c8;
+			const panelFillAlpha = item.panelFillAlpha ?? 0.9;
+			const panelBorder = item.panelBorder ?? 0x0b3a33;
+			const panelBorderAlpha = item.panelBorderAlpha ?? 0.85;
+			const glowAlpha = item.glowAlpha ?? 0.08;
 
 			glow.clear();
-			glow.beginFill(0xe4ff5a, 0.08);
+			glow.beginFill(0xe4ff5a, glowAlpha);
 			glow.drawRoundedRect(-size / 2 - glowPad, -size / 2 - glowPad, size + glowPad * 2, size + glowPad * 2, radius + 4);
 			glow.endFill();
 
 			bg.clear();
-			bg.beginFill(0x22f3c8, 0.9);
+			bg.beginFill(panelFill, panelFillAlpha);
 			bg.drawRoundedRect(-size / 2, -size / 2, size, size, radius);
 			bg.endFill();
 
 			border.clear();
-			border.lineStyle(2, 0x0b3a33, 0.85);
+			border.lineStyle(2, panelBorder, panelBorderAlpha);
 			border.drawRoundedRect(-size / 2 + 1, -size / 2 + 1, inner, inner, radius - 2);
 
 			glyph.style.fontSize = Math.max(18, Math.round(size * 0.44));
@@ -177,6 +203,25 @@ export function createAppLauncher(app, world, options = {}) {
 			tooltip.position.set(0, -size / 2 - tooltipH * 0.6);
 
 			glyph.position.set(0, 0);
+			if (iconSprite) {
+				const baseW = baseTextures?.[0]?.width || iconSprite.width || 1;
+				const baseH = baseTextures?.[0]?.height || iconSprite.height || 1;
+				const target = size * (item.spriteScale ?? 0.72);
+				const scale = target / Math.max(baseW, baseH);
+				iconSprite.scale.set(scale);
+				iconSprite.position.set(0, 0);
+			}
+			if (hoverSprite) {
+				const hoverW = hoverTextures?.[0]?.width || hoverSprite.width || 1;
+				const hoverH = hoverTextures?.[0]?.height || hoverSprite.height || 1;
+				const target = size * (item.spriteScale ?? 0.72);
+				const scale = target / Math.max(hoverW, hoverH);
+				hoverSprite.scale.set(scale);
+				hoverSprite.position.set(0, 0);
+			}
+			if (iconSprite || hoverSprite) {
+				glyph.visible = false;
+			}
 			iconContainer.hitArea = new PIXI.Rectangle(-size / 2, -size / 2, size, size);
 			cardMotion.reset();
 		}
@@ -201,6 +246,11 @@ export function createAppLauncher(app, world, options = {}) {
 		iconContainer.on('pointerover', () => {
 			state.hovered = true;
 			tooltip.visible = true;
+			if (hoverSprite) {
+				if (iconSprite) iconSprite.visible = false;
+				hoverSprite.visible = true;
+				hoverSprite.gotoAndPlay(0);
+			}
 		});
 		iconContainer.on('pointermove', (event) => {
 			cardMotion.onPointerMove(event);
@@ -208,6 +258,14 @@ export function createAppLauncher(app, world, options = {}) {
 		iconContainer.on('pointerout', () => {
 			state.hovered = false;
 			tooltip.visible = false;
+			if (hoverSprite) {
+				hoverSprite.stop();
+				hoverSprite.visible = false;
+				if (iconSprite) {
+					iconSprite.visible = true;
+					iconSprite.play();
+				}
+			}
 			cardMotion.reset();
 		});
 

@@ -306,11 +306,70 @@ async function boot() {
 			}
 			rebuildVineLights();
 
+			const withTimeout = (promise, ms, label) => {
+				let timeoutId;
+				const timeout = new Promise((_, reject) => {
+					timeoutId = window.setTimeout(() => {
+						reject(new Error(`${label} timed out after ${ms}ms`));
+					}, ms);
+				});
+				return Promise.race([promise, timeout]).finally(() => {
+					window.clearTimeout(timeoutId);
+				});
+			};
+			const extractFrameIndex = (name) => {
+				const match = name.match(/(\d+)(?!.*\d)/);
+				return match ? Number(match[1]) : 0;
+			};
+			const buildTextures = (data, imageUrl) => {
+				const baseTexture = PIXI.BaseTexture.from(imageUrl);
+				const frames = Object.entries(data.frames || {}).map(([name, value]) => ({
+					name,
+					frame: value.frame,
+				}));
+				frames.sort((a, b) => extractFrameIndex(a.name) - extractFrameIndex(b.name));
+				return frames.map(({ frame }) => new PIXI.Texture(
+					baseTexture,
+					new PIXI.Rectangle(frame.x, frame.y, frame.w, frame.h),
+				));
+			};
+			const linkedinJsonUrl = './assets/spritesheet/json/linkedin.json';
+			const hoverLinkedinJsonUrl = './assets/spritesheet/json/hoverlinkedin.json';
+			const linkedinImageUrl = './assets/spritesheet/linkedin.png';
+			const hoverLinkedinImageUrl = './assets/spritesheet/hoverlinkedin.png';
+			let linkedinSpriteConfig = null;
+			try {
+				const [linkedinData, hoverLinkedinData] = await withTimeout(Promise.all([
+					fetch(linkedinJsonUrl).then((r) => r.json()),
+					fetch(hoverLinkedinJsonUrl).then((r) => r.json()),
+				]), 4000, 'LinkedIn sprite data');
+				await withTimeout(PIXI.Assets.load([linkedinImageUrl, hoverLinkedinImageUrl]), 4000, 'LinkedIn sprite textures');
+				linkedinSpriteConfig = {
+					spriteTextures: buildTextures(linkedinData, linkedinImageUrl),
+					hoverTextures: buildTextures(hoverLinkedinData, hoverLinkedinImageUrl),
+				};
+			} catch (err) {
+				console.warn('LinkedIn sprite load failed or timed out:', err);
+			}
+
 			const appLauncher = createAppLauncher(app, world, {
 				items: [
 					{ label: 'Resume', glyph: 'R', tooltip: 'Open Resume', url: './assets/files/mason-walker-resume.pdf' },
 					{ label: 'GitHub', glyph: 'G', tooltip: 'View GitHub', url: 'https://github.com/maywok' },
-					{ label: 'LinkedIn', glyph: 'L', tooltip: 'Open LinkedIn', url: 'https://www.linkedin.com/in/mason--walker/' },
+					{
+						label: 'LinkedIn',
+						glyph: 'L',
+						tooltip: 'Open LinkedIn',
+						url: 'https://www.linkedin.com/in/mason--walker/',
+						...(linkedinSpriteConfig || {}),
+						panelFill: 0x0b1b1a,
+						panelFillAlpha: 0.22,
+						panelBorder: 0x22f3c8,
+						panelBorderAlpha: 0.55,
+						glowAlpha: 0.0,
+						spriteAnimationSpeed: 0.12,
+						spriteScale: 0.78,
+					},
 				],
 				screenToWorldX,
 				screenToWorldY,
@@ -363,17 +422,6 @@ async function boot() {
 				return startY;
 			};
 			const getLauncherIconSize = () => Math.max(48, Math.min(74, app.renderer.height * 0.1));
-			const withTimeout = (promise, ms, label) => {
-				let timeoutId;
-				const timeout = new Promise((_, reject) => {
-					timeoutId = window.setTimeout(() => {
-						reject(new Error(`${label} timed out after ${ms}ms`));
-					}, ms);
-				});
-				return Promise.race([promise, timeout]).finally(() => {
-					window.clearTimeout(timeoutId);
-				});
-			};
 			let layoutBlogIcon = () => {};
 			try {
 				const blogIconResult = await withTimeout(createBlogIcon(app, world, {
