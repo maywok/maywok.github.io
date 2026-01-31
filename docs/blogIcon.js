@@ -140,7 +140,7 @@ export async function createBlogIcon(app, world, options = {}) {
 	});
 	previewTitle.anchor.set(0, 0.5);
 	const previewChrome = new PIXI.Graphics();
-	const previewIcons = new PIXI.Graphics();
+	const previewButtons = [new PIXI.Graphics(), new PIXI.Graphics(), new PIXI.Graphics()];
 
 	const chromeHeight = Math.max(18, Math.round(previewHeight * 0.18));
 	const chromeAlpha = 0.9;
@@ -148,7 +148,8 @@ export async function createBlogIcon(app, world, options = {}) {
 	const windowAlpha = 0.86;
 	const windowBorder = 0x1cff73;
 	const windowBorderAlpha = 0.7;
-	const iconRed = 0xff3b3b;
+	const buttonLight = 0xffffff;
+	const buttonDark = 0x9a9a9a;
 	const chromeGradientTexture = (() => {
 		const canvas = document.createElement('canvas');
 		canvas.width = 1;
@@ -190,16 +191,18 @@ export async function createBlogIcon(app, world, options = {}) {
 	const iconGap = Math.max(4, Math.round(iconSize * 0.6));
 	const iconRight = previewWidth / 2 - 10;
 	const iconY = -previewHeight / 2 + Math.round((chromeHeight - iconSize) / 2) + 1;
-	previewIcons.clear();
-	previewIcons.beginFill(iconRed, 0.95);
-	previewIcons.drawRect(iconRight - iconSize, iconY, iconSize, iconSize);
-	previewIcons.drawRect(iconRight - iconSize * 2 - iconGap, iconY, iconSize, iconSize);
-	previewIcons.drawRect(iconRight - iconSize * 3 - iconGap * 2, iconY, iconSize, iconSize);
-	previewIcons.endFill();
+	previewButtons.forEach((btn, index) => {
+		btn.clear();
+		btn.beginFill(buttonLight, 0.95);
+		btn.drawRect(0, 0, iconSize, iconSize);
+		btn.endFill();
+		btn.position.set(iconRight - iconSize * (index + 1) - iconGap * index, iconY);
+	});
 
 	previewTitle.position.set(-previewWidth / 2 + 10, -previewHeight / 2 + Math.round(chromeHeight / 2) + 1);
 
-	preview.addChild(previewBg, previewBorder, previewChrome, previewIcons, previewTitle, backgroundSprite, previewMask);
+	preview.addChild(previewBg, previewBorder, previewChrome, previewTitle, backgroundSprite, previewMask);
+	previewButtons.forEach((btn) => preview.addChild(btn));
 	preview.visible = false;
 	preview.alpha = 0;
 	preview.scale.set(0.96);
@@ -445,6 +448,28 @@ export async function createBlogIcon(app, world, options = {}) {
 		if (state.previewAlpha <= 0.02 && !state.previewTarget) {
 			preview.visible = false;
 		}
+		const pulseBase = (Math.sin(app.ticker.lastTime * 0.004) + 1) * 0.5;
+		const toChannel = (value, shift) => {
+			const v = Math.round((value * (1 - shift) + shift) * 255);
+			return Math.max(0, Math.min(255, v));
+		};
+		const lerpColor = (a, b, t) => {
+			const ar = (a >> 16) & 0xff;
+			const ag = (a >> 8) & 0xff;
+			const ab = a & 0xff;
+			const br = (b >> 16) & 0xff;
+			const bg = (b >> 8) & 0xff;
+			const bb = b & 0xff;
+			const rr = Math.round(ar + (br - ar) * t);
+			const rg = Math.round(ag + (bg - ag) * t);
+			const rb = Math.round(ab + (bb - ab) * t);
+			return (rr << 16) | (rg << 8) | rb;
+		};
+		previewButtons.forEach((btn, index) => {
+			const phase = pulseBase + index * 0.15;
+			const t = 0.5 + 0.5 * Math.sin(phase * Math.PI * 2);
+			btn.tint = lerpColor(buttonDark, buttonLight, t);
+		});
 	});
 
 	function setDragEnabled(enabled) {
