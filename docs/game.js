@@ -1,6 +1,7 @@
 import { Player } from './player.js';
 import { createVines } from './vines.js';
 import { createBlogIcon } from './blogIcon.js';
+import { createLinkedinIcon } from './linkedinIcon.js';
 import { createCrimsonFlowBackground } from './background.js';
 import {
 	createCRTFisheyeFilter,
@@ -317,63 +318,11 @@ async function boot() {
 					window.clearTimeout(timeoutId);
 				});
 			};
-			const extractFrameIndex = (name) => {
-				const match = name.match(/(\d+)(?!.*\d)/);
-				return match ? Number(match[1]) : 0;
-			};
-			const buildTextures = (data, imageUrl) => {
-				const baseTexture = PIXI.BaseTexture.from(imageUrl);
-				const frames = Object.entries(data.frames || {}).map(([name, value]) => ({
-					name,
-					frame: value.frame,
-				}));
-				frames.sort((a, b) => extractFrameIndex(a.name) - extractFrameIndex(b.name));
-				return frames.map(({ frame }) => new PIXI.Texture(
-					baseTexture,
-					new PIXI.Rectangle(frame.x, frame.y, frame.w, frame.h),
-				));
-			};
-			const linkedinJsonUrl = './assets/spritesheet/json/linkedin.json';
-			const hoverLinkedinJsonUrl = './assets/spritesheet/json/hoverlinkedin.json';
-			const linkedinImageUrl = './assets/spritesheet/linkedin.png';
-			const hoverLinkedinImageUrl = './assets/spritesheet/hoverlinkedin.png';
-			let linkedinSpriteConfig = null;
-			try {
-				const [linkedinData, hoverLinkedinData] = await withTimeout(Promise.all([
-					fetch(linkedinJsonUrl).then((r) => r.json()),
-					fetch(hoverLinkedinJsonUrl).then((r) => r.json()),
-				]), 4000, 'LinkedIn sprite data');
-				await withTimeout(PIXI.Assets.load([linkedinImageUrl, hoverLinkedinImageUrl]), 4000, 'LinkedIn sprite textures');
-				const baseTextures = buildTextures(linkedinData, linkedinImageUrl);
-				const hoverTextures = buildTextures(hoverLinkedinData, hoverLinkedinImageUrl);
-				if (baseTextures.length && hoverTextures.length) {
-					linkedinSpriteConfig = {
-						spriteTextures: baseTextures,
-						hoverTextures,
-					};
-				}
-			} catch (err) {
-				console.warn('LinkedIn sprite load failed or timed out:', err);
-			}
 
 			const appLauncher = createAppLauncher(app, world, {
 				items: [
 					{ label: 'Resume', glyph: 'R', tooltip: 'Open Resume', url: './assets/files/mason-walker-resume.pdf' },
 					{ label: 'GitHub', glyph: 'G', tooltip: 'View GitHub', url: 'https://github.com/maywok' },
-					{
-						label: 'LinkedIn',
-						glyph: 'L',
-						tooltip: 'Open LinkedIn',
-						url: 'https://www.linkedin.com/in/mason--walker/',
-						...(linkedinSpriteConfig || {}),
-						panelFill: 0x0b1b1a,
-						panelFillAlpha: 0.22,
-						panelBorder: 0x22f3c8,
-						panelBorderAlpha: 0.55,
-						glowAlpha: 0.0,
-						spriteAnimationSpeed: 0.12,
-						spriteScale: 0.78,
-					},
 				],
 				screenToWorldX,
 				screenToWorldY,
@@ -383,6 +332,9 @@ async function boot() {
 			let blogIconSetDragEnabled = null;
 			let blogIconGetBody = null;
 			let blogIconSetMouseProvider = null;
+			let linkedinIconSetDragEnabled = null;
+			let linkedinIconGetBody = null;
+			let linkedinIconSetMouseProvider = null;
 			const dragToggleBtn = document.createElement('button');
 			let dragEnabled = false;
 			const applyDragEnabled = (enabled) => {
@@ -391,6 +343,7 @@ async function boot() {
 				dragToggleBtn.setAttribute('aria-pressed', dragEnabled ? 'true' : 'false');
 				appLauncher.setDragEnabled?.(dragEnabled);
 				if (blogIconSetDragEnabled) blogIconSetDragEnabled(dragEnabled);
+				if (linkedinIconSetDragEnabled) linkedinIconSetDragEnabled(dragEnabled);
 			};
 			dragToggleBtn.type = 'button';
 			Object.assign(dragToggleBtn.style, {
@@ -419,20 +372,21 @@ async function boot() {
 				const spacing = Math.max(86, Math.min(140, app.renderer.height * 0.18));
 				return leftX + spacing;
 			};
-			const getLauncherDockY = () => {
+			const getLauncherDockY = (index = 0) => {
 				const centerY = app.renderer.height * 0.52;
 				const spacing = Math.max(86, Math.min(140, app.renderer.height * 0.18));
 				const startY = centerY - spacing;
-				return startY;
+				return startY + spacing * index;
 			};
 			const getLauncherIconSize = () => Math.max(48, Math.min(74, app.renderer.height * 0.1));
 			let layoutBlogIcon = () => {};
+			let layoutLinkedinIcon = () => {};
 			try {
 				const blogIconResult = await withTimeout(createBlogIcon(app, world, {
 					url: '/blog',
 					screenScale: SCENE_SCALE,
 					dockScreenX: getLauncherDockX,
-					dockScreenY: getLauncherDockY,
+					dockScreenY: () => getLauncherDockY(0),
 					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
 					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
 				}), 6000, 'Blog icon');
@@ -446,10 +400,35 @@ async function boot() {
 			} catch (err) {
 				console.warn('Blog icon init failed or timed out:', err);
 			}
+			try {
+				const linkedinIconResult = await withTimeout(createLinkedinIcon(app, world, {
+					url: 'https://www.linkedin.com/in/mason--walker/',
+					screenScale: SCENE_SCALE,
+					dockScreenX: getLauncherDockX,
+					dockScreenY: () => getLauncherDockY(1),
+					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
+					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
+				}), 6000, 'LinkedIn icon');
+				if (linkedinIconResult?.layout) layoutLinkedinIcon = linkedinIconResult.layout;
+				if (linkedinIconResult?.setDragEnabled) {
+					linkedinIconSetDragEnabled = linkedinIconResult.setDragEnabled;
+					linkedinIconSetDragEnabled(dragEnabled);
+				}
+				if (linkedinIconResult?.getBody) linkedinIconGetBody = linkedinIconResult.getBody;
+				if (linkedinIconResult?.setMouseProvider) linkedinIconSetMouseProvider = linkedinIconResult.setMouseProvider;
+			} catch (err) {
+				console.warn('LinkedIn icon init failed or timed out:', err);
+			}
 			if (appLauncher?.setExternalBodiesProvider) {
-				appLauncher.setExternalBodiesProvider(() => (blogIconGetBody ? [blogIconGetBody()] : []));
+				appLauncher.setExternalBodiesProvider(() => {
+					const bodies = [];
+					if (blogIconGetBody) bodies.push(blogIconGetBody());
+					if (linkedinIconGetBody) bodies.push(linkedinIconGetBody());
+					return bodies;
+				});
 			}
 			if (blogIconSetMouseProvider) blogIconSetMouseProvider(() => lastMouseWorld);
+			if (linkedinIconSetMouseProvider) linkedinIconSetMouseProvider(() => lastMouseWorld);
 
 			world.addChild(player.view);
 		const ENABLE_THEME_TOGGLE = false;
@@ -1039,6 +1018,7 @@ async function boot() {
 			appLauncher.layout();
 			systemHud.layout();
 			layoutBlogIcon();
+			layoutLinkedinIcon();
 		}
 		window.addEventListener('resize', onResize);
 		// Run once after first paint so initial sizing is correct.
