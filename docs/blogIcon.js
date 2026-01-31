@@ -30,6 +30,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		previewCornerRadius = 0,
 		previewOffsetX = 170,
 		previewOffsetY = -80,
+		useHtmlPreview = true,
 		dockScreenX = null,
 		dockScreenY = null,
 	} = options;
@@ -74,6 +75,9 @@ export async function createBlogIcon(app, world, options = {}) {
 	backgroundSprite.anchor.set(0.5);
 	backgroundSprite.width = previewWidth;
 	backgroundSprite.height = previewHeight;
+	if (useHtmlPreview) {
+		backgroundSprite.visible = false;
+	}
 	const frozenSprite = new PIXI.AnimatedSprite(frozenTextures);
 	const hoverSprite = new PIXI.AnimatedSprite(hoverTextures);
 	frozenSprite.anchor.set(0.5);
@@ -224,6 +228,73 @@ export async function createBlogIcon(app, world, options = {}) {
 	preview.scale.set(0.96);
 	preview.eventMode = 'none';
 	world.addChild(preview);
+
+	let htmlPreview = null;
+	let htmlPreviewBody = null;
+	if (useHtmlPreview && typeof document !== 'undefined') {
+		const styleId = 'mw-preview-style';
+		if (!document.getElementById(styleId)) {
+			const style = document.createElement('style');
+			style.id = styleId;
+			style.textContent = `
+@keyframes mwPreviewStripe {
+  0% { background-position: 0 0; }
+  50% { background-position: 40px -20px; }
+  100% { background-position: 0 0; }
+}
+`;
+			document.head.appendChild(style);
+		}
+		htmlPreview = document.createElement('div');
+		htmlPreview.style.position = 'fixed';
+		htmlPreview.style.left = '0px';
+		htmlPreview.style.top = '0px';
+		htmlPreview.style.transform = 'translate(-50%, -50%) scale(0.96)';
+		htmlPreview.style.transformOrigin = 'center';
+		htmlPreview.style.opacity = '0';
+		htmlPreview.style.pointerEvents = 'none';
+		htmlPreview.style.zIndex = '900';
+		htmlPreview.style.display = 'none';
+		htmlPreview.style.boxSizing = 'border-box';
+
+		htmlPreviewBody = document.createElement('div');
+		htmlPreviewBody.style.position = 'absolute';
+		htmlPreviewBody.style.left = '0px';
+		htmlPreviewBody.style.top = `${chromeHeight}px`;
+		htmlPreviewBody.style.right = '0px';
+		htmlPreviewBody.style.bottom = '0px';
+		htmlPreviewBody.style.overflow = 'hidden';
+		htmlPreviewBody.style.background = '#000';
+
+		let resolvedUrl = url;
+		try {
+			resolvedUrl = new URL(url, window.location.origin).toString();
+		} catch (_) {
+			resolvedUrl = url;
+		}
+		const iframe = document.createElement('iframe');
+		iframe.src = resolvedUrl;
+		iframe.loading = 'lazy';
+		iframe.referrerPolicy = 'no-referrer';
+		iframe.style.width = '100%';
+		iframe.style.height = '100%';
+		iframe.style.border = '0';
+		iframe.style.background = '#000';
+		iframe.style.pointerEvents = 'none';
+
+		const bodyStripes = document.createElement('div');
+		bodyStripes.style.position = 'absolute';
+		bodyStripes.style.inset = '0';
+		bodyStripes.style.backgroundImage = 'repeating-linear-gradient(135deg, rgba(255,255,255,0.22) 0px, rgba(255,255,255,0.22) 6px, rgba(255,255,255,0) 6px, rgba(255,255,255,0) 18px)';
+		bodyStripes.style.opacity = '0.22';
+		bodyStripes.style.animation = 'mwPreviewStripe 10s ease-in-out infinite';
+		bodyStripes.style.pointerEvents = 'none';
+
+		htmlPreviewBody.appendChild(iframe);
+		htmlPreviewBody.appendChild(bodyStripes);
+		htmlPreview.appendChild(htmlPreviewBody);
+		document.body.appendChild(htmlPreview);
+	}
 	const state = {
 		hovered: false,
 		base: { x: 0, y: 0 },
@@ -465,6 +536,33 @@ export async function createBlogIcon(app, world, options = {}) {
 			preview.visible = false;
 		}
 		drawPreviewStripes(app.ticker.lastTime);
+		const rgbTime = app.ticker.lastTime * 0.00025;
+		previewButtons.forEach((btn, index) => {
+			const phase = rgbTime + index * 0.6;
+			const r = Math.round(128 + 127 * Math.sin(phase));
+			const g = Math.round(128 + 127 * Math.sin(phase + 2.094));
+			const b = Math.round(128 + 127 * Math.sin(phase + 4.188));
+			btn.tint = (r << 16) | (g << 8) | b;
+		});
+		if (htmlPreview) {
+			const rect = app.view.getBoundingClientRect();
+			const scaleX = rect.width / app.renderer.width;
+			const scaleY = rect.height / app.renderer.height;
+			const cx = app.renderer.width / 2;
+			const cy = app.renderer.height / 2;
+			const screenX = (preview.position.x - cx) * screenScale + cx;
+			const screenY = (preview.position.y - cy) * screenScale + cy;
+			htmlPreview.style.left = `${rect.left + screenX * scaleX}px`;
+			htmlPreview.style.top = `${rect.top + screenY * scaleY}px`;
+			htmlPreview.style.width = `${previewWidth * scaleX}px`;
+			htmlPreview.style.height = `${previewHeight * scaleY}px`;
+			htmlPreview.style.opacity = `${state.previewAlpha}`;
+			htmlPreview.style.transform = `translate(-50%, -50%) scale(${0.96 + 0.04 * state.previewAlpha})`;
+			htmlPreview.style.display = (state.previewAlpha > 0.01 || state.previewTarget) ? 'block' : 'none';
+			if (htmlPreviewBody) {
+				htmlPreviewBody.style.top = `${chromeHeight * scaleY}px`;
+			}
+		}
 	});
 
 	function setDragEnabled(enabled) {
