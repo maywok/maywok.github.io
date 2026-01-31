@@ -25,9 +25,9 @@ export async function createBlogIcon(app, world, options = {}) {
 		panelFillAlpha = 0.22,
 		panelBorder = 0x22f3c8,
 		panelBorderAlpha = 0.55,
-		previewWidth = 150,
-		previewHeight = 96,
-		previewCornerRadius = 10,
+		previewWidth = 240,
+		previewHeight = 150,
+		previewCornerRadius = 0,
 		previewOffsetX = 170,
 		previewOffsetY = -80,
 		dockScreenX = null,
@@ -142,30 +142,49 @@ export async function createBlogIcon(app, world, options = {}) {
 	const previewChrome = new PIXI.Graphics();
 	const previewIcons = new PIXI.Graphics();
 
-	const chromeHeight = Math.max(16, Math.round(previewHeight * 0.16));
-	const chromeFill = 0x1cff73;
-	const chromeAlpha = 0.85;
+	const chromeHeight = Math.max(18, Math.round(previewHeight * 0.18));
+	const chromeAlpha = 0.9;
 	const windowFill = 0x000000;
 	const windowAlpha = 0.86;
 	const windowBorder = 0x1cff73;
-	const windowBorderAlpha = 0.55;
+	const windowBorderAlpha = 0.7;
 	const iconRed = 0xff3b3b;
+	const chromeGradientTexture = (() => {
+		const canvas = document.createElement('canvas');
+		canvas.width = 1;
+		canvas.height = Math.max(1, chromeHeight);
+		const ctx = canvas.getContext('2d');
+		if (!ctx) return null;
+		const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+		grad.addColorStop(0, '#33ff7a');
+		grad.addColorStop(1, '#0aa34a');
+		ctx.fillStyle = grad;
+		ctx.fillRect(0, 0, canvas.width, canvas.height);
+		return PIXI.Texture.from(canvas);
+	})();
 
 	previewMask.beginFill(0xffffff, 1);
-	previewMask.drawRoundedRect(-previewWidth / 2, -previewHeight / 2 + chromeHeight, previewWidth, previewHeight - chromeHeight, Math.max(2, previewCornerRadius - 2));
+	previewMask.drawRect(-previewWidth / 2, -previewHeight / 2 + chromeHeight, previewWidth, previewHeight - chromeHeight);
 	previewMask.endFill();
 	backgroundSprite.mask = previewMask;
 	backgroundSprite.position.set(0, chromeHeight / 2 + 6);
 
 	previewBg.beginFill(windowFill, windowAlpha);
-	previewBg.drawRoundedRect(-previewWidth / 2, -previewHeight / 2, previewWidth, previewHeight, previewCornerRadius);
+	previewBg.drawRect(-previewWidth / 2, -previewHeight / 2, previewWidth, previewHeight);
 	previewBg.endFill();
 	previewBorder.lineStyle(1.5, windowBorder, windowBorderAlpha);
-	previewBorder.drawRoundedRect(-previewWidth / 2 + 1, -previewHeight / 2 + 1, previewWidth - 2, previewHeight - 2, Math.max(4, previewCornerRadius - 2));
+	previewBorder.drawRect(-previewWidth / 2 + 1, -previewHeight / 2 + 1, previewWidth - 2, previewHeight - 2);
 
-	previewChrome.beginFill(chromeFill, chromeAlpha);
-	previewChrome.drawRoundedRect(-previewWidth / 2 + 1, -previewHeight / 2 + 1, previewWidth - 2, chromeHeight + 1, Math.max(4, previewCornerRadius - 2));
-	previewChrome.endFill();
+	previewChrome.clear();
+	if (chromeGradientTexture) {
+		previewChrome.beginTextureFill({ texture: chromeGradientTexture, alpha: chromeAlpha });
+		previewChrome.drawRect(-previewWidth / 2 + 1, -previewHeight / 2 + 1, previewWidth - 2, chromeHeight + 1);
+		previewChrome.endFill();
+	} else {
+		previewChrome.beginFill(windowBorder, chromeAlpha);
+		previewChrome.drawRect(-previewWidth / 2 + 1, -previewHeight / 2 + 1, previewWidth - 2, chromeHeight + 1);
+		previewChrome.endFill();
+	}
 
 	const iconSize = Math.max(6, Math.round(chromeHeight * 0.46));
 	const iconGap = Math.max(4, Math.round(iconSize * 0.6));

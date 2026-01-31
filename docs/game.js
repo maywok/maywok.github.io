@@ -372,6 +372,7 @@ async function boot() {
 				const spacing = Math.max(86, Math.min(140, app.renderer.height * 0.18));
 				return leftX + spacing;
 			};
+			const getLauncherLeftX = () => 110;
 			const getLauncherDockY = (index = 0) => {
 				const centerY = app.renderer.height * 0.52;
 				const spacing = Math.max(86, Math.min(140, app.renderer.height * 0.18));
@@ -404,7 +405,7 @@ async function boot() {
 				const linkedinIconResult = await withTimeout(createLinkedinIcon(app, world, {
 					url: 'https://www.linkedin.com/in/mason--walker/',
 					screenScale: SCENE_SCALE,
-					dockScreenX: getLauncherDockX,
+					dockScreenX: getLauncherLeftX,
 					dockScreenY: () => getLauncherDockY(2),
 					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
 					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
