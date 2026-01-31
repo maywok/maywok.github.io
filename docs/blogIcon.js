@@ -203,25 +203,13 @@ export async function createBlogIcon(app, world, options = {}) {
 		btn.position.set(iconRight - iconSize * (index + 1) - iconGap * index, iconY);
 	});
 
-	function drawPreviewStripes(time = 0) {
+	function drawPreviewStripes() {
 		previewStripes.clear();
-		previewStripes.lineStyle(1, 0xffffff, 0.35);
-		const stripeCount = 7;
-		const startX = -previewWidth / 2 + 8;
-		const endX = previewWidth / 2 - (iconSize * 3 + iconGap * 2 + 18);
-		const yTop = -previewHeight / 2 + 2;
-		for (let i = 0; i < stripeCount; i++) {
-			const t = time * 0.004 + i * 0.7;
-			const wave = Math.sin(t) * 2.2;
-			const y = yTop + 4 + i * 2 + wave;
-			previewStripes.moveTo(startX, y);
-			previewStripes.lineTo(endX, y + 6);
-		}
 	}
 
 	previewTitle.position.set(-previewWidth / 2 + 10, -previewHeight / 2 + Math.round(chromeHeight / 2) + 1);
 
-	preview.addChild(previewBg, previewBorder, previewChrome, previewStripes, previewTitle, backgroundSprite, previewMask);
+	preview.addChild(previewBg, previewBorder, previewChrome, previewTitle, backgroundSprite, previewMask);
 	previewButtons.forEach((btn) => preview.addChild(btn));
 	preview.visible = false;
 	preview.alpha = 0;
@@ -246,21 +234,19 @@ export async function createBlogIcon(app, world, options = {}) {
 			document.head.appendChild(style);
 		}
 		htmlPreview = document.createElement('div');
-		htmlPreview.style.position = 'fixed';
+		htmlPreview.style.position = 'absolute';
 		htmlPreview.style.left = '0px';
 		htmlPreview.style.top = '0px';
-		htmlPreview.style.transform = 'translate(-50%, -50%) scale(0.96)';
-		htmlPreview.style.transformOrigin = 'center';
 		htmlPreview.style.opacity = '0';
 		htmlPreview.style.pointerEvents = 'none';
-		htmlPreview.style.zIndex = '900';
+		htmlPreview.style.zIndex = '20';
 		htmlPreview.style.display = 'none';
 		htmlPreview.style.boxSizing = 'border-box';
 
 		htmlPreviewBody = document.createElement('div');
 		htmlPreviewBody.style.position = 'absolute';
 		htmlPreviewBody.style.left = '0px';
-		htmlPreviewBody.style.top = `${chromeHeight}px`;
+		htmlPreviewBody.style.top = '0px';
 		htmlPreviewBody.style.right = '0px';
 		htmlPreviewBody.style.bottom = '0px';
 		htmlPreviewBody.style.overflow = 'hidden';
@@ -283,17 +269,15 @@ export async function createBlogIcon(app, world, options = {}) {
 		iframe.style.pointerEvents = 'none';
 
 		const bodyStripes = document.createElement('div');
-		bodyStripes.style.position = 'absolute';
-		bodyStripes.style.inset = '0';
-		bodyStripes.style.backgroundImage = 'repeating-linear-gradient(135deg, rgba(255,255,255,0.22) 0px, rgba(255,255,255,0.22) 6px, rgba(255,255,255,0) 6px, rgba(255,255,255,0) 18px)';
-		bodyStripes.style.opacity = '0.22';
-		bodyStripes.style.animation = 'mwPreviewStripe 10s ease-in-out infinite';
-		bodyStripes.style.pointerEvents = 'none';
+		iframe.style.transformOrigin = '0 0';
+		iframe.style.transform = 'scale(0.5)';
+		iframe.style.width = '200%';
+		iframe.style.height = '200%';
 
 		htmlPreviewBody.appendChild(iframe);
-		htmlPreviewBody.appendChild(bodyStripes);
 		htmlPreview.appendChild(htmlPreviewBody);
-		document.body.appendChild(htmlPreview);
+		const root = document.getElementById('game-root');
+		(root || document.body).appendChild(htmlPreview);
 	}
 	const state = {
 		hovered: false,
@@ -533,9 +517,9 @@ export async function createBlogIcon(app, world, options = {}) {
 		preview.alpha = state.previewAlpha;
 		preview.scale.set(0.96 + 0.04 * state.previewAlpha);
 		if (state.previewAlpha <= 0.02 && !state.previewTarget) {
-			preview.visible = false;
+			preview.visible = !useHtmlPreview ? false : preview.visible;
 		}
-		drawPreviewStripes(app.ticker.lastTime);
+		drawPreviewStripes();
 		const rgbTime = app.ticker.lastTime * 0.00025;
 		previewButtons.forEach((btn, index) => {
 			const phase = rgbTime + index * 0.6;
@@ -545,23 +529,24 @@ export async function createBlogIcon(app, world, options = {}) {
 			btn.tint = (r << 16) | (g << 8) | b;
 		});
 		if (htmlPreview) {
-			const rect = app.view.getBoundingClientRect();
+			const root = document.getElementById('game-root');
+			const rect = (root || app.view).getBoundingClientRect();
 			const scaleX = rect.width / app.renderer.width;
 			const scaleY = rect.height / app.renderer.height;
 			const cx = app.renderer.width / 2;
 			const cy = app.renderer.height / 2;
 			const screenX = (preview.position.x - cx) * screenScale + cx;
 			const screenY = (preview.position.y - cy) * screenScale + cy;
-			htmlPreview.style.left = `${rect.left + screenX * scaleX}px`;
-			htmlPreview.style.top = `${rect.top + screenY * scaleY}px`;
-			htmlPreview.style.width = `${previewWidth * scaleX}px`;
-			htmlPreview.style.height = `${previewHeight * scaleY}px`;
+			const contentW = (previewWidth - 4) * scaleX;
+			const contentH = (previewHeight - chromeHeight - 4) * scaleY;
+			const contentLeft = rect.left + (screenX - previewWidth / 2 + 2) * scaleX;
+			const contentTop = rect.top + (screenY - previewHeight / 2 + chromeHeight + 2) * scaleY;
+			htmlPreview.style.left = `${contentLeft}px`;
+			htmlPreview.style.top = `${contentTop}px`;
+			htmlPreview.style.width = `${contentW}px`;
+			htmlPreview.style.height = `${contentH}px`;
 			htmlPreview.style.opacity = `${state.previewAlpha}`;
-			htmlPreview.style.transform = `translate(-50%, -50%) scale(${0.96 + 0.04 * state.previewAlpha})`;
 			htmlPreview.style.display = (state.previewAlpha > 0.01 || state.previewTarget) ? 'block' : 'none';
-			if (htmlPreviewBody) {
-				htmlPreviewBody.style.top = `${chromeHeight * scaleY}px`;
-			}
 		}
 	});
 
