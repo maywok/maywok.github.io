@@ -134,25 +134,53 @@ export async function createBlogIcon(app, world, options = {}) {
 	const previewTitle = new PIXI.Text('Blog Preview', {
 		fontFamily: pixelFont,
 		fontSize: 11,
-		fill: 0xeafbff,
-		align: 'center',
+		fill: 0x0b130f,
+		align: 'left',
 		letterSpacing: 1,
 	});
-	previewTitle.anchor.set(0.5, 0.5);
+	previewTitle.anchor.set(0, 0.5);
+	const previewChrome = new PIXI.Graphics();
+	const previewIcons = new PIXI.Graphics();
+
+	const chromeHeight = Math.max(16, Math.round(previewHeight * 0.16));
+	const chromeFill = 0x1cff73;
+	const chromeAlpha = 0.85;
+	const windowFill = 0x000000;
+	const windowAlpha = 0.86;
+	const windowBorder = 0x1cff73;
+	const windowBorderAlpha = 0.55;
+	const iconRed = 0xff3b3b;
+
 	previewMask.beginFill(0xffffff, 1);
-	previewMask.drawRoundedRect(-previewWidth / 2, -previewHeight / 2 + 10, previewWidth, previewHeight - 18, previewCornerRadius);
+	previewMask.drawRoundedRect(-previewWidth / 2, -previewHeight / 2 + chromeHeight, previewWidth, previewHeight - chromeHeight, Math.max(2, previewCornerRadius - 2));
 	previewMask.endFill();
 	backgroundSprite.mask = previewMask;
-	backgroundSprite.position.set(0, 8);
+	backgroundSprite.position.set(0, chromeHeight / 2 + 6);
 
-	previewBg.beginFill(panelFill, 0.38);
+	previewBg.beginFill(windowFill, windowAlpha);
 	previewBg.drawRoundedRect(-previewWidth / 2, -previewHeight / 2, previewWidth, previewHeight, previewCornerRadius);
 	previewBg.endFill();
-	previewBorder.lineStyle(1.5, panelBorder, 0.45);
+	previewBorder.lineStyle(1.5, windowBorder, windowBorderAlpha);
 	previewBorder.drawRoundedRect(-previewWidth / 2 + 1, -previewHeight / 2 + 1, previewWidth - 2, previewHeight - 2, Math.max(4, previewCornerRadius - 2));
-	previewTitle.position.set(0, -previewHeight / 2 + 10);
 
-	preview.addChild(previewBg, previewBorder, previewTitle, backgroundSprite, previewMask);
+	previewChrome.beginFill(chromeFill, chromeAlpha);
+	previewChrome.drawRoundedRect(-previewWidth / 2 + 1, -previewHeight / 2 + 1, previewWidth - 2, chromeHeight + 1, Math.max(4, previewCornerRadius - 2));
+	previewChrome.endFill();
+
+	const iconSize = Math.max(6, Math.round(chromeHeight * 0.46));
+	const iconGap = Math.max(4, Math.round(iconSize * 0.6));
+	const iconRight = previewWidth / 2 - 10;
+	const iconY = -previewHeight / 2 + Math.round((chromeHeight - iconSize) / 2) + 1;
+	previewIcons.clear();
+	previewIcons.beginFill(iconRed, 0.95);
+	previewIcons.drawRect(iconRight - iconSize, iconY, iconSize, iconSize);
+	previewIcons.drawRect(iconRight - iconSize * 2 - iconGap, iconY, iconSize, iconSize);
+	previewIcons.drawRect(iconRight - iconSize * 3 - iconGap * 2, iconY, iconSize, iconSize);
+	previewIcons.endFill();
+
+	previewTitle.position.set(-previewWidth / 2 + 10, -previewHeight / 2 + Math.round(chromeHeight / 2) + 1);
+
+	preview.addChild(previewBg, previewBorder, previewChrome, previewIcons, previewTitle, backgroundSprite, previewMask);
 	preview.visible = false;
 	preview.alpha = 0;
 	preview.scale.set(0.96);
