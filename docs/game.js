@@ -390,7 +390,7 @@ async function boot() {
 					dockScreenY: () => getLauncherDockY(0),
 					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
 					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
-					backgroundUrl: 'https://image.thum.io/get/width/720/https://masonwalker.tech/blog/',
+					backgroundUrl: 'https://s.wordpress.com/mshots/v1/https://masonwalker.tech/blog/?w=720',
 				}), 6000, 'Blog icon');
 				if (blogIconResult?.layout) layoutBlogIcon = blogIconResult.layout;
 				if (blogIconResult?.setDragEnabled) {

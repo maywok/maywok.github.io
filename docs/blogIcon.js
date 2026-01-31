@@ -141,6 +141,7 @@ export async function createBlogIcon(app, world, options = {}) {
 	previewTitle.anchor.set(0, 0.5);
 	const previewChrome = new PIXI.Graphics();
 	const previewButtons = [new PIXI.Graphics(), new PIXI.Graphics(), new PIXI.Graphics()];
+	const previewStripes = new PIXI.Graphics();
 
 	const chromeHeight = Math.max(18, Math.round(previewHeight * 0.18));
 	const chromeAlpha = 0.9;
@@ -149,7 +150,6 @@ export async function createBlogIcon(app, world, options = {}) {
 	const windowBorder = 0x1cff73;
 	const windowBorderAlpha = 0.7;
 	const buttonLight = 0xffffff;
-	const buttonDark = 0x9a9a9a;
 	const chromeGradientTexture = (() => {
 		const canvas = document.createElement('canvas');
 		canvas.width = 1;
@@ -199,9 +199,25 @@ export async function createBlogIcon(app, world, options = {}) {
 		btn.position.set(iconRight - iconSize * (index + 1) - iconGap * index, iconY);
 	});
 
+	function drawPreviewStripes(time = 0) {
+		previewStripes.clear();
+		previewStripes.lineStyle(1, 0xffffff, 0.35);
+		const stripeCount = 7;
+		const startX = -previewWidth / 2 + 8;
+		const endX = previewWidth / 2 - (iconSize * 3 + iconGap * 2 + 18);
+		const yTop = -previewHeight / 2 + 2;
+		for (let i = 0; i < stripeCount; i++) {
+			const t = time * 0.004 + i * 0.7;
+			const wave = Math.sin(t) * 2.2;
+			const y = yTop + 4 + i * 2 + wave;
+			previewStripes.moveTo(startX, y);
+			previewStripes.lineTo(endX, y + 6);
+		}
+	}
+
 	previewTitle.position.set(-previewWidth / 2 + 10, -previewHeight / 2 + Math.round(chromeHeight / 2) + 1);
 
-	preview.addChild(previewBg, previewBorder, previewChrome, previewTitle, backgroundSprite, previewMask);
+	preview.addChild(previewBg, previewBorder, previewChrome, previewStripes, previewTitle, backgroundSprite, previewMask);
 	previewButtons.forEach((btn) => preview.addChild(btn));
 	preview.visible = false;
 	preview.alpha = 0;
@@ -448,28 +464,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		if (state.previewAlpha <= 0.02 && !state.previewTarget) {
 			preview.visible = false;
 		}
-		const pulseBase = (Math.sin(app.ticker.lastTime * 0.004) + 1) * 0.5;
-		const toChannel = (value, shift) => {
-			const v = Math.round((value * (1 - shift) + shift) * 255);
-			return Math.max(0, Math.min(255, v));
-		};
-		const lerpColor = (a, b, t) => {
-			const ar = (a >> 16) & 0xff;
-			const ag = (a >> 8) & 0xff;
-			const ab = a & 0xff;
-			const br = (b >> 16) & 0xff;
-			const bg = (b >> 8) & 0xff;
-			const bb = b & 0xff;
-			const rr = Math.round(ar + (br - ar) * t);
-			const rg = Math.round(ag + (bg - ag) * t);
-			const rb = Math.round(ab + (bb - ab) * t);
-			return (rr << 16) | (rg << 8) | rb;
-		};
-		previewButtons.forEach((btn, index) => {
-			const phase = pulseBase + index * 0.15;
-			const t = 0.5 + 0.5 * Math.sin(phase * Math.PI * 2);
-			btn.tint = lerpColor(buttonDark, buttonLight, t);
-		});
+		drawPreviewStripes(app.ticker.lastTime);
 	});
 
 	function setDragEnabled(enabled) {
