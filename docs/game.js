@@ -405,7 +405,7 @@ async function boot() {
 					url: 'https://www.linkedin.com/in/mason--walker/',
 					screenScale: SCENE_SCALE,
 					dockScreenX: getLauncherDockX,
-					dockScreenY: () => getLauncherDockY(1),
+					dockScreenY: () => getLauncherDockY(2),
 					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
 					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
 				}), 6000, 'LinkedIn icon');
