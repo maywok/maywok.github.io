@@ -95,8 +95,8 @@ export function createAppLauncher(app, world, options = {}) {
 		});
 		glyph.anchor.set(0.5);
 
-		const baseTextures = item.spriteTextures || null;
-		const hoverTextures = item.hoverTextures || null;
+		const baseTextures = (item.spriteTextures && item.spriteTextures.length) ? item.spriteTextures : null;
+		const hoverTextures = (item.hoverTextures && item.hoverTextures.length) ? item.hoverTextures : null;
 		const iconSprite = baseTextures ? new PIXI.AnimatedSprite(baseTextures) : null;
 		const hoverSprite = hoverTextures ? new PIXI.AnimatedSprite(hoverTextures) : null;
 		if (iconSprite) {

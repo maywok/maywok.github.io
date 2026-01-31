@@ -344,10 +344,14 @@ async function boot() {
 					fetch(hoverLinkedinJsonUrl).then((r) => r.json()),
 				]), 4000, 'LinkedIn sprite data');
 				await withTimeout(PIXI.Assets.load([linkedinImageUrl, hoverLinkedinImageUrl]), 4000, 'LinkedIn sprite textures');
-				linkedinSpriteConfig = {
-					spriteTextures: buildTextures(linkedinData, linkedinImageUrl),
-					hoverTextures: buildTextures(hoverLinkedinData, hoverLinkedinImageUrl),
-				};
+				const baseTextures = buildTextures(linkedinData, linkedinImageUrl);
+				const hoverTextures = buildTextures(hoverLinkedinData, hoverLinkedinImageUrl);
+				if (baseTextures.length && hoverTextures.length) {
+					linkedinSpriteConfig = {
+						spriteTextures: baseTextures,
+						hoverTextures,
+					};
+				}
 			} catch (err) {
 				console.warn('LinkedIn sprite load failed or timed out:', err);
 			}
