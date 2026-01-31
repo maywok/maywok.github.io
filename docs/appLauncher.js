@@ -102,11 +102,13 @@ export function createAppLauncher(app, world, options = {}) {
 		if (iconSprite) {
 			iconSprite.anchor.set(0.5);
 			iconSprite.animationSpeed = item.spriteAnimationSpeed ?? 0.12;
+			iconSprite.autoUpdate = false;
 			iconSprite.play();
 		}
 		if (hoverSprite) {
 			hoverSprite.anchor.set(0.5);
 			hoverSprite.animationSpeed = item.spriteAnimationSpeed ?? 0.12;
+			hoverSprite.autoUpdate = false;
 			hoverSprite.visible = false;
 			hoverSprite.stop();
 		}
@@ -275,7 +277,7 @@ export function createAppLauncher(app, world, options = {}) {
 		};
 		iconContainer._updatePlatformRect();
 
-		return { container: iconContainer, state, drawIcon, glow, border, cardMotion };
+		return { container: iconContainer, state, drawIcon, glow, border, cardMotion, iconSprite, hoverSprite };
 	}
 
 	function layout() {
@@ -396,6 +398,8 @@ export function createAppLauncher(app, world, options = {}) {
 			if (icon.glow) icon.glow.alpha = icon.state.hovered ? 0.24 : 0.08;
 			if (icon.border) icon.border.tint = icon.state.hovered ? 0xa00026 : 0xffffff;
 			icon.cardMotion?.update();
+			if (icon.iconSprite?.playing) icon.iconSprite.update(dtSeconds * 60);
+			if (icon.hoverSprite?.playing && icon.hoverSprite.visible) icon.hoverSprite.update(dtSeconds * 60);
 			icon.container._updatePlatformRect?.();
 		});
 		if (dragState.enabled) {
