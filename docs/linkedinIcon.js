@@ -141,7 +141,8 @@ export async function createLinkedinIcon(app, world, options = {}) {
 		damp: 0.985,
 		grabTorque: 0.00032,
 		max: 14,
-		upright: 8.5,
+		upright: 0,
+		groundRoll: 0.018,
 	};
 	const screenToWorldX = (screenX) => {
 		const cx = app.renderer.width / 2;
@@ -343,6 +344,7 @@ export async function createLinkedinIcon(app, world, options = {}) {
 				container.position.y = maxY;
 				if (state.vy > 0) state.vy = 0;
 				state.vx *= PHYSICS.floorFriction;
+				state.angVel += state.vx * SPIN.groundRoll;
 				const floorMinX = minX + state.radiusScaled;
 				const floorMaxX = maxX - state.radiusScaled;
 				if (container.position.x < floorMinX) {

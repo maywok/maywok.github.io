@@ -315,7 +315,8 @@ export function createAppLauncher(app, world, options = {}) {
 		const spinDamp = 0.985;
 		const spinGrabTorque = 0.00032;
 		const spinMax = 14;
-		const spinUpright = 8.5;
+		const spinUpright = 0;
+		const groundRoll = 0.018;
 		if (mouseWorld) {
 			if (lastMouseWorld && dtSeconds > 0) {
 				lastMouseVel = {
@@ -409,6 +410,7 @@ export function createAppLauncher(app, world, options = {}) {
 					icon.container.position.y = maxY;
 					if (icon.state.vy > 0) icon.state.vy = 0;
 					icon.state.vx *= PHYSICS.floorFriction;
+					icon.state.angVel += icon.state.vx * groundRoll;
 					const floorMinX = minX + icon.state.radius * icon.container.scale.x;
 					const floorMaxX = maxX - icon.state.radius * icon.container.scale.x;
 					if (icon.container.position.x < floorMinX) {
