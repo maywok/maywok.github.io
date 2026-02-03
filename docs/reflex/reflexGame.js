@@ -473,13 +473,13 @@ export function createReflexGameOverlay(app, world, options = {}) {
 
 	const panelMask = new PIXI.Graphics();
 	panelMask.beginFill(0xffffff, 1);
-	panelMask.drawRoundedRect(0, 0, windowWidth, windowHeight, 8);
+	panelMask.drawRect(0, 0, windowWidth, windowHeight);
 	panelMask.endFill();
 	panelMask.visible = false;
 
 	const panelFill = new PIXI.Graphics();
 	panelFill.beginFill(0xf3deb0, 1);
-	panelFill.drawRoundedRect(0, 0, windowWidth, windowHeight, 8);
+	panelFill.drawRect(0, 0, windowWidth, windowHeight);
 	panelFill.endFill();
 
 	const flow = createCrimsonFlowBackground(app, {
@@ -497,11 +497,11 @@ export function createReflexGameOverlay(app, world, options = {}) {
 
 	const panelBorder = new PIXI.Graphics();
 	panelBorder.lineStyle(2, 0x1b4c92, 1);
-	panelBorder.drawRoundedRect(0, 0, windowWidth, windowHeight, 8);
+	panelBorder.drawRect(0, 0, windowWidth, windowHeight);
 
 	const headerBg = new PIXI.Graphics();
 	headerBg.beginFill(0xffffff, 1);
-	headerBg.drawRoundedRect(0, 0, windowWidth, headerHeight, 6);
+	headerBg.drawRect(0, 0, windowWidth, headerHeight);
 	headerBg.endFill();
 	headerBg.beginFill(0xe5e5e5, 1);
 	headerBg.drawRect(0, headerHeight * 0.52, windowWidth, headerHeight * 0.48);
@@ -521,7 +521,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const closeBtn = new PIXI.Graphics();
 	closeBtn.beginFill(0xf26b6b, 1);
 	closeBtn.lineStyle(1, 0x7f1d1d, 0.6);
-	closeBtn.drawRoundedRect(0, 0, 24, 24, 4);
+	closeBtn.drawRoundedRect(0, 0, 24, 24, 0);
 	closeBtn.endFill();
 	closeBtn.position.set(windowWidth - 32, 2);
 	closeBtn.eventMode = 'static';
@@ -549,7 +549,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const stageH = 92;
 	stage.beginFill(0xf4f7ff, 1);
 	stage.lineStyle(2, 0x95a9cf, 1);
-	stage.drawRoundedRect(0, 0, stageW, stageH, 6);
+	stage.drawRoundedRect(0, 0, stageW, stageH, 0);
 	stage.endFill();
 	stage.position.set(stageX, stageY);
 
@@ -646,7 +646,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	hint.position.set(padding, stageY + stageH + 40);
 
 	const difficultyBtn = new PIXI.Graphics();
-	const difficultyBtnSize = { w: 150, h: 24 };
+	const difficultyBtnSize = { w: 200, h: 30 };
 	const drawDifficultyBtn = () => {
 		difficultyBtn.clear();
 		difficultyBtn.beginFill(0xf6ecd1, 1);
@@ -660,10 +660,10 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	difficultyBtn.cursor = 'pointer';
 	const difficultyText = new PIXI.Text('Difficulty: Normal', {
 		fontFamily: 'Tahoma, Segoe UI, sans-serif',
-		fontSize: 10,
+		fontSize: 12,
 		fill: 0x1b2b42,
 	});
-	difficultyText.position.set(8, 5);
+	difficultyText.position.set(10, 7);
 	difficultyBtn.addChild(difficultyText);
 
 	const difficultyMenu = new PIXI.Container();
@@ -673,11 +673,11 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const difficultyMenuItems = [];
 
 	const startBtn = new PIXI.Graphics();
-	const startBtnSize = { w: 110, h: 26 };
-	const drawStartBtn = (fill = 0x2b7bff) => {
+	const startBtnSize = { w: 120, h: 28 };
+	const drawStartBtn = (fill = 0x22c55e) => {
 		startBtn.clear();
 		startBtn.beginFill(fill, 1);
-		startBtn.lineStyle(1, 0x1c4b9d, 1);
+		startBtn.lineStyle(1, 0x15803d, 1);
 		startBtn.drawRoundedRect(0, 0, startBtnSize.w, startBtnSize.h, 5);
 		startBtn.endFill();
 	};
@@ -687,7 +687,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	startBtn.cursor = 'pointer';
 	const startText = new PIXI.Text('Start', {
 		fontFamily: 'Tahoma, Segoe UI, sans-serif',
-		fontSize: 11,
+		fontSize: 12,
 		fill: 0xffffff,
 	});
 	startText.anchor.set(0.5);
@@ -772,7 +772,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		state.selectedDirection = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
 		setExpectedDirection(null);
 		arrowGroup.alpha = 0.35;
-		drawStartBtn(0x2b7bff);
+		drawStartBtn(0x22c55e);
 		startText.text = 'Start';
 
 		const delay = clamp(randomBetween(config.minDelayMs, config.maxDelayMs), config.minDelayMs, config.maxDelayMs);
@@ -899,12 +899,12 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		for (const item of difficultyMenuItems) item.destroy({ children: true });
 		difficultyMenuItems.length = 0;
 		const keys = Object.keys(config.difficulties || {});
-		const itemH = 22;
+		const itemH = 26;
 		const menuH = Math.max(1, keys.length) * itemH + 6;
 		difficultyMenuBg.clear();
 		difficultyMenuBg.beginFill(0xf6ecd1, 1);
 		difficultyMenuBg.lineStyle(1, 0x1b2b42, 0.6);
-		difficultyMenuBg.drawRoundedRect(0, 0, difficultyBtnSize.w, menuH, 4);
+			difficultyMenuBg.drawRoundedRect(0, 0, difficultyBtnSize.w, menuH, 4);
 		difficultyMenuBg.endFill();
 		keys.forEach((key, idx) => {
 			const entry = config.difficulties[key];
@@ -918,10 +918,10 @@ export function createReflexGameOverlay(app, world, options = {}) {
 			row.cursor = 'pointer';
 			const text = new PIXI.Text(label, {
 				fontFamily: 'Tahoma, Segoe UI, sans-serif',
-				fontSize: 10,
+				fontSize: 12,
 				fill: 0x1b2b42,
 			});
-			text.position.set(8, 4);
+			text.position.set(10, 5);
 			row.addChild(text);
 			row.on('pointertap', (event) => {
 				event.stopPropagation();
@@ -940,6 +940,13 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		difficultyMenu.visible = !difficultyMenu.visible;
 	});
 
+	const addHoverScale = (target, scale = 1.06) => {
+		target.on('pointerover', () => { target.scale.set(scale); });
+		target.on('pointerout', () => { target.scale.set(1); });
+	};
+	addHoverScale(startBtn, 1.06);
+	addHoverScale(difficultyBtn, 1.04);
+	addHoverScale(closeBtn, 1.08);
 	startBtn.on('pointertap', beginRound);
 	closeBtn.on('pointertap', () => close());
 	window.addEventListener('keydown', onKeyDown);
@@ -980,7 +987,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		container.position.set(worldX, worldY);
 		panelMask.position.set(0, 0);
 		panelBorder.position.set(0, 0);
-		difficultyBtn.position.set(windowWidth - padding - difficultyBtnSize.w, stageY + stageH + 34);
+		difficultyBtn.position.set((windowWidth - difficultyBtnSize.w) / 2, stageY + stageH + 34);
 		difficultyMenu.position.set(difficultyBtn.position.x, difficultyBtn.position.y + difficultyBtnSize.h + 4);
 		startBtn.position.set(windowWidth - padding - startBtnSize.w, windowHeight - 36);
 		flow.resize?.();
