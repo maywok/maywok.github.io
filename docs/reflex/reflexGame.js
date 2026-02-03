@@ -468,6 +468,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	container.visible = false;
 	container.eventMode = 'static';
 	container.hitArea = new PIXI.Rectangle(0, 0, windowWidth, windowHeight);
+	container.zIndex = 50;
 
 	const panelMask = new PIXI.Graphics();
 	panelMask.beginFill(0xffffff, 1);
@@ -573,17 +574,36 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		fontFamily: 'Minecraft, monospace',
 		fontSize: 16,
 		fill: 0x0b0b0b,
+		stroke: 0x000000,
+		strokeThickness: 1,
 	};
+	const makeArrowBox = () => {
+		const g = new PIXI.Graphics();
+		g.beginFill(0x000000, 0.08);
+		g.lineStyle(1, 0x1b2b42, 0.4);
+		g.drawRoundedRect(0, 0, 22, 22, 4);
+		g.endFill();
+		return g;
+	};
+	const arrowUpBox = makeArrowBox();
+	const arrowRightBox = makeArrowBox();
+	const arrowDownBox = makeArrowBox();
+	const arrowLeftBox = makeArrowBox();
 	const arrowUp = new PIXI.Text('↑', arrowStyle);
 	const arrowRight = new PIXI.Text('→', arrowStyle);
 	const arrowDown = new PIXI.Text('↓', arrowStyle);
 	const arrowLeft = new PIXI.Text('←', arrowStyle);
-	arrowUp.position.set(22, 0);
-	arrowRight.position.set(44, 22);
-	arrowDown.position.set(22, 44);
-	arrowLeft.position.set(0, 22);
-	arrowGroup.addChild(arrowUp, arrowRight, arrowDown, arrowLeft);
+	arrowUpBox.position.set(22, 0);
+	arrowRightBox.position.set(44, 22);
+	arrowDownBox.position.set(22, 44);
+	arrowLeftBox.position.set(0, 22);
+	arrowUp.position.set(26, 2);
+	arrowRight.position.set(48, 24);
+	arrowDown.position.set(26, 46);
+	arrowLeft.position.set(4, 24);
+	arrowGroup.addChild(arrowUpBox, arrowRightBox, arrowDownBox, arrowLeftBox, arrowUp, arrowRight, arrowDown, arrowLeft);
 	arrowGroup.position.set(stageX + stageW / 2 - 24, stageY + 18);
+	arrowGroup.alpha = 0.35;
 
 	const metrics = new PIXI.Text('Player: -- ms   CPU: -- ms', {
 		fontFamily: 'Minecraft, monospace',
@@ -642,6 +662,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const resetCubes = () => {
 		playerCube.tint = 0xffffff;
 		cpuCube.tint = 0xffffff;
+		playerCube.alpha = 1;
+		cpuCube.alpha = 1;
 	};
 
 	const updateMetrics = (playerMs, cpuMs) => {
@@ -653,12 +675,34 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const setExpectedDirection = (dir) => {
 		state.expected = dir;
 		hint.text = dir ? `Press ${dir.label} when prompted.` : 'Press the shown direction when prompted.';
-		const reset = (arrow) => { arrow.style.fill = 0x0b0b0b; arrow.style.stroke = 0x000000; };
-		[arrowUp, arrowRight, arrowDown, arrowLeft].forEach(reset);
-		if (dir?.name === 'Up') arrowUp.style.fill = 0xc4001f;
-		if (dir?.name === 'Right') arrowRight.style.fill = 0xc4001f;
-		if (dir?.name === 'Down') arrowDown.style.fill = 0xc4001f;
-		if (dir?.name === 'Left') arrowLeft.style.fill = 0xc4001f;
+		const resetText = (arrow) => {
+			arrow.style.fill = 0x0b0b0b;
+			arrow.style.stroke = 0x000000;
+			arrow.style.strokeThickness = 1;
+		};
+		const resetBox = (box) => {
+			box.clear();
+			box.beginFill(0x000000, 0.08);
+			box.lineStyle(1, 0x1b2b42, 0.4);
+			box.drawRoundedRect(0, 0, 22, 22, 4);
+			box.endFill();
+		};
+		[arrowUp, arrowRight, arrowDown, arrowLeft].forEach(resetText);
+		[arrowUpBox, arrowRightBox, arrowDownBox, arrowLeftBox].forEach(resetBox);
+		const setActive = (arrow, box) => {
+			arrow.style.fill = 0xc4001f;
+			arrow.style.stroke = 0x5c0010;
+			arrow.style.strokeThickness = 1.5;
+			box.clear();
+			box.beginFill(0xc4001f, 0.12);
+			box.lineStyle(1, 0xc4001f, 0.75);
+			box.drawRoundedRect(0, 0, 22, 22, 4);
+			box.endFill();
+		};
+		if (dir?.name === 'Up') setActive(arrowUp, arrowUpBox);
+		if (dir?.name === 'Right') setActive(arrowRight, arrowRightBox);
+		if (dir?.name === 'Down') setActive(arrowDown, arrowDownBox);
+		if (dir?.name === 'Left') setActive(arrowLeft, arrowLeftBox);
 	};
 
 	const beginRound = () => {
@@ -671,6 +715,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		state.phase = 'waiting';
 		state.selectedDirection = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
 		setExpectedDirection(null);
+		arrowGroup.alpha = 0.35;
 
 		const delay = clamp(randomBetween(config.minDelayMs, config.maxDelayMs), config.minDelayMs, config.maxDelayMs);
 		const timerId = window.setTimeout(() => {
@@ -682,6 +727,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 			state.cpuTime = clamp(randomBetween(cpuMin, cpuMax), cpuMin, cpuMax);
 			status.text = 'Hit the red arrow!';
 			setExpectedDirection(state.selectedDirection);
+			arrowGroup.alpha = 1;
 			const cpuTimer = window.setTimeout(() => {
 				cpuCube.tint = 0xf87171;
 			}, state.cpuTime);
@@ -715,8 +761,10 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		const playerMs = now - state.startTime;
 		const cpuMs = state.cpuTime;
 		playerCube.tint = 0x34d399;
-		const winnerText = playerMs <= cpuMs ? 'Player wins!' : 'CPU wins!';
+		const playerWins = playerMs <= cpuMs;
+		const winnerText = playerWins ? 'Player wins!' : 'CPU wins!';
 		showResult(playerMs, cpuMs, winnerText);
+		startFinisher(playerWins ? 'player' : 'cpu');
 	};
 
 	const onKeyDown = (event) => {
@@ -739,6 +787,40 @@ export function createReflexGameOverlay(app, world, options = {}) {
 			return;
 		}
 		handlePress();
+	};
+
+	const flash = new PIXI.Graphics();
+	flash.beginFill(0x000000, 1);
+	flash.drawRoundedRect(0, 0, stageW, stageH, 6);
+	flash.endFill();
+	flash.position.set(stageX, stageY);
+	flash.alpha = 0;
+
+	const slash = new PIXI.Graphics();
+	slash.beginFill(0xffffff, 0.0);
+	slash.lineStyle(2, 0xff5667, 0.9);
+	slash.moveTo(-40, 0);
+	slash.lineTo(stageW + 40, 0);
+	slash.position.set(stageX, stageY + stageH * 0.5);
+	slash.rotation = -0.2;
+	slash.alpha = 0;
+
+	const finisher = {
+		active: false,
+		time: 0,
+		winner: null,
+		playerBase: { x: 0, y: 0 },
+		cpuBase: { x: 0, y: 0 },
+	};
+
+	const startFinisher = (winner) => {
+		finisher.active = true;
+		finisher.time = 0;
+		finisher.winner = winner;
+		finisher.playerBase = { x: playerCube.position.x, y: playerCube.position.y };
+		finisher.cpuBase = { x: cpuCube.position.x, y: cpuCube.position.y };
+		flash.alpha = 0;
+		slash.alpha = 0;
 	};
 
 	const updateDifficultyText = () => {
@@ -777,7 +859,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	app.stage.on('pointerupoutside', () => { dragState.active = false; });
 
 	container.addChild(flow.container, panelMask, headerBg, title, closeBtn);
-	container.addChild(stage, playerCube, cpuCube, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, difficultyBtn, startBtn, panelBorder);
+	container.addChild(stage, flash, slash, playerCube, cpuCube, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, difficultyBtn, startBtn, panelBorder);
 
 	const layout = () => {
 		const cx = app.renderer.width / 2;
@@ -797,6 +879,50 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		if (!state.open) return;
 		flowTime += dt / 60;
 		flow.update?.(flowTime, { x: 0, y: 0 });
+		if (finisher.active) {
+			finisher.time += dt / 60;
+			const t = finisher.time;
+			flash.alpha = t < 0.08 ? 0.9 : (t < 0.16 ? 0.9 * (1 - (t - 0.08) / 0.08) : 0);
+			if (t > 0.12 && t < 0.32) {
+				const p = t < 0.2 ? (t - 0.12) / 0.08 : (0.32 - t) / 0.12;
+				slash.alpha = Math.max(0, Math.min(1, p));
+			} else {
+				slash.alpha = 0;
+			}
+			const winnerIsPlayer = finisher.winner === 'player';
+			const winnerCube = winnerIsPlayer ? playerCube : cpuCube;
+			const loserCube = winnerIsPlayer ? cpuCube : playerCube;
+			const baseWinner = winnerIsPlayer ? finisher.playerBase : finisher.cpuBase;
+			const baseLoser = winnerIsPlayer ? finisher.cpuBase : finisher.playerBase;
+			const behindOffset = winnerIsPlayer ? 18 : -18;
+			if (t < 0.12) {
+				winnerCube.alpha = 1 - t / 0.12;
+				winnerCube.position.set(baseWinner.x, baseWinner.y);
+			} else if (t < 0.28) {
+				winnerCube.alpha = 0;
+				winnerCube.position.set(baseLoser.x + behindOffset, baseLoser.y);
+			} else if (t < 0.36) {
+				winnerCube.alpha = (t - 0.28) / 0.08;
+				winnerCube.position.set(baseLoser.x + behindOffset, baseLoser.y);
+			} else {
+				winnerCube.alpha = 1;
+			}
+			if (t > 0.2) {
+				const loss = Math.min(1, (t - 0.2) / 0.15);
+				loserCube.alpha = 1 - loss * 0.8;
+			} else {
+				loserCube.alpha = 1;
+			}
+			if (t >= 0.6) {
+				finisher.active = false;
+				playerCube.alpha = 1;
+				cpuCube.alpha = 1;
+				playerCube.position.set(finisher.playerBase.x, finisher.playerBase.y);
+				cpuCube.position.set(finisher.cpuBase.x, finisher.cpuBase.y);
+				flash.alpha = 0;
+				slash.alpha = 0;
+			}
+		}
 	});
 
 	const open = () => {

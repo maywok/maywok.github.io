@@ -244,6 +244,7 @@ async function boot() {
 			lightLayer.blendMode = PIXI.BLEND_MODES.ADD;
 			scene.addChild(lightLayer);
 			const world = new PIXI.Container();
+			world.sortableChildren = true;
 			scene.addChild(world);
 			const systemHud = createSystemHud(app, {
 				city: 'SEATTLE, WA',
@@ -577,6 +578,7 @@ async function boot() {
 		if (cursorAnim && cursorAnim.totalFrames > 1) cursorContainer.addChild(cursorGlow, cursorAnim);
 		else cursorContainer.addChild(cursorGlow, cursor);
 		cursorContainer.eventMode = 'none';
+		cursorContainer.zIndex = 200;
 		const { filter: cursorPixelateFilter, update: updateCursorPixelate } = createPixelateFilter(app, { pixelSize: 2 });
 		cursorContainer.filters = [cursorPixelateFilter];
 		world.addChild(cursorContainer);
