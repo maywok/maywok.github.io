@@ -1,3 +1,5 @@
+import { createCrimsonFlowBackground } from '../background.js';
+
 const DEFAULTS = {
 	title: 'Ninja Reflex',
 	minDelayMs: 1000,
@@ -48,6 +50,12 @@ export function createReflexGameWindow(options = {}) {
 	win.setAttribute('aria-modal', 'false');
 	win.setAttribute('aria-hidden', 'true');
 	win.style.display = 'none';
+
+	const flowLayer = document.createElement('div');
+	flowLayer.className = 'reflex-flow-layer';
+	const flowCanvas = document.createElement('canvas');
+	flowCanvas.className = 'reflex-flow-canvas';
+	flowLayer.appendChild(flowCanvas);
 
 	const header = document.createElement('div');
 	header.className = 'reflex-header';
@@ -156,7 +164,7 @@ export function createReflexGameWindow(options = {}) {
 	footer.append(hint, difficulty, startBtn);
 
 	body.append(status, stage, metrics, result, footer);
-	win.append(header, body);
+	win.append(flowLayer, header, body);
 
 	const clearTimers = () => {
 		for (const id of state.timers) {
@@ -205,6 +213,55 @@ export function createReflexGameWindow(options = {}) {
 	const resetCubes = () => {
 		playerCube.classList.remove('is-active');
 		cpuCube.classList.remove('is-active');
+	};
+
+	let flowApp = null;
+	let flowUpdate = null;
+	let flowResize = null;
+	let flowTime = 0;
+	let flowObserver = null;
+
+	const ensureFlow = () => {
+		if (flowApp || typeof PIXI === 'undefined') return;
+		const rect = win.getBoundingClientRect();
+		flowApp = new PIXI.Application({
+			view: flowCanvas,
+			width: Math.max(1, rect.width),
+			height: Math.max(1, rect.height),
+			backgroundAlpha: 0,
+			antialias: false,
+			resolution: 1,
+			autoStart: true,
+		});
+		flowApp.stage.roundPixels = true;
+		flowApp.renderer.roundPixels = true;
+		const flow = createCrimsonFlowBackground(flowApp, {
+			lineColor: 0x000000,
+			glowColor: 0x000000,
+			bgColor: 0xf3deb0,
+			glowAlpha: 0,
+			parallax: 0,
+			pixelSize: 6,
+			density: 4.2,
+			speed: 0.6,
+		});
+		flowUpdate = flow.update;
+		flowResize = flow.resize;
+		flowApp.stage.addChild(flow.container);
+		flowTime = 0;
+		flowApp.ticker.add((dt) => {
+			flowTime += dt / 60;
+			flowUpdate?.(flowTime, { x: 0, y: 0 });
+		});
+		if (typeof ResizeObserver !== 'undefined') {
+			flowObserver = new ResizeObserver(() => {
+				if (!flowApp) return;
+				const next = win.getBoundingClientRect();
+				flowApp.renderer.resize(Math.max(1, next.width), Math.max(1, next.height));
+				flowResize?.();
+			});
+			flowObserver.observe(win);
+		}
 	};
 
 	const resetFinisher = () => {
@@ -322,6 +379,11 @@ export function createReflexGameWindow(options = {}) {
 		win.setAttribute('aria-hidden', 'false');
 		state.open = true;
 		startBtn.textContent = 'Start Round';
+		win.style.left = '50%';
+		win.style.top = '50%';
+		win.style.transform = 'translate(-50%, -50%)';
+		ensureFlow();
+		flowApp?.ticker?.start?.();
 		difficultySelect.value = state.difficulty;
 		beginRound();
 	};
@@ -331,6 +393,7 @@ export function createReflexGameWindow(options = {}) {
 		state.open = false;
 		win.style.display = 'none';
 		win.setAttribute('aria-hidden', 'true');
+		flowApp?.ticker?.stop?.();
 		setPhase('idle');
 		status.textContent = 'Press Start to begin.';
 		result.textContent = 'Waiting for round...';
@@ -340,6 +403,29 @@ export function createReflexGameWindow(options = {}) {
 		setArrowIdle();
 		updateMetrics(null, null);
 	};
+
+	const dragState = { active: false, offsetX: 0, offsetY: 0 };
+	const startDrag = (event) => {
+		if (event.target === closeBtn) return;
+		const rect = win.getBoundingClientRect();
+		dragState.active = true;
+		dragState.offsetX = event.clientX - rect.left;
+		dragState.offsetY = event.clientY - rect.top;
+		win.style.transform = 'translate(0, 0)';
+		win.style.left = `${rect.left}px`;
+		win.style.top = `${rect.top}px`;
+	};
+	const onDragMove = (event) => {
+		if (!dragState.active) return;
+		win.style.left = `${event.clientX - dragState.offsetX}px`;
+		win.style.top = `${event.clientY - dragState.offsetY}px`;
+	};
+	const stopDrag = () => {
+		dragState.active = false;
+	};
+	header.addEventListener('pointerdown', startDrag);
+	window.addEventListener('pointermove', onDragMove);
+	window.addEventListener('pointerup', stopDrag);
 
 	closeBtn.addEventListener('click', close);
 	startBtn.addEventListener('click', beginRound);
