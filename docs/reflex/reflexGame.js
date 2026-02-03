@@ -1,12 +1,17 @@
 const DEFAULTS = {
 	title: 'Ninja Reflex',
-	keyCode: 'Space',
-	keyLabel: 'Space',
 	minDelayMs: 1000,
 	maxDelayMs: 4000,
 	cpuMinMs: 180,
 	cpuMaxMs: 520,
 };
+
+const DIRECTIONS = [
+	{ name: 'Up', label: '↑ / W', codes: ['ArrowUp', 'KeyW'] },
+	{ name: 'Right', label: '→ / D', codes: ['ArrowRight', 'KeyD'] },
+	{ name: 'Down', label: '↓ / S', codes: ['ArrowDown', 'KeyS'] },
+	{ name: 'Left', label: '← / A', codes: ['ArrowLeft', 'KeyA'] },
+];
 
 function clamp(value, min, max) {
 	return Math.min(max, Math.max(min, value));
@@ -24,6 +29,7 @@ export function createReflexGameWindow(options = {}) {
 		phase: 'idle',
 		startTime: 0,
 		cpuTime: 0,
+		expected: null,
 		timers: new Set(),
 	};
 
@@ -91,7 +97,7 @@ export function createReflexGameWindow(options = {}) {
 	footer.className = 'reflex-footer';
 	const hint = document.createElement('div');
 	hint.className = 'reflex-hint';
-	hint.textContent = `Press ${config.keyLabel} when prompted.`;
+	hint.textContent = 'Press the shown direction when prompted.';
 	const startBtn = document.createElement('button');
 	startBtn.type = 'button';
 	startBtn.className = 'reflex-button';
@@ -118,6 +124,14 @@ export function createReflexGameWindow(options = {}) {
 		prompt.classList.toggle('is-active', visible);
 	};
 
+	const isControlKey = (code) => DIRECTIONS.some((dir) => dir.codes.includes(code));
+
+	const setExpectedDirection = (dir) => {
+		state.expected = dir;
+		hint.textContent = `Press ${dir.label} when prompted.`;
+		prompt.textContent = dir.name.toUpperCase();
+	};
+
 	const resetCubes = () => {
 		playerCube.classList.remove('is-active');
 		cpuCube.classList.remove('is-active');
@@ -135,13 +149,14 @@ export function createReflexGameWindow(options = {}) {
 		result.textContent = '...';
 		status.textContent = 'Get ready...';
 		setPhase('waiting');
+		setExpectedDirection(DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)]);
 
 		const delay = clamp(randomBetween(config.minDelayMs, config.maxDelayMs), config.minDelayMs, config.maxDelayMs);
 		const timerId = window.setTimeout(() => {
 			setPhase('active');
 			state.startTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 			state.cpuTime = clamp(randomBetween(config.cpuMinMs, config.cpuMaxMs), config.cpuMinMs, config.cpuMaxMs);
-			status.textContent = 'PRESS!';
+			status.textContent = `PRESS ${state.expected?.label || ''}!`;
 			setPromptVisible(true);
 
 			const cpuTimer = window.setTimeout(() => {
@@ -185,8 +200,24 @@ export function createReflexGameWindow(options = {}) {
 
 	const onKeyDown = (event) => {
 		if (!state.open) return;
-		if (event.code !== config.keyCode) return;
+		if (!isControlKey(event.code)) return;
 		event.preventDefault();
+		if (state.phase === 'result') {
+			beginRound();
+			return;
+		}
+		const isExpected = Boolean(state.expected?.codes?.includes(event.code));
+		if (!isExpected) {
+			if (state.phase === 'waiting') {
+				clearTimers();
+				showResult(null, null, 'Too soon!');
+				return;
+			}
+			if (state.phase === 'active') {
+				showResult(null, null, 'Wrong key!');
+			}
+			return;
+		}
 		handlePress();
 	};
 

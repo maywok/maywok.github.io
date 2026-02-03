@@ -118,6 +118,8 @@ export async function createLinkedinIcon(app, world, options = {}) {
 		dragOffset: { x: 0, y: 0 },
 		vx: 0,
 		vy: 0,
+		angle: 0,
+		angVel: 0,
 		lastDragTime: 0,
 		radius: Math.max(backgroundWidth, backgroundHeight) * 0.5,
 		radiusScaled: Math.max(backgroundWidth, backgroundHeight) * 0.5,
@@ -134,6 +136,11 @@ export async function createLinkedinIcon(app, world, options = {}) {
 		mousePushRadius: 26,
 		mousePushForce: 9000,
 		mouseGrabRadius: 34,
+	};
+	const SPIN = {
+		damp: 0.985,
+		grabTorque: 0.00032,
+		max: 14,
 	};
 	const screenToWorldX = (screenX) => {
 		const cx = app.renderer.width / 2;
@@ -217,6 +224,8 @@ export async function createLinkedinIcon(app, world, options = {}) {
 				const dt = Math.max(0.001, (now - state.lastDragTime) / 1000);
 				state.vx = (nextX - container.position.x) / dt;
 				state.vy = (nextY - container.position.y) / dt;
+				const torque = (state.dragOffset.x * state.vy - state.dragOffset.y * state.vx);
+				state.angVel += torque * SPIN.grabTorque;
 			}
 			state.lastDragTime = now;
 			container.position.set(nextX, nextY);
@@ -273,6 +282,9 @@ export async function createLinkedinIcon(app, world, options = {}) {
 			const targetY = state.base.y - popOut + bob;
 			container.position.x += (targetX - container.position.x) * 0.12 * dt;
 			container.position.y += (targetY - container.position.y) * 0.12 * dt;
+			state.angVel = 0;
+			state.angle += (0 - state.angle) * 0.2 * dt;
+			container.rotation = state.angle;
 		} else if (mouse?.down) {
 			const dx = container.position.x - mouse.x;
 			const dy = container.position.y - mouse.y;
@@ -286,6 +298,8 @@ export async function createLinkedinIcon(app, world, options = {}) {
 				}
 				state.vx = state.mouseVel.x;
 				state.vy = state.mouseVel.y;
+				const torque = (state.grabOffset.x * state.mouseVel.y - state.grabOffset.y * state.mouseVel.x);
+				state.angVel += torque * SPIN.grabTorque;
 				container.position.x = mouse.x + state.grabOffset.x;
 				container.position.y = mouse.y + state.grabOffset.y;
 			} else {
@@ -327,6 +341,12 @@ export async function createLinkedinIcon(app, world, options = {}) {
 				state.vx *= PHYSICS.floorFriction;
 			}
 		}
+		if (state.dragEnabled) {
+			state.angVel *= Math.pow(SPIN.damp, dtSeconds * 60);
+			state.angVel = Math.max(-SPIN.max, Math.min(SPIN.max, state.angVel));
+			state.angle += state.angVel * dtSeconds;
+			container.rotation = state.angle;
+		}
 	});
 
 	function setDragEnabled(enabled) {
@@ -334,6 +354,9 @@ export async function createLinkedinIcon(app, world, options = {}) {
 		if (!state.dragEnabled) state.dragging = false;
 		state.vx = 0;
 		state.vy = 0;
+		state.angVel = 0;
+		state.angle = 0;
+		container.rotation = 0;
 		state.lastDragTime = 0;
 		state.grabbed = false;
 		if (!state.dragEnabled) {
