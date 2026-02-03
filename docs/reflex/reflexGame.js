@@ -1,7 +1,7 @@
 import { createCrimsonFlowBackground } from '../background.js';
 
 const DEFAULTS = {
-	title: 'Ninja Reflex',
+	title: 'Reflex',
 	minDelayMs: 1000,
 	maxDelayMs: 4000,
 	cpuMinMs: 180,
@@ -583,7 +583,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 
 	const arrowGroup = new PIXI.Container();
 	const arrowStyle = {
-		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontFamily: 'Minecraft, monospace',
 		fontSize: 16,
 		fill: 0x0b0b0b,
 		stroke: 0x000000,
