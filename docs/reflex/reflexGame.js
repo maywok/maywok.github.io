@@ -521,18 +521,18 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const closeBtn = new PIXI.Graphics();
 	closeBtn.beginFill(0xf26b6b, 1);
 	closeBtn.lineStyle(1, 0x7f1d1d, 0.6);
-	closeBtn.drawRoundedRect(0, 0, 18, 18, 3);
+	closeBtn.drawRoundedRect(0, 0, 24, 24, 4);
 	closeBtn.endFill();
-	closeBtn.position.set(windowWidth - 26, 4);
+	closeBtn.position.set(windowWidth - 32, 2);
 	closeBtn.eventMode = 'static';
 	closeBtn.cursor = 'pointer';
 	const closeX = new PIXI.Text('✕', {
 		fontFamily: 'Tahoma, Segoe UI, sans-serif',
-		fontSize: 10,
+		fontSize: 12,
 		fill: 0xffffff,
 	});
 	closeX.anchor.set(0.5);
-	closeX.position.set(9, 9);
+	closeX.position.set(12, 12);
 	closeBtn.addChild(closeX);
 
 	const status = new PIXI.Text('Press Start to begin.', {
@@ -646,36 +646,52 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	hint.position.set(padding, stageY + stageH + 40);
 
 	const difficultyBtn = new PIXI.Graphics();
-	difficultyBtn.beginFill(0xf6ecd1, 1);
-	difficultyBtn.lineStyle(1, 0x1b2b42, 0.5);
-	difficultyBtn.drawRoundedRect(0, 0, 96, 16, 3);
-	difficultyBtn.endFill();
-	difficultyBtn.position.set(windowWidth - padding - 98, stageY + stageH + 36);
+	const difficultyBtnSize = { w: 150, h: 24 };
+	const drawDifficultyBtn = () => {
+		difficultyBtn.clear();
+		difficultyBtn.beginFill(0xf6ecd1, 1);
+		difficultyBtn.lineStyle(1, 0x1b2b42, 0.6);
+		difficultyBtn.drawRoundedRect(0, 0, difficultyBtnSize.w, difficultyBtnSize.h, 4);
+		difficultyBtn.endFill();
+	};
+	drawDifficultyBtn();
+	difficultyBtn.position.set(windowWidth - padding - difficultyBtnSize.w, stageY + stageH + 34);
 	difficultyBtn.eventMode = 'static';
 	difficultyBtn.cursor = 'pointer';
 	const difficultyText = new PIXI.Text('Difficulty: Normal', {
 		fontFamily: 'Tahoma, Segoe UI, sans-serif',
-		fontSize: 8,
+		fontSize: 10,
 		fill: 0x1b2b42,
 	});
-	difficultyText.position.set(6, 3);
+	difficultyText.position.set(8, 5);
 	difficultyBtn.addChild(difficultyText);
 
+	const difficultyMenu = new PIXI.Container();
+	difficultyMenu.visible = false;
+	const difficultyMenuBg = new PIXI.Graphics();
+	difficultyMenu.addChild(difficultyMenuBg);
+	const difficultyMenuItems = [];
+
 	const startBtn = new PIXI.Graphics();
-	startBtn.beginFill(0x2b7bff, 1);
-	startBtn.lineStyle(1, 0x1c4b9d, 1);
-	startBtn.drawRoundedRect(0, 0, 84, 20, 4);
-	startBtn.endFill();
-	startBtn.position.set(windowWidth - padding - 86, windowHeight - 30);
+	const startBtnSize = { w: 110, h: 26 };
+	const drawStartBtn = (fill = 0x2b7bff) => {
+		startBtn.clear();
+		startBtn.beginFill(fill, 1);
+		startBtn.lineStyle(1, 0x1c4b9d, 1);
+		startBtn.drawRoundedRect(0, 0, startBtnSize.w, startBtnSize.h, 5);
+		startBtn.endFill();
+	};
+	drawStartBtn();
+	startBtn.position.set(windowWidth - padding - startBtnSize.w, windowHeight - 36);
 	startBtn.eventMode = 'static';
 	startBtn.cursor = 'pointer';
 	const startText = new PIXI.Text('Start', {
 		fontFamily: 'Tahoma, Segoe UI, sans-serif',
-		fontSize: 9,
+		fontSize: 11,
 		fill: 0xffffff,
 	});
 	startText.anchor.set(0.5);
-	startText.position.set(42, 10);
+	startText.position.set(startBtnSize.w / 2, startBtnSize.h / 2);
 	startBtn.addChild(startText);
 
 	const resetCubes = () => {
@@ -694,9 +710,10 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const updateStreakDisplay = () => {
 		const capped = Math.min(state.winStreak, 20);
 		const size = 10 + capped * 0.6;
-		const hue = (capped * 22) % 360;
-		const sat = 70 + Math.min(20, capped * 2);
-		const light = 50 + Math.min(10, capped);
+		const intensity = Math.min(1, capped / 10);
+		const hue = (capped * 26) % 360;
+		const sat = 100 * intensity;
+		const light = 20 + 30 * intensity;
 		const toRgb = (h, s, l) => {
 			const a = s * Math.min(l, 100 - l) / 100;
 			const f = (n) => {
@@ -708,7 +725,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		};
 		streakText.text = `Win Streak: ${state.winStreak}`;
 		streakText.style.fontSize = Math.min(18, size);
-		streakText.style.fill = toRgb(hue, sat, light);
+		streakText.style.fill = (state.winStreak <= 0) ? 0x0b0b0b : toRgb(hue, sat, light);
 	};
 
 	const setExpectedDirection = (dir) => {
@@ -755,6 +772,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		state.selectedDirection = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
 		setExpectedDirection(null);
 		arrowGroup.alpha = 0.35;
+		drawStartBtn(0x2b7bff);
+		startText.text = 'Start';
 
 		const delay = clamp(randomBetween(config.minDelayMs, config.maxDelayMs), config.minDelayMs, config.maxDelayMs);
 		const timerId = window.setTimeout(() => {
@@ -783,6 +802,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		status.text = 'Round complete.';
 		state.phase = 'result';
 		startText.text = 'Again';
+		drawStartBtn(0x22c55e);
 	};
 
 	const handlePress = () => {
@@ -810,6 +830,10 @@ export function createReflexGameOverlay(app, world, options = {}) {
 
 	const onKeyDown = (event) => {
 		if (!state.open) return;
+		if (event.code === 'Escape') {
+			close();
+			return;
+		}
 		if (!DIRECTIONS.some((dir) => dir.codes.includes(event.code))) return;
 		event.preventDefault();
 		if (state.phase === 'result') {
@@ -871,12 +895,49 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		difficultyText.text = `Difficulty: ${label}`;
 	};
 
-	difficultyBtn.on('pointertap', () => {
+	const buildDifficultyMenu = () => {
+		for (const item of difficultyMenuItems) item.destroy({ children: true });
+		difficultyMenuItems.length = 0;
 		const keys = Object.keys(config.difficulties || {});
-		if (!keys.length) return;
-		const idx = Math.max(0, keys.indexOf(state.difficulty));
-		state.difficulty = keys[(idx + 1) % keys.length];
-		updateDifficultyText();
+		const itemH = 22;
+		const menuH = Math.max(1, keys.length) * itemH + 6;
+		difficultyMenuBg.clear();
+		difficultyMenuBg.beginFill(0xf6ecd1, 1);
+		difficultyMenuBg.lineStyle(1, 0x1b2b42, 0.6);
+		difficultyMenuBg.drawRoundedRect(0, 0, difficultyBtnSize.w, menuH, 4);
+		difficultyMenuBg.endFill();
+		keys.forEach((key, idx) => {
+			const entry = config.difficulties[key];
+			const label = entry?.label || key;
+			const row = new PIXI.Graphics();
+			row.beginFill(0x000000, key === state.difficulty ? 0.08 : 0.0);
+			row.drawRect(0, 0, difficultyBtnSize.w, itemH);
+			row.endFill();
+			row.position.set(0, 3 + idx * itemH);
+			row.eventMode = 'static';
+			row.cursor = 'pointer';
+			const text = new PIXI.Text(label, {
+				fontFamily: 'Tahoma, Segoe UI, sans-serif',
+				fontSize: 10,
+				fill: 0x1b2b42,
+			});
+			text.position.set(8, 4);
+			row.addChild(text);
+			row.on('pointertap', (event) => {
+				event.stopPropagation();
+				state.difficulty = key;
+				updateDifficultyText();
+				difficultyMenu.visible = false;
+			});
+			difficultyMenu.addChild(row);
+			difficultyMenuItems.push(row);
+		});
+	};
+
+	difficultyBtn.on('pointertap', (event) => {
+		event.stopPropagation();
+		buildDifficultyMenu();
+		difficultyMenu.visible = !difficultyMenu.visible;
 	});
 
 	startBtn.on('pointertap', beginRound);
@@ -900,9 +961,16 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	});
 	app.stage.on('pointerup', () => { dragState.active = false; });
 	app.stage.on('pointerupoutside', () => { dragState.active = false; });
+	app.stage.on('pointerdown', (event) => {
+		if (!difficultyMenu.visible) return;
+		const target = event.target;
+		const inMenu = difficultyMenuItems.includes(target) || difficultyMenuItems.includes(target?.parent);
+		if (target === difficultyBtn || inMenu) return;
+		difficultyMenu.visible = false;
+	});
 
 	container.addChild(panelFill, flow.container, panelMask, headerBg, title, closeBtn);
-	container.addChild(stage, flash, slash, playerCube, cpuCube, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, streakText, difficultyBtn, startBtn, panelBorder);
+	container.addChild(stage, flash, slash, playerCube, cpuCube, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, streakText, difficultyBtn, difficultyMenu, startBtn, panelBorder);
 
 	const layout = () => {
 		const cx = app.renderer.width / 2;
@@ -912,6 +980,9 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		container.position.set(worldX, worldY);
 		panelMask.position.set(0, 0);
 		panelBorder.position.set(0, 0);
+		difficultyBtn.position.set(windowWidth - padding - difficultyBtnSize.w, stageY + stageH + 34);
+		difficultyMenu.position.set(difficultyBtn.position.x, difficultyBtn.position.y + difficultyBtnSize.h + 4);
+		startBtn.position.set(windowWidth - padding - startBtnSize.w, windowHeight - 36);
 		flow.resize?.();
 	};
 
@@ -972,6 +1043,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		container.visible = true;
 		state.open = true;
 		startText.text = 'Start';
+		difficultyMenu.visible = false;
 		layout();
 		updateStreakDisplay();
 		beginRound();
@@ -982,6 +1054,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		state.timers.clear();
 		state.open = false;
 		container.visible = false;
+		difficultyMenu.visible = false;
 		state.phase = 'idle';
 		status.text = 'Press Start to begin.';
 		result.text = 'Waiting for round...';
