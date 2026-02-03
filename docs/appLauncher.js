@@ -315,6 +315,7 @@ export function createAppLauncher(app, world, options = {}) {
 		const spinDamp = 0.985;
 		const spinGrabTorque = 0.00032;
 		const spinMax = 14;
+		const spinUpright = 8.5;
 		if (mouseWorld) {
 			if (lastMouseWorld && dtSeconds > 0) {
 				lastMouseVel = {
@@ -372,6 +373,9 @@ export function createAppLauncher(app, world, options = {}) {
 					const torque = (icon.state.dragOffset.x * lastMouseVel.y - icon.state.dragOffset.y * lastMouseVel.x);
 					icon.state.angVel += torque * spinGrabTorque;
 				}
+				if (icon.state.dragging || icon.state.grabbed) {
+					icon.state.angVel += (-icon.state.angle) * spinUpright * dtSeconds;
+				}
 				if (!icon.state.dragging && !icon.state.grabbed) {
 				if (mouseWorld) {
 					const dx = icon.container.position.x - mouseWorld.x;
@@ -405,6 +409,16 @@ export function createAppLauncher(app, world, options = {}) {
 					icon.container.position.y = maxY;
 					if (icon.state.vy > 0) icon.state.vy = 0;
 					icon.state.vx *= PHYSICS.floorFriction;
+					const floorMinX = minX + icon.state.radius * icon.container.scale.x;
+					const floorMaxX = maxX - icon.state.radius * icon.container.scale.x;
+					if (icon.container.position.x < floorMinX) {
+						icon.container.position.x = floorMinX;
+						if (icon.state.vx < 0) icon.state.vx *= -PHYSICS.bounce;
+					}
+					if (icon.container.position.x > floorMaxX) {
+						icon.container.position.x = floorMaxX;
+						if (icon.state.vx > 0) icon.state.vx *= -PHYSICS.bounce;
+					}
 				}
 				icon.state.angVel *= Math.pow(spinDamp, dtSeconds * 60);
 				icon.state.angVel = Math.max(-spinMax, Math.min(spinMax, icon.state.angVel));

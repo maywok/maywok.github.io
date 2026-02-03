@@ -141,6 +141,7 @@ export async function createLinkedinIcon(app, world, options = {}) {
 		damp: 0.985,
 		grabTorque: 0.00032,
 		max: 14,
+		upright: 8.5,
 	};
 	const screenToWorldX = (screenX) => {
 		const cx = app.renderer.width / 2;
@@ -306,6 +307,9 @@ export async function createLinkedinIcon(app, world, options = {}) {
 				state.grabbed = false;
 			}
 		}
+		if (state.dragEnabled && (state.dragging || state.grabbed)) {
+			state.angVel += (-state.angle) * SPIN.upright * dtSeconds;
+		}
 		if (state.dragEnabled && !state.dragging && !state.grabbed) {
 			if (mouse) {
 				const dx = container.position.x - mouse.x;
@@ -339,6 +343,16 @@ export async function createLinkedinIcon(app, world, options = {}) {
 				container.position.y = maxY;
 				if (state.vy > 0) state.vy = 0;
 				state.vx *= PHYSICS.floorFriction;
+				const floorMinX = minX + state.radiusScaled;
+				const floorMaxX = maxX - state.radiusScaled;
+				if (container.position.x < floorMinX) {
+					container.position.x = floorMinX;
+					if (state.vx < 0) state.vx *= -PHYSICS.bounce;
+				}
+				if (container.position.x > floorMaxX) {
+					container.position.x = floorMaxX;
+					if (state.vx > 0) state.vx *= -PHYSICS.bounce;
+				}
 			}
 		}
 		if (state.dragEnabled) {
