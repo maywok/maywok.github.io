@@ -4,6 +4,13 @@ const DEFAULTS = {
 	maxDelayMs: 4000,
 	cpuMinMs: 180,
 	cpuMaxMs: 520,
+	 difficulties: {
+		easy: { label: 'Easy', cpuMinMs: 260, cpuMaxMs: 600 },
+		normal: { label: 'Normal', cpuMinMs: 180, cpuMaxMs: 520 },
+		hard: { label: 'Hard', cpuMinMs: 120, cpuMaxMs: 380 },
+		insane: { label: 'Insane', cpuMinMs: 80, cpuMaxMs: 260 },
+	 },
+	 defaultDifficulty: 'normal',
 };
 
 const DIRECTIONS = [
@@ -30,6 +37,8 @@ export function createReflexGameWindow(options = {}) {
 		startTime: 0,
 		cpuTime: 0,
 		expected: null,
+		selectedDirection: null,
+		difficulty: config.defaultDifficulty,
 		timers: new Set(),
 	};
 
@@ -120,11 +129,31 @@ export function createReflexGameWindow(options = {}) {
 	const hint = document.createElement('div');
 	hint.className = 'reflex-hint';
 	hint.textContent = 'Press the shown direction when prompted.';
+	const difficulty = document.createElement('div');
+	difficulty.className = 'reflex-difficulty';
+	const difficultyLabel = document.createElement('label');
+	difficultyLabel.className = 'reflex-difficulty-label';
+	difficultyLabel.textContent = 'Difficulty';
+	const difficultySelect = document.createElement('select');
+	difficultySelect.className = 'reflex-difficulty-select';
+	Object.entries(config.difficulties || {}).forEach(([key, entry]) => {
+		const option = document.createElement('option');
+		option.value = key;
+		option.textContent = entry.label || key;
+		difficultySelect.appendChild(option);
+	});
+	if (state.difficulty && difficultySelect.querySelector(`option[value="${state.difficulty}"]`)) {
+		difficultySelect.value = state.difficulty;
+	}
+	difficultySelect.addEventListener('change', () => {
+		state.difficulty = difficultySelect.value;
+	});
+	difficulty.append(difficultyLabel, difficultySelect);
 	const startBtn = document.createElement('button');
 	startBtn.type = 'button';
 	startBtn.className = 'reflex-button';
 	startBtn.textContent = 'Start Round';
-	footer.append(hint, startBtn);
+	footer.append(hint, difficulty, startBtn);
 
 	body.append(status, stage, metrics, result, footer);
 	win.append(header, body);
@@ -150,11 +179,27 @@ export function createReflexGameWindow(options = {}) {
 
 	const setExpectedDirection = (dir) => {
 		state.expected = dir;
-		hint.textContent = `Press ${dir.label} when prompted.`;
-		arrowUp.classList.toggle('is-hot', dir?.name === 'Up');
-		arrowRight.classList.toggle('is-hot', dir?.name === 'Right');
-		arrowDown.classList.toggle('is-hot', dir?.name === 'Down');
-		arrowLeft.classList.toggle('is-hot', dir?.name === 'Left');
+		hint.textContent = dir ? `Press ${dir.label} when prompted.` : 'Press the shown direction when prompted.';
+		arrowUp.classList.toggle('is-hot', Boolean(dir) && dir?.name === 'Up');
+		arrowRight.classList.toggle('is-hot', Boolean(dir) && dir?.name === 'Right');
+		arrowDown.classList.toggle('is-hot', Boolean(dir) && dir?.name === 'Down');
+		arrowLeft.classList.toggle('is-hot', Boolean(dir) && dir?.name === 'Left');
+	};
+
+	const setArrowIdle = () => {
+		setExpectedDirection(null);
+		arrowUp.classList.remove('is-hot');
+		arrowRight.classList.remove('is-hot');
+		arrowDown.classList.remove('is-hot');
+		arrowLeft.classList.remove('is-hot');
+	};
+
+	const setArrowActive = (dir) => {
+		arrowUp.classList.remove('is-idle');
+		arrowRight.classList.remove('is-idle');
+		arrowDown.classList.remove('is-idle');
+		arrowLeft.classList.remove('is-idle');
+		setExpectedDirection(dir);
 	};
 
 	const resetCubes = () => {
@@ -190,14 +235,19 @@ export function createReflexGameWindow(options = {}) {
 		result.textContent = '...';
 		status.textContent = 'Get ready...';
 		setPhase('waiting');
-		setExpectedDirection(DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)]);
+		state.selectedDirection = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
+		setArrowIdle();
 
 		const delay = clamp(randomBetween(config.minDelayMs, config.maxDelayMs), config.minDelayMs, config.maxDelayMs);
 		const timerId = window.setTimeout(() => {
 			setPhase('active');
 			state.startTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-			state.cpuTime = clamp(randomBetween(config.cpuMinMs, config.cpuMaxMs), config.cpuMinMs, config.cpuMaxMs);
+			const diff = (config.difficulties && state.difficulty && config.difficulties[state.difficulty]) ? config.difficulties[state.difficulty] : null;
+			const cpuMin = diff?.cpuMinMs ?? config.cpuMinMs;
+			const cpuMax = diff?.cpuMaxMs ?? config.cpuMaxMs;
+			state.cpuTime = clamp(randomBetween(cpuMin, cpuMax), cpuMin, cpuMax);
 			status.textContent = 'Hit the red arrow!';
+			setArrowActive(state.selectedDirection);
 			setPromptVisible(true);
 
 			const cpuTimer = window.setTimeout(() => {
@@ -272,6 +322,7 @@ export function createReflexGameWindow(options = {}) {
 		win.setAttribute('aria-hidden', 'false');
 		state.open = true;
 		startBtn.textContent = 'Start Round';
+		difficultySelect.value = state.difficulty;
 		beginRound();
 	};
 
@@ -286,6 +337,7 @@ export function createReflexGameWindow(options = {}) {
 		setPromptVisible(false);
 		resetCubes();
 		resetFinisher();
+		setArrowIdle();
 		updateMetrics(null, null);
 	};
 
