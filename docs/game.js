@@ -2,6 +2,7 @@ import { Player } from './player.js';
 import { createVines } from './vines.js';
 import { createBlogIcon } from './blogIcon.js';
 import { createLinkedinIcon } from './linkedinIcon.js';
+import { createReflexIcon } from './reflex/reflexIcon.js';
 import { createCrimsonFlowBackground } from './background.js';
 import {
 	createCRTFisheyeFilter,
@@ -335,6 +336,9 @@ async function boot() {
 			let linkedinIconSetDragEnabled = null;
 			let linkedinIconGetBody = null;
 			let linkedinIconSetMouseProvider = null;
+			let reflexIconSetDragEnabled = null;
+			let reflexIconGetBody = null;
+			let reflexIconSetMouseProvider = null;
 			const dragToggleBtn = document.createElement('button');
 			let dragEnabled = false;
 			const applyDragEnabled = (enabled) => {
@@ -344,6 +348,7 @@ async function boot() {
 				appLauncher.setDragEnabled?.(dragEnabled);
 				if (blogIconSetDragEnabled) blogIconSetDragEnabled(dragEnabled);
 				if (linkedinIconSetDragEnabled) linkedinIconSetDragEnabled(dragEnabled);
+				if (reflexIconSetDragEnabled) reflexIconSetDragEnabled(dragEnabled);
 			};
 			dragToggleBtn.type = 'button';
 			Object.assign(dragToggleBtn.style, {
@@ -382,6 +387,7 @@ async function boot() {
 			const getLauncherIconSize = () => Math.max(48, Math.min(74, app.renderer.height * 0.1));
 			let layoutBlogIcon = () => {};
 			let layoutLinkedinIcon = () => {};
+			let layoutReflexIcon = () => {};
 			try {
 				const blogIconResult = await withTimeout(createBlogIcon(app, world, {
 					url: '/blog',
@@ -420,16 +426,36 @@ async function boot() {
 			} catch (err) {
 				console.warn('LinkedIn icon init failed or timed out:', err);
 			}
+			try {
+				const reflexIconResult = await withTimeout(createReflexIcon(app, world, {
+					screenScale: SCENE_SCALE,
+					dockScreenX: getLauncherDockX,
+					dockScreenY: () => getLauncherDockY(1),
+					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
+					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
+				}), 6000, 'Reflex icon');
+				if (reflexIconResult?.layout) layoutReflexIcon = reflexIconResult.layout;
+				if (reflexIconResult?.setDragEnabled) {
+					reflexIconSetDragEnabled = reflexIconResult.setDragEnabled;
+					reflexIconSetDragEnabled(dragEnabled);
+				}
+				if (reflexIconResult?.getBody) reflexIconGetBody = reflexIconResult.getBody;
+				if (reflexIconResult?.setMouseProvider) reflexIconSetMouseProvider = reflexIconResult.setMouseProvider;
+			} catch (err) {
+				console.warn('Reflex icon init failed or timed out:', err);
+			}
 			if (appLauncher?.setExternalBodiesProvider) {
 				appLauncher.setExternalBodiesProvider(() => {
 					const bodies = [];
 					if (blogIconGetBody) bodies.push(blogIconGetBody());
 					if (linkedinIconGetBody) bodies.push(linkedinIconGetBody());
+					if (reflexIconGetBody) bodies.push(reflexIconGetBody());
 					return bodies;
 				});
 			}
 			if (blogIconSetMouseProvider) blogIconSetMouseProvider(() => lastMouseWorld);
 			if (linkedinIconSetMouseProvider) linkedinIconSetMouseProvider(() => lastMouseWorld);
+			if (reflexIconSetMouseProvider) reflexIconSetMouseProvider(() => lastMouseWorld);
 
 			world.addChild(player.view);
 		const ENABLE_THEME_TOGGLE = false;
@@ -1020,6 +1046,7 @@ async function boot() {
 			systemHud.layout();
 			layoutBlogIcon();
 			layoutLinkedinIcon();
+			layoutReflexIcon();
 		}
 		window.addEventListener('resize', onResize);
 		// Run once after first paint so initial sizing is correct.
