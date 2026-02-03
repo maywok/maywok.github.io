@@ -542,7 +542,7 @@ async function boot() {
 		cursorGlow.anchor.set(0.5);
 		cursorGlow.tint = 0xff5aa8;
 		cursorGlow.alpha = 0.35;
-		cursorGlow.scale.set(1.35);
+		cursorGlow.scale.set(1.2);
 		cursorGlow.blendMode = PIXI.BLEND_MODES.ADD;
 		const USE_ANIMATED_CURSOR = true;
 		const CURSOR_ANIM_MAX_FRAMES = 240;
@@ -578,6 +578,7 @@ async function boot() {
 		if (cursorAnim && cursorAnim.totalFrames > 1) cursorContainer.addChild(cursorGlow, cursorAnim);
 		else cursorContainer.addChild(cursorGlow, cursor);
 		cursorContainer.eventMode = 'none';
+		cursorContainer.scale.set(0.85);
 		cursorContainer.zIndex = 200;
 		const { filter: cursorPixelateFilter, update: updateCursorPixelate } = createPixelateFilter(app, { pixelSize: 2 });
 		cursorContainer.filters = [cursorPixelateFilter];
