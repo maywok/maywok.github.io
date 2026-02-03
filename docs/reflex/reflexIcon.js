@@ -1,5 +1,5 @@
 import { createCardMotion } from '../cardMotion.js';
-import { createReflexGameWindow } from './reflexGame.js';
+import { createReflexGameOverlay } from './reflexGame.js';
 
 export async function createReflexIcon(app, world, options = {}) {
 	const {
@@ -122,12 +122,12 @@ export async function createReflexIcon(app, world, options = {}) {
 		return (screenY - cy) / screenScale + cy;
 	};
 
-	let gameWindow = null;
-	const ensureGameWindow = () => {
-		if (!gameWindow) {
-			gameWindow = createReflexGameWindow();
+	let gameOverlay = null;
+	const ensureGameOverlay = () => {
+		if (!gameOverlay) {
+			gameOverlay = createReflexGameOverlay(app, world, { screenScale });
 		}
-		return gameWindow;
+		return gameOverlay;
 	};
 
 	container.eventMode = 'static';
@@ -145,7 +145,7 @@ export async function createReflexIcon(app, world, options = {}) {
 	});
 	container.on('pointertap', () => {
 		if (state.dragEnabled) return;
-		ensureGameWindow().open();
+		ensureGameOverlay().open();
 	});
 	container.on('pointerdown', (event) => {
 		if (!state.dragEnabled) return;

@@ -645,9 +645,6 @@ main { padding: 24px; }
 .reflex-button:hover {
     background: #2369db;
 }
-    text-shadow: 0 0 10px rgba(196, 0, 31, 0.6);
-    background: rgba(196, 0, 31, 0.12);
-    border-color: rgba(196, 0, 31, 0.65);
 /* In-world PIXI links replace the HTML overlay links */
 .overlay-ui { display: none; }
 

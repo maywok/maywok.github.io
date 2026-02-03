@@ -435,3 +435,390 @@ export function createReflexGameWindow(options = {}) {
 
 	return { open, close, element: win };
 }
+
+export function createReflexGameOverlay(app, world, options = {}) {
+	const config = { ...DEFAULTS, ...options };
+	const screenScale = options.screenScale ?? 1;
+	const state = {
+		open: false,
+		phase: 'idle',
+		startTime: 0,
+		cpuTime: 0,
+		expected: null,
+		selectedDirection: null,
+		difficulty: config.defaultDifficulty,
+		timers: new Set(),
+	};
+
+	const screenToWorldX = (screenX) => {
+		const cx = app.renderer.width / 2;
+		return (screenX - cx) / screenScale + cx;
+	};
+	const screenToWorldY = (screenY) => {
+		const cy = app.renderer.height / 2;
+		return (screenY - cy) / screenScale + cy;
+	};
+
+	const windowWidth = Math.min(420, app.renderer.width * 0.85);
+	const windowHeight = Math.min(280, app.renderer.height * 0.6);
+	const headerHeight = 26;
+	const padding = 12;
+
+	const container = new PIXI.Container();
+	container.visible = false;
+	container.eventMode = 'static';
+	container.hitArea = new PIXI.Rectangle(0, 0, windowWidth, windowHeight);
+
+	const panelMask = new PIXI.Graphics();
+	panelMask.beginFill(0xffffff, 1);
+	panelMask.drawRoundedRect(0, 0, windowWidth, windowHeight, 8);
+	panelMask.endFill();
+	panelMask.visible = false;
+
+	const flow = createCrimsonFlowBackground(app, {
+		lineColor: 0x000000,
+		glowColor: 0x000000,
+		bgColor: 0xf3deb0,
+		glowAlpha: 0,
+		parallax: 0,
+		pixelSize: 6,
+		density: 4.2,
+		speed: 0.6,
+	});
+	flow.container.mask = panelMask;
+	let flowTime = 0;
+
+	const panelBorder = new PIXI.Graphics();
+	panelBorder.lineStyle(2, 0x1b4c92, 1);
+	panelBorder.drawRoundedRect(0, 0, windowWidth, windowHeight, 8);
+
+	const headerBg = new PIXI.Graphics();
+	headerBg.beginFill(0x2a66c9, 1);
+	headerBg.drawRoundedRect(0, 0, windowWidth, headerHeight, 6);
+	headerBg.endFill();
+
+	const title = new PIXI.Text(config.title, {
+		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontSize: 12,
+		fill: 0x7f0020,
+		fontWeight: '600',
+	});
+	title.position.set(10, 6);
+
+	const closeBtn = new PIXI.Graphics();
+	closeBtn.beginFill(0xf26b6b, 1);
+	closeBtn.lineStyle(1, 0x7f1d1d, 0.6);
+	closeBtn.drawRoundedRect(0, 0, 18, 18, 3);
+	closeBtn.endFill();
+	closeBtn.position.set(windowWidth - 26, 4);
+	closeBtn.eventMode = 'static';
+	closeBtn.cursor = 'pointer';
+	const closeX = new PIXI.Text('✕', {
+		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontSize: 10,
+		fill: 0xffffff,
+	});
+	closeX.anchor.set(0.5);
+	closeX.position.set(9, 9);
+	closeBtn.addChild(closeX);
+
+	const status = new PIXI.Text('Press Start to begin.', {
+		fontFamily: 'Minecraft, monospace',
+		fontSize: 10,
+		fill: 0x112044,
+	});
+	status.position.set(padding, headerHeight + 6);
+
+	const stage = new PIXI.Graphics();
+	const stageX = padding;
+	const stageY = headerHeight + 26;
+	const stageW = windowWidth - padding * 2;
+	const stageH = 92;
+	stage.beginFill(0xf4f7ff, 1);
+	stage.lineStyle(2, 0x95a9cf, 1);
+	stage.drawRoundedRect(0, 0, stageW, stageH, 6);
+	stage.endFill();
+	stage.position.set(stageX, stageY);
+
+	const playerCube = new PIXI.Graphics();
+	playerCube.beginFill(0x1f2937, 1);
+	playerCube.lineStyle(2, 0x0b1120, 1);
+	playerCube.drawRect(0, 0, 28, 28);
+	playerCube.endFill();
+	playerCube.position.set(stageX + 36, stageY + 24);
+
+	const cpuCube = new PIXI.Graphics();
+	cpuCube.beginFill(0x1f2937, 1);
+	cpuCube.lineStyle(2, 0x0b1120, 1);
+	cpuCube.drawRect(0, 0, 28, 28);
+	cpuCube.endFill();
+	cpuCube.position.set(stageX + stageW - 64, stageY + 24);
+
+	const playerLabel = new PIXI.Text('Player', {
+		fontFamily: 'Minecraft, monospace',
+		fontSize: 9,
+		fill: 0x1c2c4b,
+	});
+	playerLabel.position.set(stageX + 30, stageY + 58);
+
+	const cpuLabel = new PIXI.Text('CPU', {
+		fontFamily: 'Minecraft, monospace',
+		fontSize: 9,
+		fill: 0x1c2c4b,
+	});
+	cpuLabel.position.set(stageX + stageW - 54, stageY + 58);
+
+	const arrowGroup = new PIXI.Container();
+	const arrowStyle = {
+		fontFamily: 'Minecraft, monospace',
+		fontSize: 16,
+		fill: 0x0b0b0b,
+	};
+	const arrowUp = new PIXI.Text('↑', arrowStyle);
+	const arrowRight = new PIXI.Text('→', arrowStyle);
+	const arrowDown = new PIXI.Text('↓', arrowStyle);
+	const arrowLeft = new PIXI.Text('←', arrowStyle);
+	arrowUp.position.set(22, 0);
+	arrowRight.position.set(44, 22);
+	arrowDown.position.set(22, 44);
+	arrowLeft.position.set(0, 22);
+	arrowGroup.addChild(arrowUp, arrowRight, arrowDown, arrowLeft);
+	arrowGroup.position.set(stageX + stageW / 2 - 24, stageY + 18);
+
+	const metrics = new PIXI.Text('Player: -- ms   CPU: -- ms', {
+		fontFamily: 'Minecraft, monospace',
+		fontSize: 9,
+		fill: 0x1d2b49,
+	});
+	metrics.position.set(padding, stageY + stageH + 8);
+
+	const result = new PIXI.Text('Waiting for round...', {
+		fontFamily: 'Minecraft, monospace',
+		fontSize: 10,
+		fill: 0x10203d,
+	});
+	result.position.set(padding, stageY + stageH + 22);
+
+	const hint = new PIXI.Text('Press the shown direction when prompted.', {
+		fontFamily: 'Minecraft, monospace',
+		fontSize: 8,
+		fill: 0x2a3b5f,
+	});
+	hint.position.set(padding, stageY + stageH + 40);
+
+	const difficultyBtn = new PIXI.Graphics();
+	difficultyBtn.beginFill(0xf6ecd1, 1);
+	difficultyBtn.lineStyle(1, 0x1b2b42, 0.5);
+	difficultyBtn.drawRoundedRect(0, 0, 96, 16, 3);
+	difficultyBtn.endFill();
+	difficultyBtn.position.set(windowWidth - padding - 98, stageY + stageH + 36);
+	difficultyBtn.eventMode = 'static';
+	difficultyBtn.cursor = 'pointer';
+	const difficultyText = new PIXI.Text('Difficulty: Normal', {
+		fontFamily: 'Minecraft, monospace',
+		fontSize: 8,
+		fill: 0x1b2b42,
+	});
+	difficultyText.position.set(6, 3);
+	difficultyBtn.addChild(difficultyText);
+
+	const startBtn = new PIXI.Graphics();
+	startBtn.beginFill(0x2b7bff, 1);
+	startBtn.lineStyle(1, 0x1c4b9d, 1);
+	startBtn.drawRoundedRect(0, 0, 84, 20, 4);
+	startBtn.endFill();
+	startBtn.position.set(windowWidth - padding - 86, windowHeight - 30);
+	startBtn.eventMode = 'static';
+	startBtn.cursor = 'pointer';
+	const startText = new PIXI.Text('Start', {
+		fontFamily: 'Minecraft, monospace',
+		fontSize: 9,
+		fill: 0xffffff,
+	});
+	startText.anchor.set(0.5);
+	startText.position.set(42, 10);
+	startBtn.addChild(startText);
+
+	const resetCubes = () => {
+		playerCube.tint = 0xffffff;
+		cpuCube.tint = 0xffffff;
+	};
+
+	const updateMetrics = (playerMs, cpuMs) => {
+		const playerText = Number.isFinite(playerMs) ? `${Math.round(playerMs)} ms` : '-- ms';
+		const cpuText = Number.isFinite(cpuMs) ? `${Math.round(cpuMs)} ms` : '-- ms';
+		metrics.text = `Player: ${playerText}   CPU: ${cpuText}`;
+	};
+
+	const setExpectedDirection = (dir) => {
+		state.expected = dir;
+		hint.text = dir ? `Press ${dir.label} when prompted.` : 'Press the shown direction when prompted.';
+		const reset = (arrow) => { arrow.style.fill = 0x0b0b0b; arrow.style.stroke = 0x000000; };
+		[arrowUp, arrowRight, arrowDown, arrowLeft].forEach(reset);
+		if (dir?.name === 'Up') arrowUp.style.fill = 0xc4001f;
+		if (dir?.name === 'Right') arrowRight.style.fill = 0xc4001f;
+		if (dir?.name === 'Down') arrowDown.style.fill = 0xc4001f;
+		if (dir?.name === 'Left') arrowLeft.style.fill = 0xc4001f;
+	};
+
+	const beginRound = () => {
+		for (const id of state.timers) window.clearTimeout(id);
+		state.timers.clear();
+		resetCubes();
+		updateMetrics(null, null);
+		result.text = '...';
+		status.text = 'Get ready...';
+		state.phase = 'waiting';
+		state.selectedDirection = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
+		setExpectedDirection(null);
+
+		const delay = clamp(randomBetween(config.minDelayMs, config.maxDelayMs), config.minDelayMs, config.maxDelayMs);
+		const timerId = window.setTimeout(() => {
+			state.phase = 'active';
+			state.startTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+			const diff = (config.difficulties && state.difficulty && config.difficulties[state.difficulty]) ? config.difficulties[state.difficulty] : null;
+			const cpuMin = diff?.cpuMinMs ?? config.cpuMinMs;
+			const cpuMax = diff?.cpuMaxMs ?? config.cpuMaxMs;
+			state.cpuTime = clamp(randomBetween(cpuMin, cpuMax), cpuMin, cpuMax);
+			status.text = 'Hit the red arrow!';
+			setExpectedDirection(state.selectedDirection);
+			const cpuTimer = window.setTimeout(() => {
+				cpuCube.tint = 0xf87171;
+			}, state.cpuTime);
+			state.timers.add(cpuTimer);
+		}, delay);
+		state.timers.add(timerId);
+	};
+
+	const showResult = (playerMs, cpuMs, message) => {
+		for (const id of state.timers) window.clearTimeout(id);
+		state.timers.clear();
+		updateMetrics(playerMs, cpuMs);
+		result.text = message;
+		status.text = 'Round complete.';
+		state.phase = 'result';
+		startText.text = 'Again';
+	};
+
+	const handlePress = () => {
+		if (!state.open) return;
+		if (state.phase === 'waiting') {
+			showResult(null, null, 'Too soon!');
+			return;
+		}
+		if (state.phase === 'result') {
+			beginRound();
+			return;
+		}
+		if (state.phase !== 'active') return;
+		const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+		const playerMs = now - state.startTime;
+		const cpuMs = state.cpuTime;
+		playerCube.tint = 0x34d399;
+		const winnerText = playerMs <= cpuMs ? 'Player wins!' : 'CPU wins!';
+		showResult(playerMs, cpuMs, winnerText);
+	};
+
+	const onKeyDown = (event) => {
+		if (!state.open) return;
+		if (!DIRECTIONS.some((dir) => dir.codes.includes(event.code))) return;
+		event.preventDefault();
+		if (state.phase === 'result') {
+			beginRound();
+			return;
+		}
+		const isExpected = Boolean(state.expected?.codes?.includes(event.code));
+		if (!isExpected) {
+			if (state.phase === 'waiting') {
+				showResult(null, null, 'Too soon!');
+				return;
+			}
+			if (state.phase === 'active') {
+				showResult(null, null, 'Wrong key!');
+			}
+			return;
+		}
+		handlePress();
+	};
+
+	const updateDifficultyText = () => {
+		const entry = config.difficulties?.[state.difficulty];
+		const label = entry?.label || state.difficulty;
+		difficultyText.text = `Difficulty: ${label}`;
+	};
+
+	difficultyBtn.on('pointertap', () => {
+		const keys = Object.keys(config.difficulties || {});
+		if (!keys.length) return;
+		const idx = Math.max(0, keys.indexOf(state.difficulty));
+		state.difficulty = keys[(idx + 1) % keys.length];
+		updateDifficultyText();
+	});
+
+	startBtn.on('pointertap', beginRound);
+	closeBtn.on('pointertap', () => close());
+	window.addEventListener('keydown', onKeyDown);
+
+	const dragState = { active: false, offsetX: 0, offsetY: 0 };
+	headerBg.eventMode = 'static';
+	headerBg.cursor = 'move';
+	headerBg.on('pointerdown', (event) => {
+		const pos = event.getLocalPosition(world);
+		dragState.active = true;
+		dragState.offsetX = pos.x - container.position.x;
+		dragState.offsetY = pos.y - container.position.y;
+	});
+	app.stage.on('pointermove', (event) => {
+		if (!dragState.active) return;
+		const pos = event.getLocalPosition(world);
+		container.position.set(pos.x - dragState.offsetX, pos.y - dragState.offsetY);
+	});
+	app.stage.on('pointerup', () => { dragState.active = false; });
+	app.stage.on('pointerupoutside', () => { dragState.active = false; });
+
+	container.addChild(flow.container, panelMask, headerBg, title, closeBtn);
+	container.addChild(stage, playerCube, cpuCube, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, difficultyBtn, startBtn, panelBorder);
+
+	const layout = () => {
+		const cx = app.renderer.width / 2;
+		const cy = app.renderer.height / 2;
+		const worldX = screenToWorldX(cx - windowWidth / 2);
+		const worldY = screenToWorldY(cy - windowHeight / 2);
+		container.position.set(worldX, worldY);
+		panelMask.position.set(0, 0);
+		panelBorder.position.set(0, 0);
+		flow.resize?.();
+	};
+
+	layout();
+	updateDifficultyText();
+	world.addChild(container);
+	app.ticker.add((dt) => {
+		if (!state.open) return;
+		flowTime += dt / 60;
+		flow.update?.(flowTime, { x: 0, y: 0 });
+	});
+
+	const open = () => {
+		container.visible = true;
+		state.open = true;
+		startText.text = 'Start';
+		layout();
+		beginRound();
+	};
+
+	const close = () => {
+		for (const id of state.timers) window.clearTimeout(id);
+		state.timers.clear();
+		state.open = false;
+		container.visible = false;
+		state.phase = 'idle';
+		status.text = 'Press Start to begin.';
+		result.text = 'Waiting for round...';
+		setExpectedDirection(null);
+		resetCubes();
+		updateMetrics(null, null);
+	};
+
+	return { container, open, close, layout };
+}
