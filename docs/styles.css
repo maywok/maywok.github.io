@@ -250,7 +250,10 @@ main { padding: 24px; }
     top: 50%;
     transform: translate(-50%, -50%);
     width: min(420px, 92vw);
-    background: #d9e6fb;
+    background-color: #f3deb0;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='480' height='320' viewBox='0 0 480 320'><g fill='none' stroke='rgba(0,0,0,0.28)' stroke-width='2'><path d='M-20 40 C 60 10, 140 70, 220 40 S 380 70, 500 40'/><path d='M-30 110 C 70 140, 160 80, 250 110 S 400 140, 520 110'/><path d='M-40 180 C 40 210, 170 150, 260 180 S 420 210, 540 180'/><path d='M-50 250 C 80 220, 180 280, 300 250 S 440 280, 560 250'/></g></svg>");
+    background-size: 520px 340px;
+    background-position: center;
     border: 2px solid #1b4c92;
     border-radius: 8px;
     box-shadow: 0 18px 36px rgba(0, 0, 0, 0.45);
@@ -293,7 +296,7 @@ main { padding: 24px; }
 
 .reflex-body {
     padding: 12px;
-    background: #e6efff;
+    background: transparent;
     border-bottom-left-radius: 6px;
     border-bottom-right-radius: 6px;
     font-family: var(--pixel-font);
@@ -351,8 +354,12 @@ main { padding: 24px; }
 }
 
 .reflex-prompt {
+    display: grid;
+    grid-template-columns: repeat(3, 22px);
+    grid-template-rows: repeat(3, 22px);
+    place-items: center;
     font-size: 18px;
-    letter-spacing: 2px;
+    letter-spacing: 0;
     color: #1c2c4b;
     opacity: 0.35;
     transform: translateY(2px);
@@ -364,6 +371,28 @@ main { padding: 24px; }
     transform: translateY(0);
     color: #0b1020;
 }
+
+.reflex-arrow {
+    width: 22px;
+    height: 22px;
+    display: grid;
+    place-items: center;
+    color: #1c2c4b;
+    opacity: 0.55;
+    font-weight: 700;
+    text-shadow: 0 0 6px rgba(0,0,0,0.08);
+}
+
+.reflex-arrow.is-hot {
+    color: #c4001f;
+    opacity: 1;
+    text-shadow: 0 0 8px rgba(196, 0, 31, 0.35);
+}
+
+.reflex-arrow-up { grid-column: 2; grid-row: 1; }
+.reflex-arrow-right { grid-column: 3; grid-row: 2; }
+.reflex-arrow-down { grid-column: 2; grid-row: 3; }
+.reflex-arrow-left { grid-column: 1; grid-row: 2; }
 
 .reflex-fx {
     position: absolute;

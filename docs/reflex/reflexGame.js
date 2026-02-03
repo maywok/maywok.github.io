@@ -73,7 +73,19 @@ export function createReflexGameWindow(options = {}) {
 
 	const prompt = document.createElement('div');
 	prompt.className = 'reflex-prompt';
-	prompt.textContent = 'PRESS!';
+	const arrowUp = document.createElement('span');
+	arrowUp.className = 'reflex-arrow reflex-arrow-up';
+	arrowUp.textContent = '↑';
+	const arrowRight = document.createElement('span');
+	arrowRight.className = 'reflex-arrow reflex-arrow-right';
+	arrowRight.textContent = '→';
+	const arrowDown = document.createElement('span');
+	arrowDown.className = 'reflex-arrow reflex-arrow-down';
+	arrowDown.textContent = '↓';
+	const arrowLeft = document.createElement('span');
+	arrowLeft.className = 'reflex-arrow reflex-arrow-left';
+	arrowLeft.textContent = '←';
+	prompt.append(arrowUp, arrowRight, arrowDown, arrowLeft);
 
 	const cpuColumn = document.createElement('div');
 	cpuColumn.className = 'reflex-column';
@@ -139,7 +151,10 @@ export function createReflexGameWindow(options = {}) {
 	const setExpectedDirection = (dir) => {
 		state.expected = dir;
 		hint.textContent = `Press ${dir.label} when prompted.`;
-		prompt.textContent = dir.name.toUpperCase();
+		arrowUp.classList.toggle('is-hot', dir?.name === 'Up');
+		arrowRight.classList.toggle('is-hot', dir?.name === 'Right');
+		arrowDown.classList.toggle('is-hot', dir?.name === 'Down');
+		arrowLeft.classList.toggle('is-hot', dir?.name === 'Left');
 	};
 
 	const resetCubes = () => {
@@ -182,7 +197,7 @@ export function createReflexGameWindow(options = {}) {
 			setPhase('active');
 			state.startTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 			state.cpuTime = clamp(randomBetween(config.cpuMinMs, config.cpuMaxMs), config.cpuMinMs, config.cpuMaxMs);
-			status.textContent = `PRESS ${state.expected?.label || ''}!`;
+			status.textContent = 'Hit the red arrow!';
 			setPromptVisible(true);
 
 			const cpuTimer = window.setTimeout(() => {
