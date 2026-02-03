@@ -32,7 +32,7 @@ function randomBetween(min, max) {
 
 export function createReflexGameWindow(options = {}) {
 	const config = { ...DEFAULTS, ...options };
-	const root = options.root || document.body;
+	const root = options.root || document.getElementById('game-root') || document.body;
 	const state = {
 		open: false,
 		phase: 'idle',
@@ -384,6 +384,7 @@ export function createReflexGameWindow(options = {}) {
 		win.style.transform = 'translate(-50%, -50%)';
 		ensureFlow();
 		flowApp?.ticker?.start?.();
+		root.classList?.add('reflex-open');
 		difficultySelect.value = state.difficulty;
 		beginRound();
 	};
@@ -394,6 +395,7 @@ export function createReflexGameWindow(options = {}) {
 		win.style.display = 'none';
 		win.setAttribute('aria-hidden', 'true');
 		flowApp?.ticker?.stop?.();
+		root.classList?.remove('reflex-open');
 		setPhase('idle');
 		status.textContent = 'Press Start to begin.';
 		result.textContent = 'Waiting for round...';
