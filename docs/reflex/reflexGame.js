@@ -63,6 +63,7 @@ export function createReflexGameWindow(options = {}) {
 	stage.className = 'reflex-stage';
 	const playerColumn = document.createElement('div');
 	playerColumn.className = 'reflex-column';
+	playerColumn.classList.add('reflex-player-col');
 	const playerCube = document.createElement('div');
 	playerCube.className = 'reflex-cube reflex-player';
 	const playerLabel = document.createElement('div');
@@ -76,6 +77,7 @@ export function createReflexGameWindow(options = {}) {
 
 	const cpuColumn = document.createElement('div');
 	cpuColumn.className = 'reflex-column';
+	cpuColumn.classList.add('reflex-cpu-col');
 	const cpuCube = document.createElement('div');
 	cpuCube.className = 'reflex-cube reflex-cpu';
 	const cpuLabel = document.createElement('div');
@@ -83,7 +85,15 @@ export function createReflexGameWindow(options = {}) {
 	cpuLabel.textContent = 'CPU';
 	cpuColumn.append(cpuCube, cpuLabel);
 
-	stage.append(playerColumn, prompt, cpuColumn);
+	const fxLayer = document.createElement('div');
+	fxLayer.className = 'reflex-fx';
+	const flash = document.createElement('div');
+	flash.className = 'reflex-flash';
+	const slash = document.createElement('div');
+	slash.className = 'reflex-slash';
+	fxLayer.append(flash, slash);
+
+	stage.append(playerColumn, prompt, cpuColumn, fxLayer);
 
 	const metrics = document.createElement('div');
 	metrics.className = 'reflex-metrics';
@@ -137,6 +147,21 @@ export function createReflexGameWindow(options = {}) {
 		cpuCube.classList.remove('is-active');
 	};
 
+	const resetFinisher = () => {
+		stage.classList.remove('finisher-play', 'finisher-player', 'finisher-cpu');
+	};
+
+	const playFinisher = (winner) => {
+		if (!winner) return;
+		resetFinisher();
+		void stage.offsetWidth;
+		stage.classList.add('finisher-play', winner === 'player' ? 'finisher-player' : 'finisher-cpu');
+		const cleanup = window.setTimeout(() => {
+			resetFinisher();
+		}, 700);
+		state.timers.add(cleanup);
+	};
+
 	const setPhase = (phase) => {
 		state.phase = phase;
 	};
@@ -144,6 +169,7 @@ export function createReflexGameWindow(options = {}) {
 	const beginRound = () => {
 		clearTimers();
 		resetCubes();
+		resetFinisher();
 		setPromptVisible(false);
 		updateMetrics(null, null);
 		result.textContent = '...';
@@ -194,8 +220,10 @@ export function createReflexGameWindow(options = {}) {
 		const playerMs = now - state.startTime;
 		const cpuMs = state.cpuTime;
 		playerCube.classList.add('is-active');
-		const winner = playerMs <= cpuMs ? 'Player wins!' : 'CPU wins!';
-		showResult(playerMs, cpuMs, winner);
+		const playerWins = playerMs <= cpuMs;
+		const winnerText = playerWins ? 'Player wins!' : 'CPU wins!';
+		showResult(playerMs, cpuMs, winnerText);
+		playFinisher(playerWins ? 'player' : 'cpu');
 	};
 
 	const onKeyDown = (event) => {
@@ -242,6 +270,7 @@ export function createReflexGameWindow(options = {}) {
 		result.textContent = 'Waiting for round...';
 		setPromptVisible(false);
 		resetCubes();
+		resetFinisher();
 		updateMetrics(null, null);
 	};
 

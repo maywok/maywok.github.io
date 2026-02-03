@@ -315,12 +315,16 @@ main { padding: 24px; }
     border: 2px inset #95a9cf;
     border-radius: 6px;
     min-height: 120px;
+    position: relative;
+    overflow: hidden;
 }
 
 .reflex-column {
     display: grid;
     justify-items: center;
     gap: 6px;
+    position: relative;
+    z-index: 1;
 }
 
 .reflex-cube {
@@ -359,6 +363,148 @@ main { padding: 24px; }
     opacity: 1;
     transform: translateY(0);
     color: #0b1020;
+}
+
+.reflex-fx {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 3;
+}
+
+.reflex-flash {
+    position: absolute;
+    inset: 0;
+    background: #000000;
+    opacity: 0;
+}
+
+.reflex-slash {
+    position: absolute;
+    left: -40%;
+    top: 50%;
+    width: 180%;
+    height: 4px;
+    background: linear-gradient(90deg, transparent, #ffffff, #ff5667, transparent);
+    opacity: 0;
+    transform: translateY(-50%) rotate(-12deg);
+    box-shadow: 0 0 10px rgba(255, 86, 103, 0.7);
+}
+
+.reflex-stage.finisher-play .reflex-flash {
+    animation: reflexFlash 420ms ease;
+}
+
+.reflex-stage.finisher-play .reflex-slash {
+    animation: reflexSlash 520ms ease;
+    animation-delay: 120ms;
+}
+
+.reflex-stage.finisher-player .reflex-player-col {
+    animation: reflexTeleportRight 520ms ease;
+    z-index: 1;
+}
+
+.reflex-stage.finisher-player .reflex-cpu-col {
+    z-index: 2;
+}
+
+.reflex-stage.finisher-cpu .reflex-cpu-col {
+    animation: reflexTeleportLeft 520ms ease;
+    z-index: 1;
+}
+
+.reflex-stage.finisher-cpu .reflex-player-col {
+    z-index: 2;
+}
+
+.reflex-stage.finisher-player .reflex-cpu,
+.reflex-stage.finisher-cpu .reflex-player {
+    animation: reflexSlice 520ms ease;
+}
+
+@keyframes reflexFlash {
+    0% { opacity: 0; }
+    15% { opacity: 0.95; }
+    32% { opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes reflexSlash {
+    0% {
+        opacity: 0;
+        transform: translateY(-50%) translateX(-20%) rotate(-12deg);
+    }
+    35% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(-50%) translateX(20%) rotate(-12deg);
+    }
+}
+
+@keyframes reflexTeleportRight {
+    0% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    20% {
+        opacity: 0;
+    }
+    45% {
+        opacity: 0;
+        transform: translateX(140px);
+    }
+    65% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(140px);
+    }
+}
+
+@keyframes reflexTeleportLeft {
+    0% {
+        opacity: 1;
+        transform: translateX(0);
+    }
+    20% {
+        opacity: 0;
+    }
+    45% {
+        opacity: 0;
+        transform: translateX(-140px);
+    }
+    65% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(-140px);
+    }
+}
+
+@keyframes reflexSlice {
+    0% {
+        transform: translateX(0) rotate(0deg);
+        opacity: 1;
+        filter: saturate(1);
+    }
+    45% {
+        transform: translateX(0) rotate(0deg);
+        opacity: 1;
+    }
+    70% {
+        transform: translateX(6px) rotate(-6deg);
+        opacity: 0.5;
+        filter: saturate(1.4);
+    }
+    100% {
+        transform: translateX(10px) rotate(-8deg);
+        opacity: 0.2;
+    }
 }
 
 .reflex-metrics {
