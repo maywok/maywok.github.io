@@ -41,6 +41,7 @@ export function createReflexGameWindow(options = {}) {
 		expected: null,
 		selectedDirection: null,
 		difficulty: config.defaultDifficulty,
+		winStreak: 0,
 		timers: new Set(),
 	};
 
@@ -630,6 +631,13 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	});
 	result.position.set(padding, stageY + stageH + 22);
 
+	const streakText = new PIXI.Text('Win Streak: 0', {
+		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontSize: 10,
+		fill: 0x1c2c4b,
+	});
+	streakText.position.set(padding, stageY + stageH + 60);
+
 	const hint = new PIXI.Text('Press the shown direction when prompted.', {
 		fontFamily: 'Tahoma, Segoe UI, sans-serif',
 		fontSize: 8,
@@ -681,6 +689,26 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		const playerText = Number.isFinite(playerMs) ? `${Math.round(playerMs)} ms` : '-- ms';
 		const cpuText = Number.isFinite(cpuMs) ? `${Math.round(cpuMs)} ms` : '-- ms';
 		metrics.text = `Player: ${playerText}   CPU: ${cpuText}`;
+	};
+
+	const updateStreakDisplay = () => {
+		const capped = Math.min(state.winStreak, 20);
+		const size = 10 + capped * 0.6;
+		const hue = (capped * 22) % 360;
+		const sat = 70 + Math.min(20, capped * 2);
+		const light = 50 + Math.min(10, capped);
+		const toRgb = (h, s, l) => {
+			const a = s * Math.min(l, 100 - l) / 100;
+			const f = (n) => {
+				const k = (n + h / 30) % 12;
+				const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+				return Math.round(255 * color / 100);
+			};
+			return (f(0) << 16) | (f(8) << 8) | f(4);
+		};
+		streakText.text = `Win Streak: ${state.winStreak}`;
+		streakText.style.fontSize = Math.min(18, size);
+		streakText.style.fill = toRgb(hue, sat, light);
 	};
 
 	const setExpectedDirection = (dir) => {
@@ -776,6 +804,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		const winnerText = playerWins ? 'Player wins!' : 'CPU wins!';
 		showResult(playerMs, cpuMs, winnerText);
 		startFinisher(playerWins ? 'player' : 'cpu');
+		state.winStreak = playerWins ? state.winStreak + 1 : 0;
+		updateStreakDisplay();
 	};
 
 	const onKeyDown = (event) => {
@@ -872,7 +902,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	app.stage.on('pointerupoutside', () => { dragState.active = false; });
 
 	container.addChild(panelFill, flow.container, panelMask, headerBg, title, closeBtn);
-	container.addChild(stage, flash, slash, playerCube, cpuCube, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, difficultyBtn, startBtn, panelBorder);
+	container.addChild(stage, flash, slash, playerCube, cpuCube, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, streakText, difficultyBtn, startBtn, panelBorder);
 
 	const layout = () => {
 		const cx = app.renderer.width / 2;
@@ -943,6 +973,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		state.open = true;
 		startText.text = 'Start';
 		layout();
+		updateStreakDisplay();
 		beginRound();
 	};
 
@@ -957,6 +988,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		setExpectedDirection(null);
 		resetCubes();
 		updateMetrics(null, null);
+		updateStreakDisplay();
 	};
 
 	return { container, open, close, layout };
