@@ -476,6 +476,11 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	panelMask.endFill();
 	panelMask.visible = false;
 
+	const panelFill = new PIXI.Graphics();
+	panelFill.beginFill(0xf3deb0, 1);
+	panelFill.drawRoundedRect(0, 0, windowWidth, windowHeight, 8);
+	panelFill.endFill();
+
 	const flow = createCrimsonFlowBackground(app, {
 		lineColor: 0x000000,
 		glowColor: 0x000000,
@@ -494,9 +499,15 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	panelBorder.drawRoundedRect(0, 0, windowWidth, windowHeight, 8);
 
 	const headerBg = new PIXI.Graphics();
-	headerBg.beginFill(0x2a66c9, 1);
+	headerBg.beginFill(0xffffff, 1);
 	headerBg.drawRoundedRect(0, 0, windowWidth, headerHeight, 6);
 	headerBg.endFill();
+	headerBg.beginFill(0xe5e5e5, 1);
+	headerBg.drawRect(0, headerHeight * 0.52, windowWidth, headerHeight * 0.48);
+	headerBg.endFill();
+	headerBg.eventMode = 'static';
+	headerBg.cursor = 'move';
+	headerBg.hitArea = new PIXI.Rectangle(0, 0, windowWidth, headerHeight);
 
 	const title = new PIXI.Text(config.title, {
 		fontFamily: 'Tahoma, Segoe UI, sans-serif',
@@ -798,10 +809,11 @@ export function createReflexGameOverlay(app, world, options = {}) {
 
 	const slash = new PIXI.Graphics();
 	slash.beginFill(0xffffff, 0.0);
-	slash.lineStyle(2, 0xff5667, 0.9);
-	slash.moveTo(-40, 0);
-	slash.lineTo(stageW + 40, 0);
-	slash.position.set(stageX, stageY + stageH * 0.5);
+	slash.lineStyle(4, 0xff5667, 0.95);
+	const slashLen = stageW * 0.75;
+	slash.moveTo(-slashLen * 0.5, 0);
+	slash.lineTo(slashLen * 0.5, 0);
+	slash.position.set(stageX + stageW * 0.5, stageY + stageH * 0.5);
 	slash.rotation = -0.2;
 	slash.alpha = 0;
 
@@ -842,8 +854,9 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	window.addEventListener('keydown', onKeyDown);
 
 	const dragState = { active: false, offsetX: 0, offsetY: 0 };
-	headerBg.eventMode = 'static';
-	headerBg.cursor = 'move';
+	closeBtn.on('pointerdown', (event) => {
+		event.stopPropagation();
+	});
 	headerBg.on('pointerdown', (event) => {
 		const pos = event.getLocalPosition(world);
 		dragState.active = true;
@@ -858,7 +871,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	app.stage.on('pointerup', () => { dragState.active = false; });
 	app.stage.on('pointerupoutside', () => { dragState.active = false; });
 
-	container.addChild(flow.container, panelMask, headerBg, title, closeBtn);
+	container.addChild(panelFill, flow.container, panelMask, headerBg, title, closeBtn);
 	container.addChild(stage, flash, slash, playerCube, cpuCube, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, difficultyBtn, startBtn, panelBorder);
 
 	const layout = () => {
@@ -882,9 +895,9 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		if (finisher.active) {
 			finisher.time += dt / 60;
 			const t = finisher.time;
-			flash.alpha = t < 0.08 ? 0.9 : (t < 0.16 ? 0.9 * (1 - (t - 0.08) / 0.08) : 0);
-			if (t > 0.12 && t < 0.32) {
-				const p = t < 0.2 ? (t - 0.12) / 0.08 : (0.32 - t) / 0.12;
+			flash.alpha = t < 0.1 ? 0.9 : (t < 0.22 ? 0.9 * (1 - (t - 0.1) / 0.12) : 0);
+			if (t > 0.18 && t < 0.5) {
+				const p = t < 0.3 ? (t - 0.18) / 0.12 : (0.5 - t) / 0.2;
 				slash.alpha = Math.max(0, Math.min(1, p));
 			} else {
 				slash.alpha = 0;
@@ -913,7 +926,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 			} else {
 				loserCube.alpha = 1;
 			}
-			if (t >= 0.6) {
+			if (t >= 0.75) {
 				finisher.active = false;
 				playerCube.alpha = 1;
 				cpuCube.alpha = 1;
