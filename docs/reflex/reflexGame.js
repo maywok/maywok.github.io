@@ -459,8 +459,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		return (screenY - cy) / screenScale + cy;
 	};
 
-	const windowWidth = Math.min(420, app.renderer.width * 0.85);
-	const windowHeight = Math.min(280, app.renderer.height * 0.6);
+	const windowWidth = Math.min(480, app.renderer.width * 0.9);
+	const windowHeight = Math.min(320, app.renderer.height * 0.68);
 	const headerHeight = 26;
 	const padding = 12;
 
@@ -535,7 +535,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	closeBtn.addChild(closeX);
 
 	const status = new PIXI.Text('Press Start to begin.', {
-		fontFamily: 'Minecraft, monospace',
+		fontFamily: 'Tahoma, Segoe UI, sans-serif',
 		fontSize: 10,
 		fill: 0x112044,
 	});
@@ -567,14 +567,14 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	cpuCube.position.set(stageX + stageW - 64, stageY + 24);
 
 	const playerLabel = new PIXI.Text('Player', {
-		fontFamily: 'Minecraft, monospace',
+		fontFamily: 'Tahoma, Segoe UI, sans-serif',
 		fontSize: 9,
 		fill: 0x1c2c4b,
 	});
 	playerLabel.position.set(stageX + 30, stageY + 58);
 
 	const cpuLabel = new PIXI.Text('CPU', {
-		fontFamily: 'Minecraft, monospace',
+		fontFamily: 'Tahoma, Segoe UI, sans-serif',
 		fontSize: 9,
 		fill: 0x1c2c4b,
 	});
@@ -582,7 +582,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 
 	const arrowGroup = new PIXI.Container();
 	const arrowStyle = {
-		fontFamily: 'Minecraft, monospace',
+		fontFamily: 'Tahoma, Segoe UI, sans-serif',
 		fontSize: 16,
 		fill: 0x0b0b0b,
 		stroke: 0x000000,
@@ -617,21 +617,21 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	arrowGroup.alpha = 0.35;
 
 	const metrics = new PIXI.Text('Player: -- ms   CPU: -- ms', {
-		fontFamily: 'Minecraft, monospace',
+		fontFamily: 'Tahoma, Segoe UI, sans-serif',
 		fontSize: 9,
 		fill: 0x1d2b49,
 	});
 	metrics.position.set(padding, stageY + stageH + 8);
 
 	const result = new PIXI.Text('Waiting for round...', {
-		fontFamily: 'Minecraft, monospace',
+		fontFamily: 'Tahoma, Segoe UI, sans-serif',
 		fontSize: 10,
 		fill: 0x10203d,
 	});
 	result.position.set(padding, stageY + stageH + 22);
 
 	const hint = new PIXI.Text('Press the shown direction when prompted.', {
-		fontFamily: 'Minecraft, monospace',
+		fontFamily: 'Tahoma, Segoe UI, sans-serif',
 		fontSize: 8,
 		fill: 0x2a3b5f,
 	});
@@ -646,7 +646,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	difficultyBtn.eventMode = 'static';
 	difficultyBtn.cursor = 'pointer';
 	const difficultyText = new PIXI.Text('Difficulty: Normal', {
-		fontFamily: 'Minecraft, monospace',
+		fontFamily: 'Tahoma, Segoe UI, sans-serif',
 		fontSize: 8,
 		fill: 0x1b2b42,
 	});
@@ -662,7 +662,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	startBtn.eventMode = 'static';
 	startBtn.cursor = 'pointer';
 	const startText = new PIXI.Text('Start', {
-		fontFamily: 'Minecraft, monospace',
+		fontFamily: 'Tahoma, Segoe UI, sans-serif',
 		fontSize: 9,
 		fill: 0xffffff,
 	});
