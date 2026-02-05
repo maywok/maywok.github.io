@@ -561,12 +561,12 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stageMask.visible = false;
 
 	const stageBgPath = './assets/spritesheet/reflexCity.png';
-	const stageBg = new PIXI.Sprite(PIXI.Texture.from(stageBgPath));
-	if (!stageBg.texture?.baseTexture?.valid) {
-		PIXI.Assets.load([stageBgPath]).then(() => {
-			stageBg.texture = PIXI.Texture.from(stageBgPath);
-		});
-	}
+	const stageBg = new PIXI.Sprite(PIXI.Texture.EMPTY);
+	PIXI.Assets.load([stageBgPath]).then(() => {
+		stageBg.texture = PIXI.Texture.from(stageBgPath);
+		stageBg.width = stageW;
+		stageBg.height = stageH;
+	});
 	stageBg.width = stageW;
 	stageBg.height = stageH;
 	stageBg.position.set(stageX, stageY);
@@ -736,6 +736,15 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		cpuActor.alpha = 1;
 	};
 
+	const setLoserTint = (loser) => {
+		if (loser === 'player') {
+			playerActor.tint = 0xf87171;
+		}
+		if (loser === 'cpu') {
+			cpuActor.tint = 0xf87171;
+		}
+	};
+
 	const updateMetrics = (playerMs, cpuMs) => {
 		const playerText = Number.isFinite(playerMs) ? `${Math.round(playerMs)} ms` : '-- ms';
 		const cpuText = Number.isFinite(cpuMs) ? `${Math.round(cpuMs)} ms` : '-- ms';
@@ -821,9 +830,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 			status.text = 'Hit the red arrow!';
 			setExpectedDirection(state.selectedDirection);
 			arrowGroup.alpha = 1;
-			const cpuTimer = window.setTimeout(() => {
-				cpuActor.tint = 0xf87171;
-			}, state.cpuTime);
+			const cpuTimer = window.setTimeout(() => {}, state.cpuTime);
 			state.timers.add(cpuTimer);
 		}, delay);
 		state.timers.add(timerId);
@@ -854,10 +861,10 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 		const playerMs = now - state.startTime;
 		const cpuMs = state.cpuTime;
-		playerActor.tint = 0x34d399;
 		const playerWins = playerMs <= cpuMs;
 		const winnerText = playerWins ? 'Player wins!' : 'CPU wins!';
 		showResult(playerMs, cpuMs, winnerText);
+		setLoserTint(playerWins ? 'cpu' : 'player');
 		startFinisher(playerWins ? 'player' : 'cpu');
 		state.winStreak = playerWins ? state.winStreak + 1 : 0;
 		updateStreakDisplay();
@@ -879,10 +886,12 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		if (!isExpected) {
 			if (state.phase === 'waiting') {
 				showResult(null, null, 'Too soon!');
+				setLoserTint('player');
 				return;
 			}
 			if (state.phase === 'active') {
 				showResult(null, null, 'Wrong key!');
+				setLoserTint('player');
 			}
 			return;
 		}
