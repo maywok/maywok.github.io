@@ -560,7 +560,13 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stageMask.position.set(stageX, stageY);
 	stageMask.visible = false;
 
-	const stageBg = new PIXI.Sprite(PIXI.Texture.from('./assets/spritesheet/reflexCity.png'));
+	const stageBgPath = './assets/spritesheet/reflexCity.png';
+	const stageBg = new PIXI.Sprite(PIXI.Texture.from(stageBgPath));
+	if (!stageBg.texture?.baseTexture?.valid) {
+		PIXI.Assets.load([stageBgPath]).then(() => {
+			stageBg.texture = PIXI.Texture.from(stageBgPath);
+		});
+	}
 	stageBg.width = stageW;
 	stageBg.height = stageH;
 	stageBg.position.set(stageX, stageY);
@@ -591,7 +597,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const playerActor = createActor(options.playerTextures);
 	const cpuActor = createActor(options.cpuTextures);
 	playerActor.position.set(stageX + 42, stageY + 38);
-	cpuActor.position.set(stageX + stageW - 42, stageY + 38);
+	cpuActor.position.set(stageX + stageW - 46, stageY + 38);
 	if (cpuActor?.scale) {
 		cpuActor.scale.x *= -1;
 	}
