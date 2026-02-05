@@ -553,19 +553,31 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stage.endFill();
 	stage.position.set(stageX, stageY);
 
-	const playerCube = new PIXI.Graphics();
-	playerCube.beginFill(0x1f2937, 1);
-	playerCube.lineStyle(2, 0x0b1120, 1);
-	playerCube.drawRect(0, 0, 28, 28);
-	playerCube.endFill();
-	playerCube.position.set(stageX + 36, stageY + 24);
+	const actorSize = 28;
+	const createActor = (textures) => {
+		if (textures && textures.length) {
+			const sprite = new PIXI.AnimatedSprite(textures);
+			sprite.anchor.set(0.5);
+			sprite.animationSpeed = 0.14;
+			sprite.play();
+			const baseW = textures[0]?.width || 1;
+			const baseH = textures[0]?.height || 1;
+			const scale = actorSize / Math.max(baseW, baseH);
+			sprite.scale.set(scale);
+			return sprite;
+		}
+		const g = new PIXI.Graphics();
+		g.beginFill(0x1f2937, 1);
+		g.lineStyle(2, 0x0b1120, 1);
+		g.drawRect(-actorSize / 2, -actorSize / 2, actorSize, actorSize);
+		g.endFill();
+		return g;
+	};
 
-	const cpuCube = new PIXI.Graphics();
-	cpuCube.beginFill(0x1f2937, 1);
-	cpuCube.lineStyle(2, 0x0b1120, 1);
-	cpuCube.drawRect(0, 0, 28, 28);
-	cpuCube.endFill();
-	cpuCube.position.set(stageX + stageW - 64, stageY + 24);
+	const playerActor = createActor(options.playerTextures);
+	const cpuActor = createActor(options.cpuTextures);
+	playerActor.position.set(stageX + 50, stageY + 38);
+	cpuActor.position.set(stageX + stageW - 50, stageY + 38);
 
 	const playerLabel = new PIXI.Text('Player', {
 		fontFamily: 'Tahoma, Segoe UI, sans-serif',
@@ -638,7 +650,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	});
 	streakText.position.set(padding, stageY + stageH + 60);
 
-	const hint = new PIXI.Text('Press the shown direction when prompted.', {
+	const hint = new PIXI.Text('Use arrows or WASD.', {
 		fontFamily: 'Tahoma, Segoe UI, sans-serif',
 		fontSize: 8,
 		fill: 0x2a3b5f,
@@ -695,10 +707,10 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	startBtn.addChild(startText);
 
 	const resetCubes = () => {
-		playerCube.tint = 0xffffff;
-		cpuCube.tint = 0xffffff;
-		playerCube.alpha = 1;
-		cpuCube.alpha = 1;
+		playerActor.tint = 0xffffff;
+		cpuActor.tint = 0xffffff;
+		playerActor.alpha = 1;
+		cpuActor.alpha = 1;
 	};
 
 	const updateMetrics = (playerMs, cpuMs) => {
@@ -730,7 +742,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 
 	const setExpectedDirection = (dir) => {
 		state.expected = dir;
-		hint.text = dir ? `Press ${dir.label} when prompted.` : 'Press the shown direction when prompted.';
+		hint.text = 'Use arrows or WASD.';
 		const resetText = (arrow) => {
 			arrow.style.fill = 0x0b0b0b;
 			arrow.style.stroke = 0x000000;
@@ -787,7 +799,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 			setExpectedDirection(state.selectedDirection);
 			arrowGroup.alpha = 1;
 			const cpuTimer = window.setTimeout(() => {
-				cpuCube.tint = 0xf87171;
+				cpuActor.tint = 0xf87171;
 			}, state.cpuTime);
 			state.timers.add(cpuTimer);
 		}, delay);
@@ -819,7 +831,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 		const playerMs = now - state.startTime;
 		const cpuMs = state.cpuTime;
-		playerCube.tint = 0x34d399;
+		playerActor.tint = 0x34d399;
 		const playerWins = playerMs <= cpuMs;
 		const winnerText = playerWins ? 'Player wins!' : 'CPU wins!';
 		showResult(playerMs, cpuMs, winnerText);
@@ -883,8 +895,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		finisher.active = true;
 		finisher.time = 0;
 		finisher.winner = winner;
-		finisher.playerBase = { x: playerCube.position.x, y: playerCube.position.y };
-		finisher.cpuBase = { x: cpuCube.position.x, y: cpuCube.position.y };
+		finisher.playerBase = { x: playerActor.position.x, y: playerActor.position.y };
+		finisher.cpuBase = { x: cpuActor.position.x, y: cpuActor.position.y };
 		flash.alpha = 0;
 		slash.alpha = 0;
 	};
@@ -977,7 +989,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	});
 
 	container.addChild(panelFill, flow.container, panelMask, headerBg, title, closeBtn);
-	container.addChild(stage, flash, slash, playerCube, cpuCube, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, streakText, difficultyBtn, difficultyMenu, startBtn, panelBorder);
+	container.addChild(stage, flash, slash, playerActor, cpuActor, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, streakText, difficultyBtn, difficultyMenu, startBtn, panelBorder);
 
 	const layout = () => {
 		const cx = app.renderer.width / 2;
@@ -1011,8 +1023,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 				slash.alpha = 0;
 			}
 			const winnerIsPlayer = finisher.winner === 'player';
-			const winnerCube = winnerIsPlayer ? playerCube : cpuCube;
-			const loserCube = winnerIsPlayer ? cpuCube : playerCube;
+			const winnerCube = winnerIsPlayer ? playerActor : cpuActor;
+			const loserCube = winnerIsPlayer ? cpuActor : playerActor;
 			const baseWinner = winnerIsPlayer ? finisher.playerBase : finisher.cpuBase;
 			const baseLoser = winnerIsPlayer ? finisher.cpuBase : finisher.playerBase;
 			const behindOffset = winnerIsPlayer ? 18 : -18;
@@ -1036,10 +1048,10 @@ export function createReflexGameOverlay(app, world, options = {}) {
 			}
 			if (t >= 0.75) {
 				finisher.active = false;
-				playerCube.alpha = 1;
-				cpuCube.alpha = 1;
-				playerCube.position.set(finisher.playerBase.x, finisher.playerBase.y);
-				cpuCube.position.set(finisher.cpuBase.x, finisher.cpuBase.y);
+				playerActor.alpha = 1;
+				cpuActor.alpha = 1;
+				playerActor.position.set(finisher.playerBase.x, finisher.playerBase.y);
+				cpuActor.position.set(finisher.cpuBase.x, finisher.cpuBase.y);
 				flash.alpha = 0;
 				slash.alpha = 0;
 			}

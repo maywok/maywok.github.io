@@ -21,6 +21,42 @@ export async function createReflexIcon(app, world, options = {}) {
 		dockScreenY = null,
 	} = options;
 
+	const playerIdleJsonUrl = './assets/spritesheet/json/blueNinjaIdle.json';
+	const playerIdleImageUrl = './assets/spritesheet/blueNinjaIdle.png';
+	const playerRunJsonUrl = './assets/spritesheet/json/blueNinjaRun.json';
+	const playerRunImageUrl = './assets/spritesheet/blueNinjaRun.png';
+	const cpuIdleJsonUrl = './assets/spritesheet/json/redNinjaIdle.json';
+	const cpuIdleImageUrl = './assets/spritesheet/redNinjaIdle.png';
+
+	function extractFrameIndex(name) {
+		const match = name.match(/(\d+)(?!.*\d)/);
+		return match ? Number(match[1]) : 0;
+	}
+
+	function buildTextures(data, imageUrl) {
+		const baseTexture = PIXI.BaseTexture.from(imageUrl);
+		const frames = Object.entries(data.frames || {}).map(([name, value]) => ({
+			name,
+			frame: value.frame,
+		}));
+		frames.sort((a, b) => extractFrameIndex(a.name) - extractFrameIndex(b.name));
+		return frames.map(({ frame }) => new PIXI.Texture(
+			baseTexture,
+			new PIXI.Rectangle(frame.x, frame.y, frame.w, frame.h),
+		));
+	}
+
+	const [playerIdleData, playerRunData, cpuIdleData] = await Promise.all([
+		fetch(playerIdleJsonUrl).then((r) => r.json()),
+		fetch(playerRunJsonUrl).then((r) => r.json()),
+		fetch(cpuIdleJsonUrl).then((r) => r.json()),
+	]);
+	await PIXI.Assets.load([playerIdleImageUrl, playerRunImageUrl, cpuIdleImageUrl]);
+
+	const playerIdleTextures = buildTextures(playerIdleData, playerIdleImageUrl);
+	const playerRunTextures = buildTextures(playerRunData, playerRunImageUrl);
+	const cpuIdleTextures = buildTextures(cpuIdleData, cpuIdleImageUrl);
+
 	const container = new PIXI.Container();
 	const panel = new PIXI.Graphics();
 	const panelBorderGraphic = new PIXI.Graphics();
@@ -34,9 +70,23 @@ export async function createReflexIcon(app, world, options = {}) {
 	labelText.anchor.set(0.5, 0);
 
 	const iconLayer = new PIXI.Container();
-	const cubeOne = new PIXI.Graphics();
-	const cubeTwo = new PIXI.Graphics();
-	const cubeThree = new PIXI.Graphics();
+	const idleSprite = new PIXI.AnimatedSprite(playerIdleTextures);
+	const runSprite = new PIXI.AnimatedSprite(playerRunTextures);
+	idleSprite.anchor.set(0.5);
+	runSprite.anchor.set(0.5);
+	idleSprite.animationSpeed = 0.14;
+	runSprite.animationSpeed = 0.16;
+	idleSprite.play();
+	runSprite.play();
+	runSprite.visible = false;
+
+	const sizeToFit = (sprite) => {
+		const baseW = playerIdleTextures?.[0]?.width || sprite.width || 1;
+		const baseH = playerIdleTextures?.[0]?.height || sprite.height || 1;
+		const target = Math.min(backgroundWidth, backgroundHeight) * 0.62;
+		const scaleFactor = target / Math.max(baseW, baseH);
+		sprite.scale.set(scaleFactor);
+	};
 
 	const drawPanel = () => {
 		panel.clear();
@@ -50,20 +100,10 @@ export async function createReflexIcon(app, world, options = {}) {
 		labelText.position.set(0, backgroundHeight / 2 + 6);
 	};
 
-	const drawCube = (cube, size, fill, stroke, offsetX, offsetY) => {
-		cube.clear();
-		cube.beginFill(fill, 0.95);
-		cube.lineStyle(2, stroke, 0.95);
-		cube.drawRect(-size / 2, -size / 2, size, size);
-		cube.endFill();
-		cube.position.set(offsetX, offsetY);
-	};
-
 	drawPanel();
-	drawCube(cubeOne, 16, 0x3bf7c6, 0x0a2d2a, -12, -4);
-	drawCube(cubeTwo, 12, 0x1f9fff, 0x0a2140, 6, -10);
-	drawCube(cubeThree, 10, 0xffb347, 0x402607, 10, 8);
-	iconLayer.addChild(cubeOne, cubeTwo, cubeThree);
+	sizeToFit(idleSprite);
+	sizeToFit(runSprite);
+	iconLayer.addChild(idleSprite, runSprite);
 
 	container.addChild(panel, panelBorderGraphic, iconLayer, labelText);
 	container.scale.set(scale);
@@ -126,7 +166,11 @@ export async function createReflexIcon(app, world, options = {}) {
 	let gameOverlay = null;
 	const ensureGameOverlay = () => {
 		if (!gameOverlay) {
-			gameOverlay = createReflexGameOverlay(app, world, { screenScale });
+			gameOverlay = createReflexGameOverlay(app, world, {
+				screenScale,
+				playerTextures: playerIdleTextures,
+				cpuTextures: cpuIdleTextures,
+			});
 		}
 		return gameOverlay;
 	};
@@ -135,6 +179,8 @@ export async function createReflexIcon(app, world, options = {}) {
 	container.cursor = 'pointer';
 	container.on('pointerover', () => {
 		state.hovered = true;
+		idleSprite.visible = false;
+		runSprite.visible = true;
 	});
 	container.on('pointermove', (event) => {
 		if (!state.hovered) return;
@@ -143,6 +189,8 @@ export async function createReflexIcon(app, world, options = {}) {
 	container.on('pointerout', () => {
 		state.hovered = false;
 		cardMotion.reset();
+		runSprite.visible = false;
+		idleSprite.visible = true;
 	});
 	container.on('pointertap', () => {
 		if (state.dragEnabled) return;
