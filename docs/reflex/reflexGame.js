@@ -547,13 +547,27 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const stageY = headerHeight + 26;
 	const stageW = windowWidth - padding * 2;
 	const stageH = 92;
-	stage.beginFill(0xf4f7ff, 1);
+	stage.beginFill(0xf4f7ff, 0.18);
 	stage.lineStyle(2, 0x95a9cf, 1);
 	stage.drawRoundedRect(0, 0, stageW, stageH, 0);
 	stage.endFill();
 	stage.position.set(stageX, stageY);
 
-	const actorSize = 28;
+	const stageMask = new PIXI.Graphics();
+	stageMask.beginFill(0xffffff, 1);
+	stageMask.drawRect(0, 0, stageW, stageH);
+	stageMask.endFill();
+	stageMask.position.set(stageX, stageY);
+	stageMask.visible = false;
+
+	const stageBg = new PIXI.Sprite(PIXI.Texture.from('./assets/spritesheet/reflexCity.png'));
+	stageBg.width = stageW;
+	stageBg.height = stageH;
+	stageBg.position.set(stageX, stageY);
+	stageBg.alpha = 0.65;
+	stageBg.mask = stageMask;
+
+	const actorSize = 34;
 	const createActor = (textures) => {
 		if (textures && textures.length) {
 			const sprite = new PIXI.AnimatedSprite(textures);
@@ -576,8 +590,11 @@ export function createReflexGameOverlay(app, world, options = {}) {
 
 	const playerActor = createActor(options.playerTextures);
 	const cpuActor = createActor(options.cpuTextures);
-	playerActor.position.set(stageX + 50, stageY + 38);
-	cpuActor.position.set(stageX + stageW - 50, stageY + 38);
+	playerActor.position.set(stageX + 42, stageY + 38);
+	cpuActor.position.set(stageX + stageW - 42, stageY + 38);
+	if (cpuActor?.scale) {
+		cpuActor.scale.x *= -1;
+	}
 
 	const playerLabel = new PIXI.Text('Player', {
 		fontFamily: 'Tahoma, Segoe UI, sans-serif',
@@ -758,12 +775,12 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		[arrowUp, arrowRight, arrowDown, arrowLeft].forEach(resetText);
 		[arrowUpBox, arrowRightBox, arrowDownBox, arrowLeftBox].forEach(resetBox);
 		const setActive = (arrow, box) => {
-			arrow.style.fill = 0xc4001f;
-			arrow.style.stroke = 0x5c0010;
+			arrow.style.fill = 0xfff200;
+			arrow.style.stroke = 0x3a2f00;
 			arrow.style.strokeThickness = 1.5;
 			box.clear();
-			box.beginFill(0xc4001f, 0.12);
-			box.lineStyle(1, 0xc4001f, 0.75);
+			box.beginFill(0xfff200, 0.18);
+			box.lineStyle(1, 0xfff200, 0.9);
 			box.drawRoundedRect(0, 0, 22, 22, 4);
 			box.endFill();
 		};
@@ -989,7 +1006,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	});
 
 	container.addChild(panelFill, flow.container, panelMask, headerBg, title, closeBtn);
-	container.addChild(stage, flash, slash, playerActor, cpuActor, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, streakText, difficultyBtn, difficultyMenu, startBtn, panelBorder);
+	container.addChild(stageBg, stageMask, stage, flash, slash, playerActor, cpuActor, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, streakText, difficultyBtn, difficultyMenu, startBtn, panelBorder);
 
 	const layout = () => {
 		const cx = app.renderer.width / 2;
@@ -999,6 +1016,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		container.position.set(worldX, worldY);
 		panelMask.position.set(0, 0);
 		panelBorder.position.set(0, 0);
+		stageBg.position.set(stageX, stageY);
+		stageMask.position.set(stageX, stageY);
 		difficultyBtn.position.set((windowWidth - difficultyBtnSize.w) / 2, stageY + stageH + 34);
 		difficultyMenu.position.set(difficultyBtn.position.x, difficultyBtn.position.y + difficultyBtnSize.h + 4);
 		startBtn.position.set(windowWidth - padding - startBtnSize.w, windowHeight - 36);
