@@ -566,6 +566,16 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stageBg.alpha = 1;
 	stageBg.width = stageW;
 	stageBg.height = stageH;
+	stageBg.filters = [new PIXI.filters.BlurFilter(1.2, 2)];
+
+	const stageMat = new PIXI.Graphics();
+	const matHeight = 36;
+	const matInset = 10;
+	stageMat.beginFill(0xf6f0e2, 0.65);
+	stageMat.lineStyle(1, 0xffffff, 0.55);
+	stageMat.drawRoundedRect(0, 0, stageW - matInset * 2, matHeight, 6);
+	stageMat.endFill();
+	stageMat.position.set(stageX + matInset, stageY + stageH / 2 - matHeight / 2 + 4);
 	const stageDebug = new PIXI.Text('bg: loading...', {
 		fontFamily: 'Tahoma, Segoe UI, sans-serif',
 		fontSize: 8,
@@ -588,6 +598,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stageBg.position.set(stageX, stageY);
 	stageBg.alpha = 1;
 	stageBg.mask = stageMask;
+	stageMat.mask = stageMask;
 
 	const actorSize = 34;
 	const createActor = (textures) => {
@@ -1037,7 +1048,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	});
 
 	container.addChild(panelFill, flow.container, panelMask, headerBg, title, closeBtn);
-	container.addChild(stageBg, stageMask, stage, stageDebug, flash, slash, playerActor, cpuActor, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, streakText, difficultyBtn, difficultyMenu, startBtn, panelBorder);
+	container.addChild(stageBg, stageMat, stageMask, stage, stageDebug, flash, slash, playerActor, cpuActor, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, streakText, difficultyBtn, difficultyMenu, startBtn, panelBorder);
 
 	const layout = () => {
 		const cx = app.renderer.width / 2;
@@ -1048,6 +1059,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		panelMask.position.set(0, 0);
 		panelBorder.position.set(0, 0);
 		stageBg.position.set(stageX, stageY);
+		stageMat.position.set(stageX + matInset, stageY + stageH / 2 - matHeight / 2 + 4);
 		stageMask.position.set(stageX, stageY);
 		difficultyBtn.position.set((windowWidth - difficultyBtnSize.w) / 2, stageY + stageH + 34);
 		difficultyMenu.position.set(difficultyBtn.position.x, difficultyBtn.position.y + difficultyBtnSize.h + 4);
