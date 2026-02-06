@@ -561,22 +561,19 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stageMask.visible = false;
 
 	const stageBgPath = '/assets/spritesheet/reflexCity.png';
-	const stageBg = new PIXI.Sprite(PIXI.Texture.EMPTY);
-	const stageTexture = PIXI.Texture.from(stageBgPath);
-	stageBg.texture = stageTexture;
-	const applyStageTexture = () => {
-		stageBg.texture = stageTexture;
+	const stageBg = new PIXI.Sprite(PIXI.Texture.WHITE);
+	stageBg.tint = 0x0f0f0f;
+	stageBg.alpha = 0.85;
+	stageBg.width = stageW;
+	stageBg.height = stageH;
+	PIXI.Assets.load(stageBgPath).then((texture) => {
+		const resolved = texture?.baseTexture ? texture : PIXI.Texture.from(stageBgPath);
+		stageBg.texture = resolved;
 		stageBg.texture.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
 		stageBg.width = stageW;
 		stageBg.height = stageH;
 		stageBg.alpha = 0.85;
-	};
-	if (stageTexture.baseTexture?.valid) {
-		applyStageTexture();
-	} else {
-		stageTexture.baseTexture?.on?.('loaded', applyStageTexture);
-		PIXI.Assets.load([stageBgPath]).then(applyStageTexture);
-	}
+	});
 	stageBg.width = stageW;
 	stageBg.height = stageH;
 	stageBg.position.set(stageX, stageY);
