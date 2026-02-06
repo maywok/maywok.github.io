@@ -566,6 +566,12 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stageBg.alpha = 0.85;
 	stageBg.width = stageW;
 	stageBg.height = stageH;
+	const stageDebug = new PIXI.Text('bg: loading...', {
+		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontSize: 8,
+		fill: 0x1b2b42,
+	});
+	stageDebug.position.set(stageX + 4, stageY + stageH - 12);
 	PIXI.Assets.load(stageBgPath).then((texture) => {
 		const resolved = texture?.baseTexture ? texture : PIXI.Texture.from(stageBgPath);
 		stageBg.texture = resolved;
@@ -573,6 +579,9 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		stageBg.width = stageW;
 		stageBg.height = stageH;
 		stageBg.alpha = 0.85;
+		stageDebug.text = `bg: loaded ${stageBgPath}`;
+	}).catch((err) => {
+		stageDebug.text = `bg: error ${stageBgPath}`;
 	});
 	stageBg.width = stageW;
 	stageBg.height = stageH;
@@ -1028,7 +1037,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	});
 
 	container.addChild(panelFill, flow.container, panelMask, headerBg, title, closeBtn);
-	container.addChild(stageBg, stageMask, stage, flash, slash, playerActor, cpuActor, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, streakText, difficultyBtn, difficultyMenu, startBtn, panelBorder);
+	container.addChild(stageBg, stageMask, stage, stageDebug, flash, slash, playerActor, cpuActor, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, streakText, difficultyBtn, difficultyMenu, startBtn, panelBorder);
 
 	const layout = () => {
 		const cx = app.renderer.width / 2;
