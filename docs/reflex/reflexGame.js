@@ -547,7 +547,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const stageY = headerHeight + 26;
 	const stageW = windowWidth - padding * 2;
 	const stageH = 92;
-	stage.beginFill(0xf4f7ff, 0.08);
+	stage.beginFill(0xf4f7ff, 0.02);
 	stage.lineStyle(2, 0x95a9cf, 1);
 	stage.drawRoundedRect(0, 0, stageW, stageH, 0);
 	stage.endFill();
@@ -562,8 +562,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 
 	const stageBgPath = '/assets/spritesheet/reflexCity.png';
 	const stageBg = new PIXI.Sprite(PIXI.Texture.WHITE);
-	stageBg.tint = 0x0f0f0f;
-	stageBg.alpha = 0.85;
+	stageBg.tint = 0xffffff;
+	stageBg.alpha = 1;
 	stageBg.width = stageW;
 	stageBg.height = stageH;
 	const stageDebug = new PIXI.Text('bg: loading...', {
@@ -578,7 +578,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		stageBg.texture.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
 		stageBg.width = stageW;
 		stageBg.height = stageH;
-		stageBg.alpha = 0.85;
+		stageBg.alpha = 1;
 		stageDebug.text = `bg: loaded ${stageBgPath}`;
 	}).catch((err) => {
 		stageDebug.text = `bg: error ${stageBgPath}`;
@@ -586,7 +586,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stageBg.width = stageW;
 	stageBg.height = stageH;
 	stageBg.position.set(stageX, stageY);
-	stageBg.alpha = 0.85;
+	stageBg.alpha = 1;
 	stageBg.mask = stageMask;
 
 	const actorSize = 34;
