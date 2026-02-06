@@ -547,7 +547,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const stageY = headerHeight + 26;
 	const stageW = windowWidth - padding * 2;
 	const stageH = 92;
-	stage.beginFill(0xf4f7ff, 0.18);
+	stage.beginFill(0xf4f7ff, 0.08);
 	stage.lineStyle(2, 0x95a9cf, 1);
 	stage.drawRoundedRect(0, 0, stageW, stageH, 0);
 	stage.endFill();
@@ -560,7 +560,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stageMask.position.set(stageX, stageY);
 	stageMask.visible = false;
 
-	const stageBgPath = './assets/spritesheet/reflexCity.png';
+	const stageBgPath = '/assets/spritesheet/reflexCity.png';
 	const stageBg = new PIXI.Sprite(PIXI.Texture.EMPTY);
 	const stageTexture = PIXI.Texture.from(stageBgPath);
 	stageBg.texture = stageTexture;
