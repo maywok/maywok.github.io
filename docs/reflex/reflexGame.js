@@ -558,7 +558,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stageMask.drawRect(0, 0, stageW, stageH);
 	stageMask.endFill();
 	stageMask.position.set(stageX, stageY);
-	stageMask.visible = false;
+	stageMask.renderable = false;
 
 	const stageBgPath = '/assets/spritesheet/reflexCity.png';
 	const stageBg = new PIXI.Sprite(PIXI.Texture.WHITE);
