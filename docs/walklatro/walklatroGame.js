@@ -73,19 +73,20 @@ function evaluateHand(cards) {
 	const isFullHouse = counts[0] === 3 && counts[1] === 2;
 	const isStraightFlush = isStraight && isFlush;
 	let name = 'High Card';
-	let baseScore = 10;
-	if (isStraightFlush) { name = 'Straight Flush'; baseScore = 160; }
-	else if (isFour) { name = 'Four of a Kind'; baseScore = 120; }
-	else if (isFullHouse) { name = 'Full House'; baseScore = 90; }
-	else if (isFlush) { name = 'Flush'; baseScore = 70; }
-	else if (isStraight) { name = 'Straight'; baseScore = 60; }
-	else if (isThree) { name = 'Three of a Kind'; baseScore = 45; }
-	else if (isTwoPair) { name = 'Two Pair'; baseScore = 30; }
-	else if (isPair) { name = 'Pair'; baseScore = 20; }
-	baseScore += Math.floor(highest / 2);
+	let mult = 1;
+	if (isStraightFlush) { name = 'Straight Flush'; mult = 9; }
+	else if (isFour) { name = 'Four of a Kind'; mult = 7; }
+	else if (isFullHouse) { name = 'Full House'; mult = 5; }
+	else if (isFlush) { name = 'Flush'; mult = 4; }
+	else if (isStraight) { name = 'Straight'; mult = 4; }
+	else if (isThree) { name = 'Three of a Kind'; mult = 3; }
+	else if (isTwoPair) { name = 'Two Pair'; mult = 2; }
+	else if (isPair) { name = 'Pair'; mult = 1.5; }
+	const baseScore = 10 + Math.floor(highest / 2);
 	return {
 		name,
 		baseScore,
+		mult,
 		highest,
 		isFlush,
 		isStraight,
@@ -154,8 +155,13 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		phase: 'hand',
 		boss: false,
 		target: 0,
+		roundScore: 0,
 		deck: [],
+		discardPile: [],
 		hand: [],
+		selected: new Set(),
+		playsLeft: 3,
+		discardsLeft: 3,
 		lastScore: 0,
 		lastHandName: '',
 		shop: [],
@@ -245,25 +251,32 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	});
 	statsText.position.set(padding, headerHeight + 6);
 
+	const playsText = new PIXI.Text('', {
+		fontFamily: 'Minecraft, monospace',
+		fontSize: 9,
+		fill: colors.muted,
+	});
+	playsText.position.set(padding, headerHeight + 22);
+
 	const targetText = new PIXI.Text('', {
 		fontFamily: 'Minecraft, monospace',
 		fontSize: 9,
 		fill: colors.red,
 	});
-	targetText.position.set(padding, headerHeight + 22);
+	targetText.position.set(padding, headerHeight + 36);
 
 	const resultText = new PIXI.Text('', {
 		fontFamily: 'Minecraft, monospace',
 		fontSize: 10,
 		fill: colors.muted,
 	});
-	resultText.position.set(padding, headerHeight + 38);
+	resultText.position.set(padding, headerHeight + 52);
 
 	const handArea = new PIXI.Container();
-	handArea.position.set(padding, headerHeight + 64);
+	handArea.position.set(padding, headerHeight + 74);
 
 	const shopArea = new PIXI.Container();
-	shopArea.position.set(padding, headerHeight + 170);
+	shopArea.position.set(padding, headerHeight + 176);
 
 	const actionColors = {
 		fill: 0x0b1418,
@@ -273,6 +286,12 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	};
 
 	const playBtn = createButton('Play Hand', 110, 24, actionColors);
+	const discardBtn = createButton('Discard', 86, 20, {
+		fill: 0x0b1418,
+		border: colors.white,
+		text: colors.white,
+		alpha: 0.7,
+	});
 	const nextBtn = createButton('Next Round', 110, 24, actionColors);
 	const skipBtn = createButton('Skip Shop', 100, 20, {
 		fill: 0x0b1418,
@@ -294,6 +313,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	});
 
 	playBtn.position.set(windowWidth - padding - 110, headerHeight + 32);
+	discardBtn.position.set(windowWidth - padding - 86, headerHeight + 60);
 	nextBtn.position.set(windowWidth - padding - 110, headerHeight + 32);
 	skipBtn.position.set(windowWidth - padding - 100, headerHeight + 60);
 	rerollBtn.position.set(windowWidth - padding - 76, headerHeight + 88);
@@ -311,15 +331,19 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	const shopRowHeight = 24;
 	const shopRowWidth = windowWidth - padding * 2 - 120;
 
-	const drawCard = (card) => {
+	const drawCard = (card, index) => {
 		const cardW = 64;
 		const cardH = 84;
 		const container = new PIXI.Container();
 		const bg = new PIXI.Graphics();
-		bg.beginFill(0x030508, 1);
-		bg.lineStyle(2, card.suit.color, 0.9);
-		bg.drawRoundedRect(0, 0, cardW, cardH, 6);
-		bg.endFill();
+		const drawBg = (selected) => {
+			bg.clear();
+			bg.beginFill(0x030508, 1);
+			bg.lineStyle(2, selected ? colors.teal : card.suit.color, selected ? 1 : 0.9);
+			bg.drawRoundedRect(0, 0, cardW, cardH, 6);
+			bg.endFill();
+		};
+		drawBg(false);
 		const rank = new PIXI.Text(card.rank.id, {
 			fontFamily: 'Minecraft, monospace',
 			fontSize: 14,
@@ -341,6 +365,11 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		footer.anchor.set(1, 1);
 		footer.position.set(cardW - 6, cardH - 6);
 		container.addChild(bg, rank, suit, footer);
+		container.eventMode = 'static';
+		container.cursor = 'pointer';
+		container.hitArea = new PIXI.Rectangle(0, 0, cardW, cardH);
+		container._index = index;
+		container._setSelected = (selected) => drawBg(selected);
 		container._size = { width: cardW, height: cardH };
 		return container;
 	};
@@ -355,35 +384,73 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		const totalW = cards.length * cardW + (cards.length - 1) * gap;
 		const startX = (windowWidth - padding * 2 - totalW) / 2;
 		cards.forEach((card, idx) => {
-			const cardSprite = drawCard(card);
+			const cardSprite = drawCard(card, idx);
 			cardSprite.position.set(startX + idx * (cardW + gap), 0);
+			cardSprite.on('pointertap', () => {
+				if (state.phase !== 'hand') return;
+				if (state.selected.has(idx)) {
+					state.selected.delete(idx);
+					cardSprite._setSelected(false);
+					updatePhaseUI();
+					return;
+				}
+				if (state.selected.size >= 5) return;
+				state.selected.add(idx);
+				cardSprite._setSelected(true);
+				updatePhaseUI();
+			});
 			handArea.addChild(cardSprite);
 		});
 	};
 
+	const refreshSelection = () => {
+		for (const child of handArea.children) {
+			const idx = child._index;
+			if (typeof child._setSelected === 'function') {
+				child._setSelected(state.selected.has(idx));
+			}
+		}
+	};
+
 	const updateStats = () => {
 		statsText.text = `Round ${state.round}  Ante ${state.ante}  Coins ${state.coins}`;
+		playsText.text = `Plays ${state.playsLeft}  Discards ${state.discardsLeft}`;
 		if (state.boss) {
-			targetText.text = `Boss target ${state.target}`;
+			targetText.text = `Boss target ${state.target}  Score ${state.roundScore}`;
 			targetText.visible = true;
 		} else {
-			targetText.text = '';
-			targetText.visible = false;
+			targetText.text = `Score ${state.roundScore}`;
+			targetText.visible = true;
 		}
 	};
 
 	const updatePhaseUI = () => {
 		playBtn.visible = state.phase === 'hand';
+		discardBtn.visible = state.phase === 'hand';
 		nextBtn.visible = state.phase === 'shop';
 		skipBtn.visible = state.phase === 'shop';
 		rerollBtn.visible = state.phase === 'shop' && state.shopRerollsRemaining > 0;
 		restartBtn.visible = state.phase === 'gameover';
 		shopArea.visible = state.phase === 'shop';
-		playBtn.setEnabled(state.phase === 'hand');
+		playBtn.setEnabled(state.phase === 'hand' && state.selected.size === 5);
+		discardBtn.setEnabled(state.phase === 'hand' && state.discardsLeft > 0 && state.selected.size > 0);
 		nextBtn.setEnabled(state.phase === 'shop');
 		skipBtn.setEnabled(state.phase === 'shop');
 		rerollBtn.setEnabled(state.phase === 'shop' && state.shopRerollsRemaining > 0);
 		restartBtn.setEnabled(state.phase === 'gameover');
+	};
+
+	const drawFromDeck = (count) => {
+		const drawn = [];
+		for (let i = 0; i < count; i += 1) {
+			if (!state.deck.length && state.discardPile.length) {
+				state.deck = shuffle(state.discardPile.splice(0));
+			}
+			const card = state.deck.pop();
+			if (!card) break;
+			drawn.push(card);
+		}
+		return drawn;
 	};
 
 	const getUpgradeCost = (upgrade) => upgrade.baseCost + Math.max(0, state.ante - 1);
@@ -444,8 +511,10 @@ export function createWalklatroOverlay(app, world, options = {}) {
 
 	const drawHandRound = () => {
 		state.deck = createDeck();
-		state.hand = state.deck.splice(0, 5);
+		state.discardPile = [];
+		state.hand = drawFromDeck(7);
 		drawHand();
+		refreshSelection();
 	};
 
 	const beginRound = () => {
@@ -454,17 +523,24 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		state.phase = 'hand';
 		state.shop = [];
 		state.shopRerollsRemaining = state.mods.shopRerolls;
+		state.playsLeft = 3;
+		state.discardsLeft = 3;
+		state.roundScore = 0;
 		state.lastScore = 0;
 		state.lastHandName = '';
-		resultText.text = 'Play the hand to score.';
+		state.selected.clear();
+		resultText.text = 'Select cards to play or discard.';
 		drawHandRound();
 		updateStats();
 		updatePhaseUI();
 	};
 
 	const handlePlay = () => {
-		const handInfo = evaluateHand(state.hand);
-		let score = handInfo.baseScore + state.mods.flat;
+		if (state.selected.size !== 5) return;
+		const selectedCards = Array.from(state.selected).map((idx) => state.hand[idx]).filter(Boolean);
+		if (!selectedCards.length) return;
+		const handInfo = evaluateHand(selectedCards);
+		let score = handInfo.baseScore * handInfo.mult + state.mods.flat;
 		if (handInfo.isPairPlus) score += state.mods.pairBonus;
 		if (handInfo.isStraight) score += state.mods.straightBonus;
 		if (handInfo.isFlush) score += state.mods.flushBonus;
@@ -474,15 +550,55 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		state.coins += coinGain;
 		state.lastScore = score;
 		state.lastHandName = handInfo.name;
-		resultText.text = `${handInfo.name} - Score ${score} (+${coinGain} coins)`;
-		if (state.boss && score < state.target) {
-			state.phase = 'gameover';
-			resultText.text = `Boss failed. Score ${score} / ${state.target}`;
+		state.roundScore += score;
+		resultText.text = `${handInfo.name} x${handInfo.mult} - Score ${score} (+${coinGain} coins)`;
+		state.playsLeft = Math.max(0, state.playsLeft - 1);
+		const replaceIndices = Array.from(state.selected).sort((a, b) => b - a);
+		state.selected.clear();
+		for (const idx of replaceIndices) {
+			const [card] = state.hand.splice(idx, 1);
+			if (card) state.discardPile.push(card);
+			const [next] = drawFromDeck(1);
+			if (next) state.hand.splice(idx, 0, next);
+		}
+		drawHand();
+		refreshSelection();
+		if (state.boss && state.roundScore >= state.target) {
+			state.phase = 'shop';
+			buildShop();
+			updateStats();
 			updatePhaseUI();
 			return;
 		}
-		state.phase = 'shop';
-		buildShop();
+		if (state.playsLeft <= 0) {
+			if (state.boss && state.roundScore < state.target) {
+				state.phase = 'gameover';
+				resultText.text = `Boss failed. Score ${state.roundScore} / ${state.target}`;
+				updateStats();
+				updatePhaseUI();
+				return;
+			}
+			state.phase = 'shop';
+			buildShop();
+		}
+		updateStats();
+		updatePhaseUI();
+	};
+
+	const handleDiscard = () => {
+		if (state.discardsLeft <= 0) return;
+		if (!state.selected.size) return;
+		const replaceIndices = Array.from(state.selected).sort((a, b) => b - a);
+		state.selected.clear();
+		for (const idx of replaceIndices) {
+			const [card] = state.hand.splice(idx, 1);
+			if (card) state.discardPile.push(card);
+			const [next] = drawFromDeck(1);
+			if (next) state.hand.splice(idx, 0, next);
+		}
+		state.discardsLeft = Math.max(0, state.discardsLeft - 1);
+		drawHand();
+		refreshSelection();
 		updateStats();
 		updatePhaseUI();
 	};
@@ -505,6 +621,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		state.ante = 1;
 		state.coins = 0;
 		state.upgrades = [];
+		state.roundScore = 0;
 		state.mods = {
 			flat: 0,
 			mult: 1,
@@ -519,6 +636,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	};
 
 	playBtn.on('pointertap', handlePlay);
+	discardBtn.on('pointertap', handleDiscard);
 	nextBtn.on('pointertap', handleNextRound);
 	skipBtn.on('pointertap', handleNextRound);
 	rerollBtn.on('pointertap', handleReroll);
@@ -551,11 +669,13 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		title,
 		closeBtn,
 		statsText,
+		playsText,
 		targetText,
 		resultText,
 		handArea,
 		shopArea,
 		playBtn,
+		discardBtn,
 		nextBtn,
 		skipBtn,
 		rerollBtn,
