@@ -98,6 +98,24 @@ function clamp(value, min, max) {
 	return Math.min(max, Math.max(min, value));
 }
 
+function hsvToRgb(h, s, v) {
+	const c = v * s;
+	const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+	const m = v - c;
+	let r = 0;
+	let g = 0;
+	let b = 0;
+	if (h < 60) { r = c; g = x; }
+	else if (h < 120) { r = x; g = c; }
+	else if (h < 180) { g = c; b = x; }
+	else if (h < 240) { g = x; b = c; }
+	else if (h < 300) { r = x; b = c; }
+	else { r = c; b = x; }
+	return ((Math.round((r + m) * 255) << 16)
+		| (Math.round((g + m) * 255) << 8)
+		| Math.round((b + m) * 255));
+}
+
 function createButton(label, width, height, colors) {
 	const container = new PIXI.Container();
 	const bg = new PIXI.Graphics();
@@ -189,8 +207,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	};
 	const screenToWorldSize = (screenSize) => screenSize / screenScale;
 
-	const windowWidth = Math.min(480, app.renderer.width * 0.9);
-	const windowHeight = Math.min(320, app.renderer.height * 0.68);
+	const windowWidth = Math.min(720, app.renderer.width * 0.95);
+	const windowHeight = Math.min(460, app.renderer.height * 0.85);
 	const headerHeight = 26;
 	const padding = 12;
 
@@ -336,14 +354,19 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		const cardH = 84;
 		const container = new PIXI.Container();
 		const bg = new PIXI.Graphics();
-		const drawBg = (selected) => {
+		const border = new PIXI.Graphics();
+		const glow = new PIXI.Graphics();
+		const drawBg = () => {
 			bg.clear();
 			bg.beginFill(0x030508, 1);
-			bg.lineStyle(2, selected ? colors.teal : card.suit.color, selected ? 1 : 0.9);
 			bg.drawRoundedRect(0, 0, cardW, cardH, 6);
 			bg.endFill();
+			border.clear();
+			border.lineStyle(2, card.suit.color, 0.95);
+			border.drawRoundedRect(0, 0, cardW, cardH, 6);
 		};
-		drawBg(false);
+		drawBg();
+		glow.visible = false;
 		const rank = new PIXI.Text(card.rank.id, {
 			fontFamily: 'Minecraft, monospace',
 			fontSize: 14,
@@ -364,13 +387,34 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		});
 		footer.anchor.set(1, 1);
 		footer.position.set(cardW - 6, cardH - 6);
-		container.addChild(bg, rank, suit, footer);
+		container.addChild(glow, bg, border, rank, suit, footer);
 		container.eventMode = 'static';
 		container.cursor = 'pointer';
 		container.hitArea = new PIXI.Rectangle(0, 0, cardW, cardH);
 		container._index = index;
-		container._setSelected = (selected) => drawBg(selected);
+		container._setSelected = (selected) => {
+			glow.visible = selected;
+		};
+		container._glow = glow;
+		container._border = border;
 		container._size = { width: cardW, height: cardH };
+		container._base = { x: 0, y: 0 };
+		container._size = { width: cardW, height: cardH };
+		container.on('pointerover', () => {
+			container.scale.set(1.05);
+			container.position.y = container._base.y - 6;
+		});
+		container.on('pointerout', () => {
+			container.scale.set(1);
+			container.skew.set(0, 0);
+			container.position.y = container._base.y;
+		});
+		container.on('pointermove', (event) => {
+			const local = event.getLocalPosition(container);
+			const nx = clamp((local.x / cardW) * 2 - 1, -1, 1);
+			const ny = clamp((local.y / cardH) * 2 - 1, -1, 1);
+			container.skew.set(-ny * 0.12, nx * 0.12);
+		});
 		return container;
 	};
 
@@ -386,6 +430,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		cards.forEach((card, idx) => {
 			const cardSprite = drawCard(card, idx);
 			cardSprite.position.set(startX + idx * (cardW + gap), 0);
+			cardSprite._base.x = cardSprite.position.x;
+			cardSprite._base.y = cardSprite.position.y;
 			cardSprite.on('pointertap', () => {
 				if (state.phase !== 'hand') return;
 				if (state.selected.has(idx)) {
@@ -432,7 +478,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		rerollBtn.visible = state.phase === 'shop' && state.shopRerollsRemaining > 0;
 		restartBtn.visible = state.phase === 'gameover';
 		shopArea.visible = state.phase === 'shop';
-		playBtn.setEnabled(state.phase === 'hand' && state.selected.size === 5);
+		playBtn.setEnabled(state.phase === 'hand' && state.selected.size > 0);
 		discardBtn.setEnabled(state.phase === 'hand' && state.discardsLeft > 0 && state.selected.size > 0);
 		nextBtn.setEnabled(state.phase === 'shop');
 		skipBtn.setEnabled(state.phase === 'shop');
@@ -536,7 +582,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	};
 
 	const handlePlay = () => {
-		if (state.selected.size !== 5) return;
+		if (!state.selected.size) return;
 		const selectedCards = Array.from(state.selected).map((idx) => state.hand[idx]).filter(Boolean);
 		if (!selectedCards.length) return;
 		const handInfo = evaluateHand(selectedCards);
@@ -662,6 +708,25 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	app.stage.on('pointerup', () => { dragState.active = false; });
 	app.stage.on('pointerupoutside', () => { dragState.active = false; });
 
+	let glowTime = 0;
+	const updateSelectionGlow = (time) => {
+		if (!state.selected.size) return;
+		const hue = (time * 90) % 360;
+		const color = hsvToRgb(hue, 0.9, 1);
+		for (const child of handArea.children) {
+			if (!child?._glow) continue;
+			const selected = state.selected.has(child._index);
+			if (!selected) {
+				child._glow.visible = false;
+				continue;
+			}
+			child._glow.visible = true;
+			child._glow.clear();
+			child._glow.lineStyle(3, color, 0.9);
+			child._glow.drawRoundedRect(-1, -1, 66, 86, 7);
+		}
+	};
+
 	container.addChild(
 		panelFill,
 		panelBorder,
@@ -691,6 +756,12 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	};
 	layout();
 	world.addChild(container);
+
+	app.ticker.add((dt) => {
+		if (!state.open) return;
+		glowTime += dt / 60;
+		updateSelectionGlow(glowTime);
+	});
 
 	const open = () => {
 		container.visible = true;
