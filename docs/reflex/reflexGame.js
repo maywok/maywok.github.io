@@ -561,12 +561,20 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stageMask.renderable = false;
 
 	const stageBgPath = '/assets/spritesheet/reflexCity.png';
+	const stageBgAlpha = 0.22;
 	const stageBg = new PIXI.Sprite(PIXI.Texture.WHITE);
 	stageBg.tint = 0xffffff;
-	stageBg.alpha = 1;
+	stageBg.alpha = stageBgAlpha;
 	stageBg.width = stageW;
 	stageBg.height = stageH;
-	stageBg.filters = [new PIXI.filters.BlurFilter(1.2, 2)];
+	const stageBgFilters = [new PIXI.filters.BlurFilter(2.4, 3)];
+	if (PIXI.filters?.ColorMatrixFilter) {
+		const colorMatrix = new PIXI.filters.ColorMatrixFilter();
+		colorMatrix.desaturate(0.85);
+		colorMatrix.brightness(1.05, false);
+		stageBgFilters.push(colorMatrix);
+	}
+	stageBg.filters = stageBgFilters;
 
 	const stageMat = new PIXI.Graphics();
 	const matHeight = 36;
@@ -588,7 +596,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		stageBg.texture.baseTexture.scaleMode = PIXI.SCALE_MODES.NEAREST;
 		stageBg.width = stageW;
 		stageBg.height = stageH;
-		stageBg.alpha = 1;
+		stageBg.alpha = stageBgAlpha;
 		stageDebug.text = `bg: loaded ${stageBgPath}`;
 	}).catch((err) => {
 		stageDebug.text = `bg: error ${stageBgPath}`;
@@ -596,7 +604,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stageBg.width = stageW;
 	stageBg.height = stageH;
 	stageBg.position.set(stageX, stageY);
-	stageBg.alpha = 1;
+	stageBg.alpha = stageBgAlpha;
 	stageBg.mask = stageMask;
 	stageMat.mask = stageMask;
 
