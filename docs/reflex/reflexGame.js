@@ -478,14 +478,14 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	panelMask.visible = false;
 
 	const panelFill = new PIXI.Graphics();
-	panelFill.beginFill(0xf3deb0, 1);
+	panelFill.beginFill(0x0b0f13, 0.98);
 	panelFill.drawRect(0, 0, windowWidth, windowHeight);
 	panelFill.endFill();
 
 	const flow = createCrimsonFlowBackground(app, {
 		lineColor: 0x000000,
 		glowColor: 0x000000,
-		bgColor: 0xf3deb0,
+		bgColor: 0x0b0f13,
 		glowAlpha: 0,
 		parallax: 0,
 		pixelSize: 6,
@@ -496,49 +496,49 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	let flowTime = 0;
 
 	const panelBorder = new PIXI.Graphics();
-	panelBorder.lineStyle(2, 0x1b4c92, 1);
+	panelBorder.lineStyle(2, 0x1a1f27, 1);
 	panelBorder.drawRect(0, 0, windowWidth, windowHeight);
 
 	const headerBg = new PIXI.Graphics();
-	headerBg.beginFill(0xffffff, 1);
+	headerBg.beginFill(0x0f141a, 1);
 	headerBg.drawRect(0, 0, windowWidth, headerHeight);
 	headerBg.endFill();
-	headerBg.beginFill(0xe5e5e5, 1);
-	headerBg.drawRect(0, headerHeight * 0.52, windowWidth, headerHeight * 0.48);
+	headerBg.beginFill(0x1c2430, 1);
+	headerBg.drawRect(0, headerHeight * 0.62, windowWidth, headerHeight * 0.38);
 	headerBg.endFill();
 	headerBg.eventMode = 'static';
 	headerBg.cursor = 'move';
 	headerBg.hitArea = new PIXI.Rectangle(0, 0, windowWidth, headerHeight);
 
 	const title = new PIXI.Text(config.title, {
-		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontFamily: 'Minecraft, monospace',
 		fontSize: 12,
-		fill: 0x7f0020,
+		fill: 0x22f3c8,
 		fontWeight: '600',
 	});
 	title.position.set(10, 6);
 
 	const closeBtn = new PIXI.Graphics();
-	closeBtn.beginFill(0xf26b6b, 1);
-	closeBtn.lineStyle(1, 0x7f1d1d, 0.6);
+	closeBtn.beginFill(0xff5667, 1);
+	closeBtn.lineStyle(1, 0x000000, 0.6);
 	closeBtn.drawRoundedRect(0, 0, 24, 24, 0);
 	closeBtn.endFill();
 	closeBtn.position.set(windowWidth - 32, 2);
 	closeBtn.eventMode = 'static';
 	closeBtn.cursor = 'pointer';
 	const closeX = new PIXI.Text('✕', {
-		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontFamily: 'Minecraft, monospace',
 		fontSize: 12,
-		fill: 0xffffff,
+		fill: 0xf4f7ff,
 	});
 	closeX.anchor.set(0.5);
 	closeX.position.set(12, 12);
 	closeBtn.addChild(closeX);
 
 	const status = new PIXI.Text('Press Start to begin.', {
-		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontFamily: 'Minecraft, monospace',
 		fontSize: 10,
-		fill: 0x112044,
+		fill: 0xa3b2c4,
 	});
 	status.position.set(padding, headerHeight + 6);
 
@@ -547,8 +547,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const stageY = headerHeight + 26;
 	const stageW = windowWidth - padding * 2;
 	const stageH = 92;
-	stage.beginFill(0xf4f7ff, 0.02);
-	stage.lineStyle(2, 0x95a9cf, 1);
+	stage.beginFill(0x0b1418, 0.9);
+	stage.lineStyle(2, 0x1a1f27, 1);
 	stage.drawRoundedRect(0, 0, stageW, stageH, 0);
 	stage.endFill();
 	stage.position.set(stageX, stageY);
@@ -561,17 +561,17 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stageMask.renderable = false;
 
 	const stageBgPath = '/assets/spritesheet/reflexCity.png';
-	const stageBgAlpha = 0.22;
+	const stageBgAlpha = 0.14;
 	const stageBg = new PIXI.Sprite(PIXI.Texture.WHITE);
-	stageBg.tint = 0xffffff;
+	stageBg.tint = 0x1c2430;
 	stageBg.alpha = stageBgAlpha;
 	stageBg.width = stageW;
 	stageBg.height = stageH;
 	const stageBgFilters = [new PIXI.filters.BlurFilter(2.4, 3)];
 	if (PIXI.filters?.ColorMatrixFilter) {
 		const colorMatrix = new PIXI.filters.ColorMatrixFilter();
-		colorMatrix.desaturate(0.85);
-		colorMatrix.brightness(1.05, false);
+		colorMatrix.desaturate(0.9);
+		colorMatrix.brightness(0.85, false);
 		stageBgFilters.push(colorMatrix);
 	}
 	stageBg.filters = stageBgFilters;
@@ -579,15 +579,15 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const stageMat = new PIXI.Graphics();
 	const matHeight = 36;
 	const matInset = 10;
-	stageMat.beginFill(0xf6f0e2, 0.65);
-	stageMat.lineStyle(1, 0xffffff, 0.55);
+	stageMat.beginFill(0x0b0f13, 0.65);
+	stageMat.lineStyle(1, 0x22f3c8, 0.35);
 	stageMat.drawRoundedRect(0, 0, stageW - matInset * 2, matHeight, 6);
 	stageMat.endFill();
 	stageMat.position.set(stageX + matInset, stageY + stageH / 2 - matHeight / 2 + 4);
 	const stageDebug = new PIXI.Text('bg: loading...', {
-		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontFamily: 'Minecraft, monospace',
 		fontSize: 8,
-		fill: 0x1b2b42,
+		fill: 0x556173,
 	});
 	stageDebug.position.set(stageX + 4, stageY + stageH - 12);
 	PIXI.Assets.load(stageBgPath).then((texture) => {
@@ -638,16 +638,16 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	}
 
 	const playerLabel = new PIXI.Text('Player', {
-		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontFamily: 'Minecraft, monospace',
 		fontSize: 9,
-		fill: 0x1c2c4b,
+		fill: 0xf4f7ff,
 	});
 	playerLabel.position.set(stageX + 30, stageY + 58);
 
 	const cpuLabel = new PIXI.Text('CPU', {
-		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontFamily: 'Minecraft, monospace',
 		fontSize: 9,
-		fill: 0x1c2c4b,
+		fill: 0xf4f7ff,
 	});
 	cpuLabel.position.set(stageX + stageW - 54, stageY + 58);
 
@@ -655,14 +655,14 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const arrowStyle = {
 		fontFamily: 'Minecraft, monospace',
 		fontSize: 16,
-		fill: 0x0b0b0b,
+		fill: 0xf4f7ff,
 		stroke: 0x000000,
 		strokeThickness: 1,
 	};
 	const makeArrowBox = () => {
 		const g = new PIXI.Graphics();
-		g.beginFill(0x000000, 0.08);
-		g.lineStyle(1, 0x1b2b42, 0.4);
+		g.beginFill(0x0b0f13, 0.6);
+		g.lineStyle(1, 0x1a1f27, 0.8);
 		g.drawRoundedRect(0, 0, 22, 22, 4);
 		g.endFill();
 		return g;
@@ -688,30 +688,30 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	arrowGroup.alpha = 0.35;
 
 	const metrics = new PIXI.Text('Player: -- ms   CPU: -- ms', {
-		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontFamily: 'Minecraft, monospace',
 		fontSize: 9,
-		fill: 0x1d2b49,
+		fill: 0xa3b2c4,
 	});
 	metrics.position.set(padding, stageY + stageH + 8);
 
 	const result = new PIXI.Text('Waiting for round...', {
-		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontFamily: 'Minecraft, monospace',
 		fontSize: 10,
-		fill: 0x10203d,
+		fill: 0xf4f7ff,
 	});
 	result.position.set(padding, stageY + stageH + 22);
 
 	const streakText = new PIXI.Text('Win Streak: 0', {
-		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontFamily: 'Minecraft, monospace',
 		fontSize: 10,
-		fill: 0x1c2c4b,
+		fill: 0x22f3c8,
 	});
 	streakText.position.set(padding, stageY + stageH + 60);
 
 	const hint = new PIXI.Text('Use arrows or WASD.', {
-		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontFamily: 'Minecraft, monospace',
 		fontSize: 8,
-		fill: 0x2a3b5f,
+		fill: 0xa3b2c4,
 	});
 	hint.position.set(padding, stageY + stageH + 40);
 
@@ -719,8 +719,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const difficultyBtnSize = { w: 200, h: 30 };
 	const drawDifficultyBtn = () => {
 		difficultyBtn.clear();
-		difficultyBtn.beginFill(0xf6ecd1, 1);
-		difficultyBtn.lineStyle(1, 0x1b2b42, 0.6);
+		difficultyBtn.beginFill(0x0b1418, 1);
+		difficultyBtn.lineStyle(1, 0x22f3c8, 0.6);
 		difficultyBtn.drawRoundedRect(0, 0, difficultyBtnSize.w, difficultyBtnSize.h, 4);
 		difficultyBtn.endFill();
 	};
@@ -729,9 +729,9 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	difficultyBtn.eventMode = 'static';
 	difficultyBtn.cursor = 'pointer';
 	const difficultyText = new PIXI.Text('Difficulty: Normal', {
-		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontFamily: 'Minecraft, monospace',
 		fontSize: 12,
-		fill: 0x1b2b42,
+		fill: 0x22f3c8,
 	});
 	difficultyText.position.set(10, 7);
 	difficultyBtn.addChild(difficultyText);
@@ -744,10 +744,10 @@ export function createReflexGameOverlay(app, world, options = {}) {
 
 	const startBtn = new PIXI.Graphics();
 	const startBtnSize = { w: 120, h: 28 };
-	const drawStartBtn = (fill = 0x22c55e) => {
+	const drawStartBtn = (fill = 0x37ff7a) => {
 		startBtn.clear();
 		startBtn.beginFill(fill, 1);
-		startBtn.lineStyle(1, 0x15803d, 1);
+		startBtn.lineStyle(1, 0x0f3d26, 1);
 		startBtn.drawRoundedRect(0, 0, startBtnSize.w, startBtnSize.h, 5);
 		startBtn.endFill();
 	};
@@ -756,9 +756,9 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	startBtn.eventMode = 'static';
 	startBtn.cursor = 'pointer';
 	const startText = new PIXI.Text('Start', {
-		fontFamily: 'Tahoma, Segoe UI, sans-serif',
+		fontFamily: 'Minecraft, monospace',
 		fontSize: 12,
-		fill: 0xffffff,
+		fill: 0x07090c,
 	});
 	startText.anchor.set(0.5);
 	startText.position.set(startBtnSize.w / 2, startBtnSize.h / 2);
@@ -789,48 +789,35 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const updateStreakDisplay = () => {
 		const capped = Math.min(state.winStreak, 20);
 		const size = 10 + capped * 0.6;
-		const intensity = Math.min(1, capped / 10);
-		const hue = (capped * 26) % 360;
-		const sat = 100 * intensity;
-		const light = 20 + 30 * intensity;
-		const toRgb = (h, s, l) => {
-			const a = s * Math.min(l, 100 - l) / 100;
-			const f = (n) => {
-				const k = (n + h / 30) % 12;
-				const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-				return Math.round(255 * color / 100);
-			};
-			return (f(0) << 16) | (f(8) << 8) | f(4);
-		};
 		streakText.text = `Win Streak: ${state.winStreak}`;
 		streakText.style.fontSize = Math.min(18, size);
-		streakText.style.fill = (state.winStreak <= 0) ? 0x0b0b0b : toRgb(hue, sat, light);
+		streakText.style.fill = (state.winStreak <= 0) ? 0xa3b2c4 : 0x22f3c8;
 	};
 
 	const setExpectedDirection = (dir) => {
 		state.expected = dir;
 		hint.text = 'Use arrows or WASD.';
 		const resetText = (arrow) => {
-			arrow.style.fill = 0x0b0b0b;
+			arrow.style.fill = 0xf4f7ff;
 			arrow.style.stroke = 0x000000;
 			arrow.style.strokeThickness = 1;
 		};
 		const resetBox = (box) => {
 			box.clear();
-			box.beginFill(0x000000, 0.08);
-			box.lineStyle(1, 0x1b2b42, 0.4);
+			box.beginFill(0x0b0f13, 0.6);
+			box.lineStyle(1, 0x1a1f27, 0.8);
 			box.drawRoundedRect(0, 0, 22, 22, 4);
 			box.endFill();
 		};
 		[arrowUp, arrowRight, arrowDown, arrowLeft].forEach(resetText);
 		[arrowUpBox, arrowRightBox, arrowDownBox, arrowLeftBox].forEach(resetBox);
 		const setActive = (arrow, box) => {
-			arrow.style.fill = 0xfff200;
-			arrow.style.stroke = 0x3a2f00;
+			arrow.style.fill = 0xff5667;
+			arrow.style.stroke = 0x3a0012;
 			arrow.style.strokeThickness = 1.5;
 			box.clear();
-			box.beginFill(0xfff200, 0.18);
-			box.lineStyle(1, 0xfff200, 0.9);
+			box.beginFill(0xff5667, 0.2);
+			box.lineStyle(1, 0xff5667, 0.9);
 			box.drawRoundedRect(0, 0, 22, 22, 4);
 			box.endFill();
 		};
@@ -851,7 +838,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		state.selectedDirection = DIRECTIONS[Math.floor(Math.random() * DIRECTIONS.length)];
 		setExpectedDirection(null);
 		arrowGroup.alpha = 0.35;
-		drawStartBtn(0x22c55e);
+		drawStartBtn(0x37ff7a);
 		startText.text = 'Start';
 
 		const delay = clamp(randomBetween(config.minDelayMs, config.maxDelayMs), config.minDelayMs, config.maxDelayMs);
@@ -981,24 +968,24 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		const itemH = 26;
 		const menuH = Math.max(1, keys.length) * itemH + 6;
 		difficultyMenuBg.clear();
-		difficultyMenuBg.beginFill(0xf6ecd1, 1);
-		difficultyMenuBg.lineStyle(1, 0x1b2b42, 0.6);
+			difficultyMenuBg.beginFill(0x0b1418, 1);
+			difficultyMenuBg.lineStyle(1, 0x22f3c8, 0.6);
 			difficultyMenuBg.drawRoundedRect(0, 0, difficultyBtnSize.w, menuH, 4);
 		difficultyMenuBg.endFill();
 		keys.forEach((key, idx) => {
 			const entry = config.difficulties[key];
 			const label = entry?.label || key;
 			const row = new PIXI.Graphics();
-			row.beginFill(0x000000, key === state.difficulty ? 0.08 : 0.0);
+			row.beginFill(0x000000, key === state.difficulty ? 0.2 : 0.0);
 			row.drawRect(0, 0, difficultyBtnSize.w, itemH);
 			row.endFill();
 			row.position.set(0, 3 + idx * itemH);
 			row.eventMode = 'static';
 			row.cursor = 'pointer';
 			const text = new PIXI.Text(label, {
-				fontFamily: 'Tahoma, Segoe UI, sans-serif',
+				fontFamily: 'Minecraft, monospace',
 				fontSize: 12,
-				fill: 0x1b2b42,
+				fill: 0xf4f7ff,
 			});
 			text.position.set(10, 5);
 			row.addChild(text);

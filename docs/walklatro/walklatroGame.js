@@ -183,8 +183,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	};
 	const screenToWorldSize = (screenSize) => screenSize / screenScale;
 
-	const windowWidth = Math.min(560, app.renderer.width * 0.92);
-	const windowHeight = Math.min(380, app.renderer.height * 0.72);
+	const windowWidth = Math.min(480, app.renderer.width * 0.9);
+	const windowHeight = Math.min(320, app.renderer.height * 0.68);
 	const headerHeight = 26;
 	const padding = 12;
 
@@ -196,12 +196,12 @@ export function createWalklatroOverlay(app, world, options = {}) {
 
 	const panelFill = new PIXI.Graphics();
 	panelFill.beginFill(colors.panel, 0.98);
-	panelFill.drawRoundedRect(0, 0, windowWidth, windowHeight, 8);
+	panelFill.drawRect(0, 0, windowWidth, windowHeight);
 	panelFill.endFill();
 
 	const panelBorder = new PIXI.Graphics();
 	panelBorder.lineStyle(2, colors.panelBorder, 1);
-	panelBorder.drawRoundedRect(0, 0, windowWidth, windowHeight, 8);
+	panelBorder.drawRect(0, 0, windowWidth, windowHeight);
 
 	const headerBg = new PIXI.Graphics();
 	headerBg.beginFill(colors.header, 1);
