@@ -455,7 +455,7 @@ async function boot() {
 				const walklatroIconResult = await withTimeout(createWalklatroIcon(app, world, {
 					screenScale: SCENE_SCALE,
 					dockScreenX: getLauncherDockX,
-					dockScreenY: () => getLauncherDockY(3),
+					dockScreenY: () => getLauncherDockY(1),
 					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
 					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
 				}), 6000, 'Walklatro icon');

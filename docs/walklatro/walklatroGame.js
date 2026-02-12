@@ -393,27 +393,34 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		container.hitArea = new PIXI.Rectangle(0, 0, cardW, cardH);
 		container._index = index;
 		container._setSelected = (selected) => {
+			container._selected = Boolean(selected);
 			glow.visible = selected;
 		};
 		container._glow = glow;
 		container._border = border;
 		container._size = { width: cardW, height: cardH };
 		container._base = { x: 0, y: 0 };
+		container._selected = false;
+		container._hovered = false;
+		container._tilt = { x: 0, y: 0 };
+		container._tiltTarget = { x: 0, y: 0 };
+		container._lift = 0;
+		container._liftTarget = 0;
 		container._size = { width: cardW, height: cardH };
 		container.on('pointerover', () => {
-			container.scale.set(1.05);
-			container.position.y = container._base.y - 6;
+			container._hovered = true;
 		});
 		container.on('pointerout', () => {
-			container.scale.set(1);
-			container.skew.set(0, 0);
-			container.position.y = container._base.y;
+			container._hovered = false;
+			container._tiltTarget.x = 0;
+			container._tiltTarget.y = 0;
 		});
 		container.on('pointermove', (event) => {
 			const local = event.getLocalPosition(container);
 			const nx = clamp((local.x / cardW) * 2 - 1, -1, 1);
 			const ny = clamp((local.y / cardH) * 2 - 1, -1, 1);
-			container.skew.set(-ny * 0.12, nx * 0.12);
+			container._tiltTarget.x = -ny * 0.12;
+			container._tiltTarget.y = nx * 0.12;
 		});
 		return container;
 	};
@@ -712,7 +719,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	const updateSelectionGlow = (time) => {
 		if (!state.selected.size) return;
 		const hue = (time * 90) % 360;
-		const color = hsvToRgb(hue, 0.9, 1);
+		const color = hsvToRgb(hue, 1, 1);
 		for (const child of handArea.children) {
 			if (!child?._glow) continue;
 			const selected = state.selected.has(child._index);
@@ -722,7 +729,9 @@ export function createWalklatroOverlay(app, world, options = {}) {
 			}
 			child._glow.visible = true;
 			child._glow.clear();
-			child._glow.lineStyle(3, color, 0.9);
+			child._glow.lineStyle(4, color, 1);
+			child._glow.drawRoundedRect(-3, -3, 70, 90, 9);
+			child._glow.lineStyle(2, color, 0.65);
 			child._glow.drawRoundedRect(-1, -1, 66, 86, 7);
 		}
 	};
@@ -761,6 +770,22 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		if (!state.open) return;
 		glowTime += dt / 60;
 		updateSelectionGlow(glowTime);
+		const ease = 0.18;
+		for (const child of handArea.children) {
+			if (!child?._tilt) continue;
+			child._tilt.x += (child._tiltTarget.x - child._tilt.x) * ease;
+			child._tilt.y += (child._tiltTarget.y - child._tilt.y) * ease;
+			child.skew.set(child._tilt.x, child._tilt.y);
+			const baseLift = child._selected ? 10 : 0;
+			const hoverLift = child._hovered ? 6 : 0;
+			child._liftTarget = baseLift + hoverLift;
+			child._lift += (child._liftTarget - child._lift) * ease;
+			const baseY = child._base?.y ?? child.position.y;
+			child.position.y = baseY - child._lift;
+			const targetScale = child._hovered ? 1.05 : 1;
+			child.scale.x += (targetScale - child.scale.x) * ease;
+			child.scale.y += (targetScale - child.scale.y) * ease;
+		}
 	});
 
 	const open = () => {
