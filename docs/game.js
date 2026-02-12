@@ -3,6 +3,7 @@ import { createVines } from './vines.js';
 import { createBlogIcon } from './blogIcon.js';
 import { createLinkedinIcon } from './linkedinIcon.js';
 import { createReflexIcon } from './reflex/reflexIcon.js';
+import { createWalklatroIcon } from './walklatro/walklatroIcon.js';
 import { createCrimsonFlowBackground } from './background.js';
 import {
 	createCRTFisheyeFilter,
@@ -340,6 +341,9 @@ async function boot() {
 			let reflexIconSetDragEnabled = null;
 			let reflexIconGetBody = null;
 			let reflexIconSetMouseProvider = null;
+			let walklatroIconSetDragEnabled = null;
+			let walklatroIconGetBody = null;
+			let walklatroIconSetMouseProvider = null;
 			const dragToggleBtn = document.createElement('button');
 			let dragEnabled = false;
 			const applyDragEnabled = (enabled) => {
@@ -350,6 +354,7 @@ async function boot() {
 				if (blogIconSetDragEnabled) blogIconSetDragEnabled(dragEnabled);
 				if (linkedinIconSetDragEnabled) linkedinIconSetDragEnabled(dragEnabled);
 				if (reflexIconSetDragEnabled) reflexIconSetDragEnabled(dragEnabled);
+				if (walklatroIconSetDragEnabled) walklatroIconSetDragEnabled(dragEnabled);
 			};
 			dragToggleBtn.type = 'button';
 			Object.assign(dragToggleBtn.style, {
@@ -389,6 +394,7 @@ async function boot() {
 			let layoutBlogIcon = () => {};
 			let layoutLinkedinIcon = () => {};
 			let layoutReflexIcon = () => {};
+			let layoutWalklatroIcon = () => {};
 			try {
 				const blogIconResult = await withTimeout(createBlogIcon(app, world, {
 					url: '/blog',
@@ -445,18 +451,38 @@ async function boot() {
 			} catch (err) {
 				console.warn('Reflex icon init failed or timed out:', err);
 			}
+			try {
+				const walklatroIconResult = await withTimeout(createWalklatroIcon(app, world, {
+					screenScale: SCENE_SCALE,
+					dockScreenX: getLauncherDockX,
+					dockScreenY: () => getLauncherDockY(3),
+					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
+					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
+				}), 6000, 'Walklatro icon');
+				if (walklatroIconResult?.layout) layoutWalklatroIcon = walklatroIconResult.layout;
+				if (walklatroIconResult?.setDragEnabled) {
+					walklatroIconSetDragEnabled = walklatroIconResult.setDragEnabled;
+					walklatroIconSetDragEnabled(dragEnabled);
+				}
+				if (walklatroIconResult?.getBody) walklatroIconGetBody = walklatroIconResult.getBody;
+				if (walklatroIconResult?.setMouseProvider) walklatroIconSetMouseProvider = walklatroIconResult.setMouseProvider;
+			} catch (err) {
+				console.warn('Walklatro icon init failed or timed out:', err);
+			}
 			if (appLauncher?.setExternalBodiesProvider) {
 				appLauncher.setExternalBodiesProvider(() => {
 					const bodies = [];
 					if (blogIconGetBody) bodies.push(blogIconGetBody());
 					if (linkedinIconGetBody) bodies.push(linkedinIconGetBody());
 					if (reflexIconGetBody) bodies.push(reflexIconGetBody());
+					if (walklatroIconGetBody) bodies.push(walklatroIconGetBody());
 					return bodies;
 				});
 			}
 			if (blogIconSetMouseProvider) blogIconSetMouseProvider(() => lastMouseWorld);
 			if (linkedinIconSetMouseProvider) linkedinIconSetMouseProvider(() => lastMouseWorld);
 			if (reflexIconSetMouseProvider) reflexIconSetMouseProvider(() => lastMouseWorld);
+			if (walklatroIconSetMouseProvider) walklatroIconSetMouseProvider(() => lastMouseWorld);
 
 			world.addChild(player.view);
 		const ENABLE_THEME_TOGGLE = false;
@@ -1050,6 +1076,7 @@ async function boot() {
 			layoutBlogIcon();
 			layoutLinkedinIcon();
 			layoutReflexIcon();
+			layoutWalklatroIcon();
 		}
 		window.addEventListener('resize', onResize);
 		// Run once after first paint so initial sizing is correct.
