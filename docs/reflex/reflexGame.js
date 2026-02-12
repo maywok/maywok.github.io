@@ -1031,6 +1031,10 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	window.addEventListener('keydown', onKeyDown);
 
 	const dragState = { active: false, offsetX: 0, offsetY: 0 };
+	if (app?.stage) {
+		app.stage.eventMode = 'static';
+		app.stage.hitArea = app.screen;
+	}
 	closeBtn.on('pointerdown', (event) => {
 		event.stopPropagation();
 	});
