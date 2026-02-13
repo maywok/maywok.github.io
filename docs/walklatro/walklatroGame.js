@@ -158,27 +158,27 @@ function createSwirlTexture(colors) {
 	const ctx = canvas.getContext('2d');
 	if (!ctx) return PIXI.Texture.WHITE;
 	ctx.clearRect(0, 0, size, size);
-	const base = ctx.createRadialGradient(size * 0.3, size * 0.35, 0, size * 0.5, size * 0.5, size * 0.8);
-	base.addColorStop(0, 'rgba(4,6,10,0.9)');
+	const base = ctx.createRadialGradient(size * 0.35, size * 0.35, 0, size * 0.5, size * 0.5, size * 0.9);
+	base.addColorStop(0, 'rgba(4,6,10,0.85)');
 	base.addColorStop(1, 'rgba(4,6,10,1)');
 	ctx.fillStyle = base;
 	ctx.fillRect(0, 0, size, size);
 	const red = colors.red;
-	const teal = colors.teal;
-	const redGrad = ctx.createRadialGradient(size * 0.2, size * 0.25, 20, size * 0.2, size * 0.25, size * 0.9);
-	redGrad.addColorStop(0, `rgba(${(red >> 16) & 255}, ${(red >> 8) & 255}, ${red & 255}, 0.42)`);
+	const blue = colors.blue;
+	const redGrad = ctx.createRadialGradient(size * 0.18, size * 0.22, 20, size * 0.18, size * 0.22, size * 1.05);
+	redGrad.addColorStop(0, `rgba(${(red >> 16) & 255}, ${(red >> 8) & 255}, ${red & 255}, 0.6)`);
 	redGrad.addColorStop(1, 'rgba(0,0,0,0)');
 	ctx.fillStyle = redGrad;
 	ctx.fillRect(0, 0, size, size);
-	const tealGrad = ctx.createRadialGradient(size * 0.75, size * 0.55, 20, size * 0.75, size * 0.55, size * 0.9);
-	tealGrad.addColorStop(0, `rgba(${(teal >> 16) & 255}, ${(teal >> 8) & 255}, ${teal & 255}, 0.38)`);
-	tealGrad.addColorStop(1, 'rgba(0,0,0,0)');
-	ctx.fillStyle = tealGrad;
+	const blueGrad = ctx.createRadialGradient(size * 0.78, size * 0.6, 20, size * 0.78, size * 0.6, size * 1.05);
+	blueGrad.addColorStop(0, `rgba(${(blue >> 16) & 255}, ${(blue >> 8) & 255}, ${blue & 255}, 0.58)`);
+	blueGrad.addColorStop(1, 'rgba(0,0,0,0)');
+	ctx.fillStyle = blueGrad;
 	ctx.fillRect(0, 0, size, size);
 	ctx.translate(size / 2, size / 2);
 	ctx.rotate(-0.35);
-	ctx.strokeStyle = `rgba(${(red >> 16) & 255}, ${(red >> 8) & 255}, ${red & 255}, 0.12)`;
-	ctx.lineWidth = 14;
+	ctx.strokeStyle = `rgba(${(red >> 16) & 255}, ${(red >> 8) & 255}, ${red & 255}, 0.2)`;
+	ctx.lineWidth = 16;
 	ctx.beginPath();
 	for (let t = 0; t < Math.PI * 5; t += 0.09) {
 		const r = 12 + t * 16;
@@ -237,6 +237,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		target: 0,
 		roundScore: 0,
 		animating: false,
+		animTimer: 0,
 		deck: [],
 		discardPile: [],
 		hand: [],
@@ -358,6 +359,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	const animLayer = new PIXI.Container();
 	animLayer.position.set(padding, headerHeight + 82);
 	animLayer.eventMode = 'none';
+	animLayer.visible = false;
 
 	const shopArea = new PIXI.Container();
 	shopArea.position.set(padding, headerHeight + 210);
@@ -395,6 +397,13 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		text: colors.white,
 		alpha: 0.9,
 	});
+
+	const actionBar = new PIXI.Graphics();
+	const actionBarHeight = 48;
+	actionBar.beginFill(0x0b0f13, 0.78);
+	actionBar.lineStyle(1, colors.panelBorder, 0.6);
+	actionBar.drawRect(0, windowHeight - actionBarHeight - padding + 6, windowWidth, actionBarHeight);
+	actionBar.endFill();
 
 	const bottomY = windowHeight - padding - 32;
 	const actionRightX = windowWidth - padding - 150;
@@ -618,9 +627,9 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		const { startX, cardW, cardH, gap } = layout;
 		if (!replaceIndices.length) return;
 		state.animating = true;
-		state.pendingHand = null;
-		state.pendingIndices = null;
+		state.animTimer = 0;
 		animLayer.removeChildren();
+		animLayer.visible = true;
 		replaceIndices.forEach((idx) => {
 			const slotX = startX + idx * (cardW + gap);
 			const slotY = 0;
@@ -932,6 +941,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		handArea,
 		animLayer,
 		shopArea,
+		actionBar,
 		playBtn,
 		discardBtn,
 		nextBtn,
@@ -975,14 +985,20 @@ export function createWalklatroOverlay(app, world, options = {}) {
 				animations.splice(i, 1);
 			}
 		}
+		if (state.animating) {
+			state.animTimer += dt / 60;
+			if (state.animTimer > 0.4 && animations.length > 0) {
+				for (const anim of animations) {
+					anim.sprite.destroy({ children: true });
+				}
+				animations.length = 0;
+			}
+		}
 		if (state.animating && animations.length === 0) {
 			state.animating = false;
 			animLayer.removeChildren();
-			if (state.pendingHand && state.pendingIndices) {
-				replaceHandCards(state.pendingHand, state.pendingIndices);
-				state.pendingHand = null;
-				state.pendingIndices = null;
-			}
+			animLayer.visible = false;
+			drawHand();
 			refreshSelection();
 			updatePhaseUI();
 		}
