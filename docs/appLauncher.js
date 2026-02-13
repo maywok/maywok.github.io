@@ -7,6 +7,7 @@ export function createAppLauncher(app, world, options = {}) {
 		screenToWorldY,
 		screenToWorldSize,
 		pixelFont = 'Minecraft, monospace',
+		layoutProvider = null,
 	} = options;
 
 	const container = new PIXI.Container();
@@ -290,8 +291,20 @@ export function createAppLauncher(app, world, options = {}) {
 		const leftX = Math.max(96, Math.min(168, app.renderer.width * 0.11));
 
 		icons.forEach((icon, idx) => {
-			const x = screenToWorldX(leftX);
-			const y = screenToWorldY(startY + spacing * idx);
+			const provided = typeof layoutProvider === 'function'
+				? layoutProvider({
+					index: idx,
+					total: icons.length,
+					defaultX: leftX,
+					defaultY: startY + spacing * idx,
+					defaultSize: iconSize,
+				})
+				: null;
+			const sx = Number.isFinite(provided?.x) ? provided.x : leftX;
+			const sy = Number.isFinite(provided?.y) ? provided.y : (startY + spacing * idx);
+			const ssize = Number.isFinite(provided?.size) ? provided.size : iconSize;
+			const x = screenToWorldX(sx);
+			const y = screenToWorldY(sy);
 			icon.state.base.x = x;
 			icon.state.base.y = y;
 			if (!dragState.enabled) {
@@ -299,7 +312,7 @@ export function createAppLauncher(app, world, options = {}) {
 				icon.state.free.y = y;
 			}
 			icon.container.position.set(x, y);
-			icon.drawIcon(screenToWorldSize(iconSize));
+			icon.drawIcon(screenToWorldSize(ssize));
 			icon.container._updatePlatformRect?.();
 		});
 	}

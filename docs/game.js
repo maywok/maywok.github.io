@@ -116,6 +116,8 @@ async function boot() {
 				speed: 0.75,
 			});
 			scene.addChild(flowBackground);
+			const ambientLayer = new PIXI.Container();
+			scene.addChild(ambientLayer);
 			const SCENE_SCALE = 1.12;
 			const CAMERA_PARALLAX = 9;
 			const CAMERA_SMOOTHING = 0.08;
@@ -266,6 +268,68 @@ async function boot() {
 			for (const v of vines) v.setColor(theme.vines.hue);
 			world.addChild(vinesLayer);
 
+			const ambientDebris = [];
+			for (let i = 0; i < 3; i++) {
+				const panel = new PIXI.Container();
+				const shell = new PIXI.Graphics();
+				const lines = new PIXI.Graphics();
+				const w = 86 + i * 14;
+				const h = 44 + i * 8;
+				shell.beginFill(0x060d10, 0.22);
+				shell.lineStyle(1, 0x22f3c8, 0.3);
+				shell.drawRoundedRect(-w / 2, -h / 2, w, h, 8);
+				shell.endFill();
+				lines.lineStyle(1, 0x22f3c8, 0.24);
+				for (let r = 0; r < 3; r++) {
+					const y = -h * 0.25 + r * (h * 0.24);
+					lines.moveTo(-w * 0.32, y);
+					lines.lineTo(w * (0.1 + r * 0.1), y);
+				}
+				panel.addChild(shell, lines);
+				ambientLayer.addChild(panel);
+				ambientDebris.push({
+					panel,
+					phase: Math.random() * Math.PI * 2,
+					driftX: 10 + Math.random() * 12,
+					driftY: 8 + Math.random() * 10,
+					baseX: 0,
+					baseY: 0,
+				});
+			}
+
+			const systemCore = new PIXI.Container();
+			const coreAura = new PIXI.Graphics();
+			const coreRing = new PIXI.Graphics();
+			const coreGhost = new PIXI.Sprite(PIXI.Texture.WHITE);
+			coreGhost.anchor.set(0.5);
+			coreGhost.tint = 0x9bffd6;
+			coreGhost.alpha = 0.38;
+			coreGhost.visible = false;
+			systemCore.addChild(coreAura, coreRing, coreGhost);
+			systemCore.zIndex = 8;
+			world.addChild(systemCore);
+
+			const pickupLayer = new PIXI.Container();
+			pickupLayer.zIndex = 25;
+			world.addChild(pickupLayer);
+			const pickups = [];
+			let pickupSpawnTimer = 0;
+			let pickupCollected = 0;
+			let pickupGoal = 5;
+
+			const objectiveStrip = new PIXI.Container();
+			objectiveStrip.zIndex = 180;
+			const objectiveBg = new PIXI.Graphics();
+			const objectiveText = new PIXI.Text('', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 11,
+				fill: 0xeafffb,
+				letterSpacing: 1,
+			});
+			objectiveText.anchor.set(0.5);
+			objectiveStrip.addChild(objectiveBg, objectiveText);
+			world.addChild(objectiveStrip);
+
 			function makeLampLightTexture(color = '#2f7bff') {
 				const size = 256;
 				const canvas = document.createElement('canvas');
@@ -316,6 +380,136 @@ async function boot() {
 				});
 			};
 
+			let iconIntroProgress = 0;
+			let dragEnabled = false;
+			const ringSlotAngles = [-90, -30, 30, 90, 150, 210];
+			const getCoreScreenPos = () => ({
+				x: app.renderer.width * 0.5,
+				y: app.renderer.height * 0.48,
+			});
+			const getCoreWorldPos = () => {
+				const p = getCoreScreenPos();
+				return { x: screenToWorldX(p.x), y: screenToWorldY(p.y) };
+			};
+			const getRingRadius = () => Math.max(120, Math.min(220, Math.min(app.renderer.width, app.renderer.height) * 0.24));
+			const getRingIconSize = () => Math.max(58, Math.min(84, app.renderer.height * 0.108));
+			const getRingSlotScreenPos = (slotIndex) => {
+				const core = getCoreScreenPos();
+				const radius = getRingRadius();
+				const angle = (ringSlotAngles[slotIndex % ringSlotAngles.length] * Math.PI) / 180;
+				return {
+					x: core.x + Math.cos(angle) * radius,
+					y: core.y + Math.sin(angle) * radius,
+				};
+			};
+			const getIntroPoseForSlot = (slotIndex) => {
+				const core = getCoreScreenPos();
+				const target = getRingSlotScreenPos(slotIndex);
+				const t = Math.max(0, Math.min(1, iconIntroProgress));
+				const eased = 1 - Math.pow(1 - t, 3);
+				const size = getRingIconSize() * (0.75 + 0.25 * eased);
+				return {
+					x: core.x + (target.x - core.x) * eased,
+					y: core.y + (target.y - core.y) * eased,
+					size,
+				};
+			};
+
+			const drawSystemCore = (time = 0) => {
+				const p = getCoreWorldPos();
+				systemCore.position.set(p.x, p.y);
+				const pulse = 0.72 + 0.28 * Math.sin(time * 1.6);
+				coreAura.clear();
+				coreAura.beginFill(0x22f3c8, 0.07 * pulse);
+				coreAura.drawCircle(0, 0, screenToWorldSize(96));
+				coreAura.endFill();
+				coreRing.clear();
+				coreRing.lineStyle(2, 0x22f3c8, 0.5);
+				coreRing.drawCircle(0, 0, screenToWorldSize(70));
+				coreRing.lineStyle(1, 0x9bffd6, 0.32);
+				coreRing.drawCircle(0, 0, screenToWorldSize(82));
+				coreGhost.width = screenToWorldSize(96);
+				coreGhost.height = screenToWorldSize(96);
+			};
+
+			const placeAmbientDebris = () => {
+				const anchors = [
+					{ x: app.renderer.width * 0.26, y: app.renderer.height * 0.28 },
+					{ x: app.renderer.width * 0.72, y: app.renderer.height * 0.31 },
+					{ x: app.renderer.width * 0.65, y: app.renderer.height * 0.72 },
+				];
+				for (let i = 0; i < ambientDebris.length; i++) {
+					const d = ambientDebris[i];
+					const a = anchors[i % anchors.length];
+					d.baseX = screenToWorldX(a.x);
+					d.baseY = screenToWorldY(a.y);
+					d.panel.position.set(d.baseX, d.baseY);
+				}
+			};
+
+			const layoutObjectiveStrip = () => {
+				const x = screenToWorldX(app.renderer.width * 0.5);
+				const y = screenToWorldY(app.renderer.height - 26);
+				objectiveStrip.position.set(x, y);
+			};
+			const updateObjectiveStrip = () => {
+				const mode = dragEnabled ? 'ARRANGE' : 'EXPLORE';
+				objectiveText.text = `MODE ${mode}  PACKETS ${pickupCollected}/${pickupGoal}`;
+				const b = objectiveText.getLocalBounds();
+				const w = Math.ceil(b.width + 18);
+				const h = Math.ceil(b.height + 10);
+				objectiveBg.clear();
+				objectiveBg.beginFill(0x050d0b, 0.55);
+				objectiveBg.lineStyle(1, 0x22f3c8, 0.48);
+				objectiveBg.drawRoundedRect(-w / 2, -h / 2, w, h, 8);
+				objectiveBg.endFill();
+			};
+
+			const spawnPickup = () => {
+				if (pickups.length >= 4) return;
+				const core = getCoreScreenPos();
+				let sx = core.x;
+				let sy = core.y;
+				for (let attempt = 0; attempt < 10; attempt++) {
+					sx = 56 + Math.random() * (app.renderer.width - 112);
+					sy = 56 + Math.random() * (app.renderer.height - 140);
+					const dx = sx - core.x;
+					const dy = sy - core.y;
+					if (dx * dx + dy * dy > Math.pow(getRingRadius() * 0.55, 2)) break;
+				}
+				const container = new PIXI.Container();
+				const glow = new PIXI.Graphics();
+				const gem = new PIXI.Graphics();
+				glow.beginFill(0x9bffd6, 0.12);
+				glow.drawCircle(0, 0, screenToWorldSize(12));
+				glow.endFill();
+				gem.beginFill(0x9bffd6, 0.9);
+				gem.drawPolygon([
+					0, -screenToWorldSize(5),
+					screenToWorldSize(4), 0,
+					0, screenToWorldSize(5),
+					-screenToWorldSize(4), 0,
+				]);
+				gem.endFill();
+				container.addChild(glow, gem);
+				container.position.set(screenToWorldX(sx), screenToWorldY(sy));
+				pickupLayer.addChild(container);
+				pickups.push({ container, glow, born: 0, phase: Math.random() * Math.PI * 2 });
+			};
+
+			try {
+				const ghostUrl = './assets/images/ghostLogo.png';
+				await withTimeout(PIXI.Assets.load([ghostUrl]), 3000, 'System core logo');
+				coreGhost.texture = PIXI.Texture.from(ghostUrl);
+				coreGhost.visible = true;
+			} catch (_) {
+				coreGhost.visible = false;
+			}
+			drawSystemCore(0);
+			placeAmbientDebris();
+			layoutObjectiveStrip();
+			updateObjectiveStrip();
+
 			const appLauncher = createAppLauncher(app, world, {
 				items: [
 					{ label: 'Resume', glyph: 'R', tooltip: 'Open Resume', url: './assets/files/mason-walker-resume.pdf' },
@@ -324,6 +518,10 @@ async function boot() {
 				screenToWorldX,
 				screenToWorldY,
 				screenToWorldSize,
+				layoutProvider: ({ index }) => {
+					const slot = index === 0 ? 5 : 1;
+					return getIntroPoseForSlot(slot);
+				},
 			});
 			appLauncher.layout();
 			let blogIconSetDragEnabled = null;
@@ -399,7 +597,6 @@ async function boot() {
 			lockToggle.addChild(lockGlow, lockBg, lockIcon);
 			lockToggle.zIndex = 150;
 			world.addChild(lockToggle);
-			let dragEnabled = false;
 			const applyDragEnabled = (enabled) => {
 				dragEnabled = Boolean(enabled);
 				lockAnimTarget = dragEnabled ? 1 : 0;
@@ -409,15 +606,6 @@ async function boot() {
 				if (reflexIconSetDragEnabled) reflexIconSetDragEnabled(dragEnabled);
 				if (walklatroIconSetDragEnabled) walklatroIconSetDragEnabled(dragEnabled);
 				lockNeedsRedraw = true;
-			};
-			const getDockMetrics = () => {
-				const centerY = app.renderer.height * 0.54;
-				const rowGap = Math.max(92, Math.min(136, app.renderer.height * 0.19));
-				const startY = centerY - rowGap;
-				const leftX = Math.max(96, Math.min(168, app.renderer.width * 0.11));
-				const colGap = Math.max(104, Math.min(146, app.renderer.width * 0.115));
-				const iconSize = Math.max(58, Math.min(82, app.renderer.height * 0.11));
-				return { centerY, rowGap, startY, leftX, colGap, iconSize };
 			};
 			const placeLockButton = () => {
 				const x = screenToWorldX(app.renderer.width - lockButtonSize - 16);
@@ -437,16 +625,10 @@ async function boot() {
 			applyDragEnabled(false);
 			let lastMouseWorld = { x: app.renderer.width / 2, y: app.renderer.height / 2 };
 
-			const getLauncherDockX = () => {
-				const m = getDockMetrics();
-				return m.leftX + m.colGap;
-			};
-			const getLauncherLeftX = () => getDockMetrics().leftX;
-			const getLauncherDockY = (index = 0) => {
-				const m = getDockMetrics();
-				return m.startY + m.rowGap * index;
-			};
-			const getLauncherIconSize = () => getDockMetrics().iconSize;
+			const getSlotPose = (slotIndex) => getIntroPoseForSlot(slotIndex);
+			const getSlotX = (slotIndex) => getSlotPose(slotIndex).x;
+			const getSlotY = (slotIndex) => getSlotPose(slotIndex).y;
+			const getSlotSize = (slotIndex) => getSlotPose(slotIndex).size;
 			let layoutBlogIcon = () => {};
 			let layoutLinkedinIcon = () => {};
 			let layoutReflexIcon = () => {};
@@ -455,10 +637,10 @@ async function boot() {
 				const blogIconResult = await withTimeout(createBlogIcon(app, world, {
 					url: '/blog',
 					screenScale: SCENE_SCALE,
-					dockScreenX: getLauncherDockX,
-					dockScreenY: () => getLauncherDockY(0),
-					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
-					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
+					dockScreenX: () => getSlotX(2),
+					dockScreenY: () => getSlotY(2),
+					backgroundWidth: screenToWorldSize(getRingIconSize()),
+					backgroundHeight: screenToWorldSize(getRingIconSize()),
 				}), 6000, 'Blog icon');
 				if (blogIconResult?.layout) layoutBlogIcon = blogIconResult.layout;
 				if (blogIconResult?.setDragEnabled) {
@@ -474,10 +656,10 @@ async function boot() {
 				const linkedinIconResult = await withTimeout(createLinkedinIcon(app, world, {
 					url: 'https://www.linkedin.com/in/mason--walker/',
 					screenScale: SCENE_SCALE,
-					dockScreenX: getLauncherLeftX,
-					dockScreenY: () => getLauncherDockY(2),
-					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
-					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
+					dockScreenX: () => getSlotX(4),
+					dockScreenY: () => getSlotY(4),
+					backgroundWidth: screenToWorldSize(getRingIconSize()),
+					backgroundHeight: screenToWorldSize(getRingIconSize()),
 				}), 6000, 'LinkedIn icon');
 				if (linkedinIconResult?.layout) layoutLinkedinIcon = linkedinIconResult.layout;
 				if (linkedinIconResult?.setDragEnabled) {
@@ -492,10 +674,10 @@ async function boot() {
 			try {
 				const reflexIconResult = await withTimeout(createReflexIcon(app, world, {
 					screenScale: SCENE_SCALE,
-					dockScreenX: getLauncherDockX,
-					dockScreenY: () => getLauncherDockY(2),
-					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
-					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
+					dockScreenX: () => getSlotX(3),
+					dockScreenY: () => getSlotY(3),
+					backgroundWidth: screenToWorldSize(getRingIconSize()),
+					backgroundHeight: screenToWorldSize(getRingIconSize()),
 				}), 6000, 'Reflex icon');
 				if (reflexIconResult?.layout) layoutReflexIcon = reflexIconResult.layout;
 				if (reflexIconResult?.setDragEnabled) {
@@ -510,10 +692,10 @@ async function boot() {
 			try {
 				const walklatroIconResult = await withTimeout(createWalklatroIcon(app, world, {
 					screenScale: SCENE_SCALE,
-					dockScreenX: getLauncherDockX,
-					dockScreenY: () => getLauncherDockY(1),
-					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
-					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
+					dockScreenX: () => getSlotX(0),
+					dockScreenY: () => getSlotY(0),
+					backgroundWidth: screenToWorldSize(getRingIconSize()),
+					backgroundHeight: screenToWorldSize(getRingIconSize()),
 				}), 6000, 'Walklatro icon');
 				if (walklatroIconResult?.layout) layoutWalklatroIcon = walklatroIconResult.layout;
 				if (walklatroIconResult?.setDragEnabled) {
@@ -910,6 +1092,46 @@ async function boot() {
 				leftPortal.visible = false;
 			}
 			time += seconds;
+			const introSpeed = 0.42;
+			if (iconIntroProgress < 1) {
+				iconIntroProgress = Math.min(1, iconIntroProgress + seconds * introSpeed);
+				appLauncher.layout();
+				layoutBlogIcon();
+				layoutLinkedinIcon();
+				layoutReflexIcon();
+				layoutWalklatroIcon();
+			}
+			drawSystemCore(time);
+			for (const d of ambientDebris) {
+				d.panel.position.x = d.baseX + Math.sin(time * 0.28 + d.phase) * d.driftX;
+				d.panel.position.y = d.baseY + Math.cos(time * 0.24 + d.phase * 1.3) * d.driftY;
+				d.panel.rotation = Math.sin(time * 0.11 + d.phase) * 0.03;
+				d.panel.alpha = 0.34 + 0.12 * Math.sin(time * 0.35 + d.phase);
+			}
+			pickupSpawnTimer += seconds;
+			if (pickupSpawnTimer >= 5.0) {
+				pickupSpawnTimer = 0;
+				spawnPickup();
+			}
+			for (let i = pickups.length - 1; i >= 0; i--) {
+				const p = pickups[i];
+				p.born += seconds;
+				p.container.position.y += Math.sin(time * 2.2 + p.phase) * 0.08;
+				p.glow.alpha = 0.14 + 0.1 * Math.sin(time * 3.2 + p.phase);
+				const dx = p.container.position.x - player.view.x;
+				const dy = p.container.position.y - player.view.y;
+				if (dx * dx + dy * dy < Math.pow(screenToWorldSize(18), 2)) {
+					p.container.destroy({ children: true });
+					pickups.splice(i, 1);
+					pickupCollected += 1;
+					if (pickupCollected >= pickupGoal) {
+						pickupCollected = 0;
+						pickupGoal = Math.min(12, pickupGoal + 1);
+					}
+					updateObjectiveStrip();
+				}
+			}
+			updateObjectiveStrip();
 			scene.alpha = 1;
 			const nx = (mouse.x / app.renderer.width) * 2 - 1;
 			const ny = (mouse.y / app.renderer.height) * 2 - 1;
@@ -1101,6 +1323,9 @@ async function boot() {
 			layoutScene();
 			layoutLeftPortal();
 			resizeFlowBackground();
+			placeAmbientDebris();
+			layoutObjectiveStrip();
+			drawSystemCore(time);
 			
 
 			// Rebuild vines layout for new width/height
@@ -1140,6 +1365,7 @@ async function boot() {
 			layoutLinkedinIcon();
 			layoutReflexIcon();
 			layoutWalklatroIcon();
+			updateObjectiveStrip();
 		}
 		window.addEventListener('resize', onResize);
 		// Run once after first paint so initial sizing is correct.
