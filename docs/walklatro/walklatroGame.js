@@ -222,6 +222,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		text: 0xf4f7ff,
 		muted: 0xa3b2c4,
 		red: 0xff5667,
+		blue: 0x2b6fff,
 		green: 0x37ff7a,
 		white: 0xf4f7ff,
 		teal: 0x22f3c8,
@@ -617,8 +618,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		const { startX, cardW, cardH, gap } = layout;
 		if (!replaceIndices.length) return;
 		state.animating = true;
-		state.pendingHand = newHand;
-		state.pendingIndices = replaceIndices.slice();
+		state.pendingHand = null;
+		state.pendingIndices = null;
 		animLayer.removeChildren();
 		replaceIndices.forEach((idx) => {
 			const slotX = startX + idx * (cardW + gap);
@@ -661,28 +662,6 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		});
 	};
 
-	const replaceHandCards = (newHand, replaceIndices) => {
-		const layout = state.handLayout;
-		if (!layout) return;
-		const { startX, cardW, cardH, gap } = layout;
-		replaceIndices.forEach((idx) => {
-			const existing = state.handSprites?.[idx];
-			const nextCard = newHand[idx];
-			const slotX = startX + idx * (cardW + gap);
-			const slotY = 0;
-			if (existing) {
-				handArea.removeChild(existing);
-				existing.destroy({ children: true });
-			}
-			if (!nextCard) return;
-			const newSprite = drawCard(nextCard, idx);
-			newSprite.position.set(slotX, slotY);
-			newSprite._base.x = slotX;
-			newSprite._base.y = slotY;
-			handArea.addChild(newSprite);
-			state.handSprites[idx] = newSprite;
-		});
-	};
 
 	const getUpgradeCost = (upgrade) => upgrade.baseCost + Math.max(0, state.ante - 1);
 
@@ -935,7 +914,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		swirlDisplace.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
 	}
 	const swirlFilter = new PIXI.filters.DisplacementFilter(swirlDisplace);
-	swirlFilter.scale.set(18, 14);
+	swirlFilter.scale.set(28, 20);
 	swirlSprite.filters = [swirlFilter];
 
 	container.addChild(
