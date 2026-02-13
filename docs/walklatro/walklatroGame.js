@@ -179,6 +179,25 @@ function createSwirlTexture(colors) {
 	return PIXI.Texture.from(canvas);
 }
 
+function createNoiseTexture() {
+	const size = 128;
+	const canvas = document.createElement('canvas');
+	canvas.width = size;
+	canvas.height = size;
+	const ctx = canvas.getContext('2d');
+	if (!ctx) return PIXI.Texture.WHITE;
+	const image = ctx.createImageData(size, size);
+	for (let i = 0; i < image.data.length; i += 4) {
+		const v = Math.floor(Math.random() * 255);
+		image.data[i] = v;
+		image.data[i + 1] = v;
+		image.data[i + 2] = v;
+		image.data[i + 3] = 255;
+	}
+	ctx.putImageData(image, 0, 0);
+	return PIXI.Texture.from(canvas);
+}
+
 export function createWalklatroOverlay(app, world, options = {}) {
 	const screenScale = options.screenScale ?? 1;
 	const colors = {
@@ -360,10 +379,12 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	});
 
 	const bottomY = windowHeight - padding - 32;
-	playBtn.position.set(windowWidth - padding - 150, bottomY);
-	discardBtn.position.set(windowWidth - padding - 150 - 130, bottomY + 2);
-	nextBtn.position.set(windowWidth - padding - 110, headerHeight + 32);
-	skipBtn.position.set(windowWidth - padding - 100, headerHeight + 60);
+	const actionRightX = windowWidth - padding - 150;
+	const actionLeftX = actionRightX - 130;
+	playBtn.position.set(actionRightX, bottomY);
+	discardBtn.position.set(actionLeftX, bottomY + 2);
+	nextBtn.position.set(actionRightX, bottomY);
+	skipBtn.position.set(actionLeftX, bottomY + 2);
 	rerollBtn.position.set(windowWidth - padding - 76, headerHeight + 88);
 	restartBtn.position.set(windowWidth - padding - 110, headerHeight + 32);
 
@@ -746,6 +767,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	app.stage.on('pointerupoutside', () => { dragState.active = false; });
 
 	let glowTime = 0;
+	let swirlTime = 0;
 	const updateSelectionGlow = (time) => {
 		if (!state.selected.size) return;
 		const hue = (time * 90) % 360;
@@ -769,13 +791,26 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	};
 
 	const swirlSprite = new PIXI.Sprite(createSwirlTexture(colors));
-	swirlSprite.alpha = 0.16;
+	swirlSprite.alpha = 0.18;
 	swirlSprite.width = windowWidth;
 	swirlSprite.height = windowHeight;
 	swirlSprite.position.set(0, 0);
 
+	const swirlDisplace = new PIXI.Sprite(createNoiseTexture());
+	swirlDisplace.width = windowWidth;
+	swirlDisplace.height = windowHeight;
+	swirlDisplace.alpha = 0;
+	swirlDisplace.visible = false;
+	if (swirlDisplace.texture?.baseTexture) {
+		swirlDisplace.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
+	}
+	const swirlFilter = new PIXI.filters.DisplacementFilter(swirlDisplace);
+	swirlFilter.scale.set(12, 10);
+	swirlSprite.filters = [swirlFilter];
+
 	container.addChild(
 		panelFill,
+		swirlDisplace,
 		swirlSprite,
 		panelBorder,
 		headerBg,
@@ -808,6 +843,11 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	app.ticker.add((dt) => {
 		if (!state.open) return;
 		glowTime += dt / 60;
+		swirlTime += dt / 60;
+		swirlDisplace.x = swirlTime * 18;
+		swirlDisplace.y = swirlTime * 12;
+		swirlSprite.rotation = Math.sin(swirlTime * 0.15) * 0.02;
+		swirlSprite.alpha = 0.18 + Math.sin(swirlTime * 0.2) * 0.02;
 		updateSelectionGlow(glowTime);
 		const ease = 0.18;
 		for (const child of handArea.children) {
