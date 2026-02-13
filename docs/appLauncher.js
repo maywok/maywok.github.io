@@ -16,6 +16,7 @@ export function createAppLauncher(app, world, options = {}) {
 	const dragState = {
 		enabled: false,
 		active: null,
+		grabbed: null,
 	};
 	const PHYSICS = {
 		gravity: 1400,
@@ -326,7 +327,7 @@ export function createAppLauncher(app, world, options = {}) {
 		const mouseForce = PHYSICS.mousePushForce;
 		const grabR = screenToWorldSize(PHYSICS.mouseGrabRadius);
 		const spinDamp = 0.985;
-		const spinGrabTorque = 0.00032;
+		const spinGrabTorque = 0.00016;
 		const spinMax = 14;
 		const spinUpright = 0;
 		const groundRoll = 0.018;
@@ -348,6 +349,7 @@ export function createAppLauncher(app, world, options = {}) {
 				}
 			});
 			if (dragState.active) dragState.active = null;
+			dragState.grabbed = null;
 		}
 		icons.forEach((icon) => {
 			const scale = icon.state.hovered ? 1.08 : 1.0;
@@ -364,23 +366,23 @@ export function createAppLauncher(app, world, options = {}) {
 				icon.container.rotation = icon.state.angle;
 			} else {
 				if (mouseWorld?.down) {
-					const dx = icon.container.position.x - mouseWorld.x;
-					const dy = icon.container.position.y - mouseWorld.y;
-					const dist = Math.hypot(dx, dy) || 1;
-					if (dist < grabR) {
-						if (!icon.state.grabbed) {
-							icon.state.grabbed = true;
-							icon.state.grabOffset.x = icon.container.position.x - mouseWorld.x;
-							icon.state.grabOffset.y = icon.container.position.y - mouseWorld.y;
-						}
+					if (icon.state.grabbed) {
 						icon.state.vx = lastMouseVel.x;
 						icon.state.vy = lastMouseVel.y;
 						const torque = (icon.state.grabOffset.x * lastMouseVel.y - icon.state.grabOffset.y * lastMouseVel.x);
 						icon.state.angVel += torque * spinGrabTorque;
 						icon.container.position.x = mouseWorld.x + icon.state.grabOffset.x;
 						icon.container.position.y = mouseWorld.y + icon.state.grabOffset.y;
-					} else {
-						icon.state.grabbed = false;
+					} else if (!dragState.grabbed) {
+						const dx = icon.container.position.x - mouseWorld.x;
+						const dy = icon.container.position.y - mouseWorld.y;
+						const dist = Math.hypot(dx, dy) || 1;
+						if (dist < grabR) {
+							icon.state.grabbed = true;
+							dragState.grabbed = icon;
+							icon.state.grabOffset.x = icon.container.position.x - mouseWorld.x;
+							icon.state.grabOffset.y = icon.container.position.y - mouseWorld.y;
+						}
 					}
 				}
 				if (icon.state.dragging && !icon.state.grabbed) {
@@ -424,6 +426,9 @@ export function createAppLauncher(app, world, options = {}) {
 					if (icon.state.vy > 0) icon.state.vy = 0;
 					icon.state.vx *= PHYSICS.floorFriction;
 					icon.state.angVel += icon.state.vx * groundRoll;
+					if (Math.abs(icon.state.vx) < 20) {
+						icon.state.angVel *= Math.pow(0.88, dtSeconds * 60);
+					}
 					const floorMinX = minX + icon.state.radius * icon.container.scale.x;
 					const floorMaxX = maxX - icon.state.radius * icon.container.scale.x;
 					if (icon.container.position.x < floorMinX) {
@@ -436,6 +441,10 @@ export function createAppLauncher(app, world, options = {}) {
 					}
 				}
 				icon.state.angVel *= Math.pow(spinDamp, dtSeconds * 60);
+				if (!icon.state.dragging && !icon.state.grabbed) {
+					const speed = Math.hypot(icon.state.vx, icon.state.vy);
+					if (speed < 26) icon.state.angVel *= Math.pow(0.93, dtSeconds * 60);
+				}
 				icon.state.angVel = Math.max(-spinMax, Math.min(spinMax, icon.state.angVel));
 				icon.state.angle += icon.state.angVel * dtSeconds;
 				icon.container.rotation = icon.state.angle;
@@ -498,18 +507,24 @@ export function createAppLauncher(app, world, options = {}) {
 		}
 	}
 
-	function setDragEnabled(enabled) {
+	function setDragEnabled(enabled, options = {}) {
 		dragState.enabled = Boolean(enabled);
+		const preserveMomentum = Boolean(options?.preserveMomentum);
 		if (!dragState.enabled && dragState.active) {
 			dragState.active.state.dragging = false;
 			dragState.active = null;
 		}
+		if (!dragState.enabled) {
+			dragState.grabbed = null;
+		}
 		icons.forEach((icon) => {
-			icon.state.vx = 0;
-			icon.state.vy = 0;
-			icon.state.angVel = 0;
-			icon.state.angle = 0;
-			icon.container.rotation = 0;
+			if (!preserveMomentum) {
+				icon.state.vx = 0;
+				icon.state.vy = 0;
+				icon.state.angVel = 0;
+				icon.state.angle = 0;
+				icon.container.rotation = 0;
+			}
 			icon.state.lastDragTime = 0;
 			icon.state.grabbed = false;
 			if (!dragState.enabled) {
@@ -526,6 +541,18 @@ export function createAppLauncher(app, world, options = {}) {
 		externalBodiesProvider = provider;
 	}
 
+	function applyOrbitalImpulse(center, angularVelocity) {
+		if (!center || !Number.isFinite(center.x) || !Number.isFinite(center.y)) return;
+		if (!Number.isFinite(angularVelocity)) return;
+		for (const icon of icons) {
+			const dx = icon.container.position.x - center.x;
+			const dy = icon.container.position.y - center.y;
+			icon.state.vx += -dy * angularVelocity;
+			icon.state.vy += dx * angularVelocity;
+			icon.state.angVel += angularVelocity * 0.35;
+		}
+	}
+
 	function getBodies() {
 		return icons.map((icon) => ({ container: icon.container, state: icon.state }));
 	}
@@ -536,6 +563,7 @@ export function createAppLauncher(app, world, options = {}) {
 		layout,
 		update,
 		setDragEnabled,
+		applyOrbitalImpulse,
 		setExternalBodiesProvider,
 		getBodies,
 		platforms: icons.map((icon) => icon.container),
