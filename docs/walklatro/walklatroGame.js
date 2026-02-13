@@ -150,6 +150,35 @@ function createButton(label, width, height, colors) {
 	return container;
 }
 
+function createSwirlTexture(colors) {
+	const size = 512;
+	const canvas = document.createElement('canvas');
+	canvas.width = size;
+	canvas.height = size;
+	const ctx = canvas.getContext('2d');
+	if (!ctx) return PIXI.Texture.WHITE;
+	ctx.clearRect(0, 0, size, size);
+	ctx.translate(size / 2, size / 2);
+	ctx.rotate(-0.4);
+	const layers = [colors.red, colors.teal, colors.green];
+	for (let i = 0; i < layers.length; i += 1) {
+		const color = layers[i];
+		ctx.strokeStyle = `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, 0.08)`;
+		ctx.lineWidth = 14 - i * 3;
+		ctx.beginPath();
+		for (let t = 0; t < Math.PI * 5; t += 0.08) {
+			const r = 10 + t * 16;
+			const x = Math.cos(t + i * 0.8) * r;
+			const y = Math.sin(t + i * 0.8) * r;
+			if (t === 0) ctx.moveTo(x, y);
+			else ctx.lineTo(x, y);
+		}
+		ctx.stroke();
+	}
+	ctx.setTransform(1, 0, 0, 1, 0, 0);
+	return PIXI.Texture.from(canvas);
+}
+
 export function createWalklatroOverlay(app, world, options = {}) {
 	const screenScale = options.screenScale ?? 1;
 	const colors = {
@@ -291,10 +320,10 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	resultText.position.set(padding, headerHeight + 52);
 
 	const handArea = new PIXI.Container();
-	handArea.position.set(padding, headerHeight + 74);
+	handArea.position.set(padding, headerHeight + 82);
 
 	const shopArea = new PIXI.Container();
-	shopArea.position.set(padding, headerHeight + 176);
+	shopArea.position.set(padding, headerHeight + 210);
 
 	const actionColors = {
 		fill: 0x0b1418,
@@ -303,8 +332,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		alpha: 0.9,
 	};
 
-	const playBtn = createButton('Play Hand', 110, 24, actionColors);
-	const discardBtn = createButton('Discard', 86, 20, {
+	const playBtn = createButton('Play Hand', 150, 32, actionColors);
+	const discardBtn = createButton('Discard', 120, 28, {
 		fill: 0x0b1418,
 		border: colors.white,
 		text: colors.white,
@@ -330,8 +359,9 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		alpha: 0.9,
 	});
 
-	playBtn.position.set(windowWidth - padding - 110, headerHeight + 32);
-	discardBtn.position.set(windowWidth - padding - 86, headerHeight + 60);
+	const bottomY = windowHeight - padding - 32;
+	playBtn.position.set(windowWidth - padding - 150, bottomY);
+	discardBtn.position.set(windowWidth - padding - 150 - 130, bottomY + 2);
 	nextBtn.position.set(windowWidth - padding - 110, headerHeight + 32);
 	skipBtn.position.set(windowWidth - padding - 100, headerHeight + 60);
 	rerollBtn.position.set(windowWidth - padding - 76, headerHeight + 88);
@@ -350,8 +380,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	const shopRowWidth = windowWidth - padding * 2 - 120;
 
 	const drawCard = (card, index) => {
-		const cardW = 64;
-		const cardH = 84;
+		const cardW = 78;
+		const cardH = 104;
 		const container = new PIXI.Container();
 		const bg = new PIXI.Graphics();
 		const border = new PIXI.Graphics();
@@ -369,20 +399,20 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		glow.visible = false;
 		const rank = new PIXI.Text(card.rank.id, {
 			fontFamily: 'Minecraft, monospace',
-			fontSize: 14,
+			fontSize: 16,
 			fill: card.suit.color,
 		});
 		rank.position.set(8, 6);
 		const suit = new PIXI.Text(card.suit.label, {
 			fontFamily: 'Minecraft, monospace',
-			fontSize: 18,
+			fontSize: 22,
 			fill: card.suit.color,
 		});
 		suit.anchor.set(0.5);
-		suit.position.set(cardW / 2, cardH / 2 + 6);
+		suit.position.set(cardW / 2, cardH / 2 + 8);
 		const footer = new PIXI.Text(card.rank.id, {
 			fontFamily: 'Minecraft, monospace',
-			fontSize: 12,
+			fontSize: 14,
 			fill: card.suit.color,
 		});
 		footer.anchor.set(1, 1);
@@ -429,9 +459,9 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		handArea.removeChildren();
 		const cards = state.hand;
 		if (!cards.length) return;
-		const cardW = 64;
-		const cardH = 84;
-		const gap = 12;
+		const cardW = 78;
+		const cardH = 104;
+		const gap = 14;
 		const totalW = cards.length * cardW + (cards.length - 1) * gap;
 		const startX = (windowWidth - padding * 2 - totalW) / 2;
 		cards.forEach((card, idx) => {
@@ -727,17 +757,26 @@ export function createWalklatroOverlay(app, world, options = {}) {
 				child._glow.visible = false;
 				continue;
 			}
+			const w = child._size?.width ?? 78;
+			const h = child._size?.height ?? 104;
 			child._glow.visible = true;
 			child._glow.clear();
 			child._glow.lineStyle(4, color, 1);
-			child._glow.drawRoundedRect(-3, -3, 70, 90, 9);
+			child._glow.drawRoundedRect(-3, -3, w + 6, h + 6, 9);
 			child._glow.lineStyle(2, color, 0.65);
-			child._glow.drawRoundedRect(-1, -1, 66, 86, 7);
+			child._glow.drawRoundedRect(-1, -1, w + 2, h + 2, 7);
 		}
 	};
 
+	const swirlSprite = new PIXI.Sprite(createSwirlTexture(colors));
+	swirlSprite.alpha = 0.16;
+	swirlSprite.width = windowWidth;
+	swirlSprite.height = windowHeight;
+	swirlSprite.position.set(0, 0);
+
 	container.addChild(
 		panelFill,
+		swirlSprite,
 		panelBorder,
 		headerBg,
 		title,

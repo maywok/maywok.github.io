@@ -437,7 +437,7 @@ async function boot() {
 				const reflexIconResult = await withTimeout(createReflexIcon(app, world, {
 					screenScale: SCENE_SCALE,
 					dockScreenX: getLauncherDockX,
-					dockScreenY: () => getLauncherDockY(1),
+					dockScreenY: () => getLauncherDockY(2),
 					backgroundWidth: screenToWorldSize(getLauncherIconSize()),
 					backgroundHeight: screenToWorldSize(getLauncherIconSize()),
 				}), 6000, 'Reflex icon');
