@@ -283,43 +283,13 @@ async function boot() {
 				return (rr << 16) | (rg << 8) | rb;
 			};
 			const pickAmbientColor = () => {
-				if (Math.random() < 0.4) {
+				if (Math.random() < 0.38) {
 					return ambientBaseColors[Math.floor(Math.random() * ambientBaseColors.length)];
 				}
 				const a = ambientBaseColors[Math.floor(Math.random() * ambientBaseColors.length)];
 				let b = ambientBaseColors[Math.floor(Math.random() * ambientBaseColors.length)];
 				if (b === a) b = ambientBaseColors[(ambientBaseColors.indexOf(a) + 1) % ambientBaseColors.length];
 				return mixColors(a, b, 0.25 + Math.random() * 0.5);
-			};
-			const drawAmbientShape = (graphics, type, size) => {
-				graphics.clear();
-				if (type === 'diamond') {
-					graphics.drawPolygon([
-						0, -size,
-						size * 0.75, 0,
-						0, size,
-						-size * 0.75, 0,
-					]);
-					return;
-				}
-				if (type === 'triangle') {
-					graphics.drawPolygon([
-						0, -size,
-						size * 0.86, size * 0.8,
-						-size * 0.86, size * 0.8,
-					]);
-					return;
-				}
-				if (type === 'hex') {
-					const p = [];
-					for (let i = 0; i < 6; i++) {
-						const a = (Math.PI / 3) * i - Math.PI / 2;
-						p.push(Math.cos(a) * size, Math.sin(a) * size);
-					}
-					graphics.drawPolygon(p);
-					return;
-				}
-				graphics.drawRoundedRect(-size * 0.7, -size * 0.7, size * 1.4, size * 1.4, Math.max(2, size * 0.2));
 			};
 			for (let i = 0; i < 10; i++) {
 				const node = new PIXI.Container();
@@ -335,10 +305,34 @@ async function boot() {
 				glow.drawCircle(0, 0, size * (bigDiamond ? 1.8 : 1.35));
 				glow.endFill();
 				body.beginFill(color, 0.5);
-				drawAmbientShape(body, type, size);
-				body.endFill();
 				edge.lineStyle(1, color, 0.62);
-				drawAmbientShape(edge, type, size);
+				if (type === 'diamond') {
+					const pts = [
+						0, -size,
+						size * 0.75, 0,
+						0, size,
+						-size * 0.75, 0,
+					];
+					body.drawPolygon(pts);
+					edge.drawPolygon(pts);
+				} else if (type === 'triangle') {
+					const pts = [
+						0, -size,
+						size * 0.86, size * 0.8,
+						-size * 0.86, size * 0.8,
+					];
+					body.drawPolygon(pts);
+					edge.drawPolygon(pts);
+				} else {
+					const pts = [];
+					for (let h = 0; h < 6; h++) {
+						const a = (Math.PI / 3) * h - Math.PI / 2;
+						pts.push(Math.cos(a) * size, Math.sin(a) * size);
+					}
+					body.drawPolygon(pts);
+					edge.drawPolygon(pts);
+				}
+				body.endFill();
 				node.addChild(glow, body, edge);
 				ambientLayer.addChild(node);
 				ambientDebris.push({
@@ -1129,6 +1123,8 @@ async function boot() {
 			if (!ringDrag.active) {
 				ringSpin += ringSpinVel * seconds;
 				ringSpinVel *= Math.pow(0.982, dt);
+				if (!Number.isFinite(ringSpinVel)) ringSpinVel = 0;
+				if (!Number.isFinite(ringSpin)) ringSpin = 0;
 				if (Math.abs(ringSpinVel) < 0.001) ringSpinVel = 0;
 			}
 			if (iconIntroProgress < 1 || ringDrag.active || Math.abs(ringSpinVel) > 0) {
@@ -1142,6 +1138,8 @@ async function boot() {
 			const mx = (mouse.x / app.renderer.width) * 2 - 1;
 			const my = (mouse.y / app.renderer.height) * 2 - 1;
 			for (const d of ambientDebris) {
+				if (!d?.panel) continue;
+				if (!Number.isFinite(d.baseX) || !Number.isFinite(d.baseY)) continue;
 				d.panel.position.x = d.baseX + Math.sin(time * 0.34 + d.phase) * d.driftX - mx * d.parallax;
 				d.panel.position.y = d.baseY + Math.cos(time * 0.29 + d.phase * 1.2) * d.driftY - my * (d.parallax * 0.7);
 				d.panel.rotation = Math.sin(time * 0.18 + d.phase) * d.spin;
