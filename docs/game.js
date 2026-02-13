@@ -593,14 +593,30 @@ async function boot() {
 				dragEnabled = Boolean(enabled);
 				lockAnimTarget = dragEnabled ? 1 : 0;
 				appLauncher.setDragEnabled?.(dragEnabled, { preserveMomentum: dragEnabled });
-				if (dragEnabled) {
-					const core = getCoreWorldPos();
-					appLauncher.applyOrbitalImpulse?.(core, ringSpinVel);
-				}
 				if (blogIconSetDragEnabled) blogIconSetDragEnabled(dragEnabled);
 				if (linkedinIconSetDragEnabled) linkedinIconSetDragEnabled(dragEnabled);
 				if (reflexIconSetDragEnabled) reflexIconSetDragEnabled(dragEnabled);
 				if (walklatroIconSetDragEnabled) walklatroIconSetDragEnabled(dragEnabled);
+				if (dragEnabled) {
+					const core = getCoreWorldPos();
+					appLauncher.applyOrbitalImpulse?.(core, ringSpinVel);
+					const externalBodies = [
+						blogIconGetBody?.(),
+						linkedinIconGetBody?.(),
+						reflexIconGetBody?.(),
+						walklatroIconGetBody?.(),
+					].filter(Boolean);
+					for (const body of externalBodies) {
+						const st = body?.state;
+						const c = body?.container;
+						if (!st || !c) continue;
+						const dx = c.position.x - core.x;
+						const dy = c.position.y - core.y;
+						st.vx += -dy * ringSpinVel;
+						st.vy += dx * ringSpinVel;
+						st.angVel += ringSpinVel * 0.35;
+					}
+				}
 				lockNeedsRedraw = true;
 			};
 			const placeLockButton = () => {
@@ -963,6 +979,26 @@ async function boot() {
 			while (v < -Math.PI) v += Math.PI * 2;
 			return v;
 		}
+		function isPointerOverIcon(screenPoint) {
+			const containers = [
+				...(Array.isArray(appLauncher?.icons) ? appLauncher.icons : []),
+				blogIconGetBody?.()?.container,
+				linkedinIconGetBody?.()?.container,
+				reflexIconGetBody?.()?.container,
+				walklatroIconGetBody?.()?.container,
+			].filter(Boolean);
+			for (const container of containers) {
+				const b = container.getBounds?.();
+				if (!b) continue;
+				if (
+					screenPoint.x >= b.x && screenPoint.x <= b.x + b.width
+					&& screenPoint.y >= b.y && screenPoint.y <= b.y + b.height
+				) {
+					return true;
+				}
+			}
+			return false;
+		}
 		window.addEventListener('pointermove', updateMouseFromEvent);
 		window.addEventListener('pointerdown', updateMouseFromEvent);
 		window.addEventListener('pointerenter', updateMouseFromEvent);
@@ -971,6 +1007,7 @@ async function boot() {
 			if (dragEnabled) return;
 			const p = toRendererPoint(e);
 			if (!p) return;
+			if (isPointerOverIcon(p)) return;
 			const c = getCoreScreenPos();
 			const dx = p.x - c.x;
 			const dy = p.y - c.y;

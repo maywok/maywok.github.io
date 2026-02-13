@@ -411,15 +411,18 @@ export function createAppLauncher(app, world, options = {}) {
 				if (icon.container.position.x < minX) {
 					icon.container.position.x = minX;
 					icon.state.vx *= -PHYSICS.bounce;
+					icon.state.angVel += (-icon.state.vx) * 0.006;
 				}
 			}
 				if (icon.container.position.x > maxX) {
 					icon.container.position.x = maxX;
 					icon.state.vx *= -PHYSICS.bounce;
+					icon.state.angVel += (icon.state.vx) * 0.006;
 				}
 				if (icon.container.position.y < minY) {
 					icon.container.position.y = minY;
 					icon.state.vy *= -PHYSICS.bounce;
+					icon.state.angVel += (icon.state.vx) * 0.004;
 				}
 				if (icon.container.position.y > maxY) {
 					icon.container.position.y = maxY;
@@ -433,11 +436,17 @@ export function createAppLauncher(app, world, options = {}) {
 					const floorMaxX = maxX - icon.state.radius * icon.container.scale.x;
 					if (icon.container.position.x < floorMinX) {
 						icon.container.position.x = floorMinX;
-						if (icon.state.vx < 0) icon.state.vx *= -PHYSICS.bounce;
+						if (icon.state.vx < 0) {
+							icon.state.vx *= -PHYSICS.bounce;
+							icon.state.angVel += (-icon.state.vx) * 0.006;
+						}
 					}
 					if (icon.container.position.x > floorMaxX) {
 						icon.container.position.x = floorMaxX;
-						if (icon.state.vx > 0) icon.state.vx *= -PHYSICS.bounce;
+						if (icon.state.vx > 0) {
+							icon.state.vx *= -PHYSICS.bounce;
+							icon.state.angVel += (icon.state.vx) * 0.006;
+						}
 					}
 				}
 				icon.state.angVel *= Math.pow(spinDamp, dtSeconds * 60);
