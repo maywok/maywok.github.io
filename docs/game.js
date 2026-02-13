@@ -371,12 +371,12 @@ async function boot() {
 				placeItems: 'center',
 			});
 			const getDockMetrics = () => {
-				const centerY = app.renderer.height * 0.57;
-				const rowGap = Math.max(74, Math.min(108, app.renderer.height * 0.15));
+				const centerY = app.renderer.height * 0.54;
+				const rowGap = Math.max(92, Math.min(136, app.renderer.height * 0.19));
 				const startY = centerY - rowGap;
 				const leftX = Math.max(96, Math.min(168, app.renderer.width * 0.11));
-				const colGap = Math.max(86, Math.min(122, app.renderer.width * 0.09));
-				const iconSize = Math.max(50, Math.min(72, app.renderer.height * 0.09));
+				const colGap = Math.max(104, Math.min(146, app.renderer.width * 0.115));
+				const iconSize = Math.max(58, Math.min(82, app.renderer.height * 0.11));
 				return { centerY, rowGap, startY, leftX, colGap, iconSize };
 			};
 			const placeLockButton = () => {
