@@ -269,39 +269,88 @@ async function boot() {
 			world.addChild(vinesLayer);
 
 			const ambientDebris = [];
-			for (let i = 0; i < 6; i++) {
-				const shard = new PIXI.Container();
+			const ambientBaseColors = [0x4ab0ff, 0xff4d5a, 0xd2b48c, 0x6dff9a, 0xffffff];
+			const mixColors = (a, b, t) => {
+				const ar = (a >> 16) & 255;
+				const ag = (a >> 8) & 255;
+				const ab = a & 255;
+				const br = (b >> 16) & 255;
+				const bg = (b >> 8) & 255;
+				const bb = b & 255;
+				const rr = Math.round(ar + (br - ar) * t);
+				const rg = Math.round(ag + (bg - ag) * t);
+				const rb = Math.round(ab + (bb - ab) * t);
+				return (rr << 16) | (rg << 8) | rb;
+			};
+			const pickAmbientColor = () => {
+				if (Math.random() < 0.4) {
+					return ambientBaseColors[Math.floor(Math.random() * ambientBaseColors.length)];
+				}
+				const a = ambientBaseColors[Math.floor(Math.random() * ambientBaseColors.length)];
+				let b = ambientBaseColors[Math.floor(Math.random() * ambientBaseColors.length)];
+				if (b === a) b = ambientBaseColors[(ambientBaseColors.indexOf(a) + 1) % ambientBaseColors.length];
+				return mixColors(a, b, 0.25 + Math.random() * 0.5);
+			};
+			const drawAmbientShape = (graphics, type, size) => {
+				graphics.clear();
+				if (type === 'diamond') {
+					graphics.drawPolygon([
+						0, -size,
+						size * 0.75, 0,
+						0, size,
+						-size * 0.75, 0,
+					]);
+					return;
+				}
+				if (type === 'triangle') {
+					graphics.drawPolygon([
+						0, -size,
+						size * 0.86, size * 0.8,
+						-size * 0.86, size * 0.8,
+					]);
+					return;
+				}
+				if (type === 'hex') {
+					const p = [];
+					for (let i = 0; i < 6; i++) {
+						const a = (Math.PI / 3) * i - Math.PI / 2;
+						p.push(Math.cos(a) * size, Math.sin(a) * size);
+					}
+					graphics.drawPolygon(p);
+					return;
+				}
+				graphics.drawRoundedRect(-size * 0.7, -size * 0.7, size * 1.4, size * 1.4, Math.max(2, size * 0.2));
+			};
+			for (let i = 0; i < 10; i++) {
+				const node = new PIXI.Container();
 				const glow = new PIXI.Graphics();
-				const crystal = new PIXI.Graphics();
+				const body = new PIXI.Graphics();
 				const edge = new PIXI.Graphics();
-				const scale = 0.7 + Math.random() * 0.8;
-				const points = [
-					0, -22 * scale,
-					12 * scale, -6 * scale,
-					7 * scale, 16 * scale,
-					-6 * scale, 20 * scale,
-					-13 * scale, -2 * scale,
-				];
-				glow.beginFill(0x9bffd6, 0.08);
-				glow.drawCircle(0, 0, 24 * scale);
+				const isDiamond = Math.random() < 0.72;
+				const type = isDiamond ? 'diamond' : (Math.random() < 0.5 ? 'triangle' : 'hex');
+				const bigDiamond = isDiamond && Math.random() < 0.28;
+				const size = bigDiamond ? (12 + Math.random() * 9) : (5 + Math.random() * 5);
+				const color = pickAmbientColor();
+				glow.beginFill(color, bigDiamond ? 0.11 : 0.08);
+				glow.drawCircle(0, 0, size * (bigDiamond ? 1.8 : 1.35));
 				glow.endFill();
-				crystal.beginFill(0x091116, 0.5);
-				crystal.drawPolygon(points);
-				crystal.endFill();
-				edge.lineStyle(1, 0x22f3c8, 0.45);
-				edge.drawPolygon(points);
-				shard.addChild(glow, crystal, edge);
-				ambientLayer.addChild(shard);
+				body.beginFill(color, 0.5);
+				drawAmbientShape(body, type, size);
+				body.endFill();
+				edge.lineStyle(1, color, 0.62);
+				drawAmbientShape(edge, type, size);
+				node.addChild(glow, body, edge);
+				ambientLayer.addChild(node);
 				ambientDebris.push({
-					panel: shard,
+					panel: node,
 					phase: Math.random() * Math.PI * 2,
-					driftX: 12 + Math.random() * 18,
-					driftY: 10 + Math.random() * 14,
+					driftX: 10 + Math.random() * 22,
+					driftY: 8 + Math.random() * 16,
 					baseX: 0,
 					baseY: 0,
-					spin: (Math.random() - 0.5) * 0.16,
-					alphaBase: 0.2 + Math.random() * 0.2,
-					parallax: 7 + Math.random() * 16,
+					spin: (Math.random() - 0.5) * 0.2,
+					alphaBase: 0.18 + Math.random() * 0.24,
+					parallax: 10 + Math.random() * 20,
 				});
 			}
 
@@ -384,8 +433,8 @@ async function boot() {
 			};
 			const getRingRadius = () => Math.max(120, Math.min(220, Math.min(app.renderer.width, app.renderer.height) * 0.24));
 			const getRingIconSize = () => Math.max(58, Math.min(84, app.renderer.height * 0.108));
-			const RING_THROW_BOOST = 1.35;
-			const RING_MAX_SPIN_VEL = 8.0;
+			const RING_THROW_BOOST = 1.7;
+			const RING_MAX_SPIN_VEL = 10.5;
 			const getRingSlotScreenPos = (slotIndex) => {
 				const core = getCoreScreenPos();
 				const radius = getRingRadius();
@@ -427,12 +476,16 @@ async function boot() {
 
 			const placeAmbientDebris = () => {
 				const anchors = [
-					{ x: app.renderer.width * 0.19, y: app.renderer.height * 0.22 },
-					{ x: app.renderer.width * 0.81, y: app.renderer.height * 0.25 },
-					{ x: app.renderer.width * 0.66, y: app.renderer.height * 0.66 },
-					{ x: app.renderer.width * 0.28, y: app.renderer.height * 0.74 },
-					{ x: app.renderer.width * 0.52, y: app.renderer.height * 0.18 },
-					{ x: app.renderer.width * 0.86, y: app.renderer.height * 0.58 },
+					{ x: app.renderer.width * 0.14, y: app.renderer.height * 0.2 },
+					{ x: app.renderer.width * 0.3, y: app.renderer.height * 0.16 },
+					{ x: app.renderer.width * 0.53, y: app.renderer.height * 0.14 },
+					{ x: app.renderer.width * 0.78, y: app.renderer.height * 0.2 },
+					{ x: app.renderer.width * 0.9, y: app.renderer.height * 0.38 },
+					{ x: app.renderer.width * 0.84, y: app.renderer.height * 0.62 },
+					{ x: app.renderer.width * 0.67, y: app.renderer.height * 0.78 },
+					{ x: app.renderer.width * 0.42, y: app.renderer.height * 0.82 },
+					{ x: app.renderer.width * 0.2, y: app.renderer.height * 0.74 },
+					{ x: app.renderer.width * 0.08, y: app.renderer.height * 0.5 },
 				];
 				for (let i = 0; i < ambientDebris.length; i++) {
 					const d = ambientDebris[i];
@@ -1075,7 +1128,7 @@ async function boot() {
 			}
 			if (!ringDrag.active) {
 				ringSpin += ringSpinVel * seconds;
-				ringSpinVel *= Math.pow(0.965, dt);
+				ringSpinVel *= Math.pow(0.982, dt);
 				if (Math.abs(ringSpinVel) < 0.001) ringSpinVel = 0;
 			}
 			if (iconIntroProgress < 1 || ringDrag.active || Math.abs(ringSpinVel) > 0) {
