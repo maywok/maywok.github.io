@@ -601,13 +601,16 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		const { startX, cardW, cardH, gap } = layout;
 		if (!replaceIndices.length) return;
 		state.animating = true;
+		state.pendingHand = newHand;
+		state.pendingIndices = replaceIndices.slice();
 		animLayer.removeChildren();
-		handArea.visible = false;
 		replaceIndices.forEach((idx) => {
 			const slotX = startX + idx * (cardW + gap);
 			const slotY = 0;
 			const oldCard = oldHand[idx];
 			const newCard = newHand[idx];
+			const existing = handArea.children[idx];
+			if (existing) existing.visible = false;
 			if (oldCard) {
 				const oldSprite = createStaticCard(oldCard, cardW, cardH);
 				oldSprite.position.set(slotX, slotY);
@@ -635,6 +638,27 @@ export function createWalklatroOverlay(app, world, options = {}) {
 					fadeIn: true,
 				});
 			}
+		});
+	};
+
+	const replaceHandCards = (newHand, replaceIndices) => {
+		const layout = state.handLayout;
+		if (!layout) return;
+		const { startX, cardW, cardH, gap } = layout;
+		replaceIndices.forEach((idx) => {
+			const existing = handArea.children[idx];
+			const nextCard = newHand[idx];
+			const slotX = startX + idx * (cardW + gap);
+			const slotY = 0;
+			if (existing) {
+				existing.destroy({ children: true });
+			}
+			if (!nextCard) return;
+			const newSprite = drawCard(nextCard, idx);
+			newSprite.position.set(slotX, slotY);
+			newSprite._base.x = slotX;
+			newSprite._base.y = slotY;
+			handArea.addChildAt(newSprite, idx);
 		});
 	};
 
@@ -953,8 +977,11 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		if (state.animating && animations.length === 0) {
 			state.animating = false;
 			animLayer.removeChildren();
-			handArea.visible = true;
-			drawHand();
+			if (state.pendingHand && state.pendingIndices) {
+				replaceHandCards(state.pendingHand, state.pendingIndices);
+				state.pendingHand = null;
+				state.pendingIndices = null;
+			}
 			refreshSelection();
 			updatePhaseUI();
 		}
