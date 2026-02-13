@@ -283,11 +283,11 @@ export function createAppLauncher(app, world, options = {}) {
 	}
 
 	function layout() {
-		const centerY = app.renderer.height * 0.52;
-		const spacing = Math.max(86, Math.min(140, app.renderer.height * 0.18));
+		const centerY = app.renderer.height * 0.57;
+		const spacing = Math.max(74, Math.min(108, app.renderer.height * 0.15));
 		const startY = centerY - spacing;
-		const iconSize = Math.max(48, Math.min(74, app.renderer.height * 0.1));
-		const leftX = 110;
+		const iconSize = Math.max(50, Math.min(72, app.renderer.height * 0.09));
+		const leftX = Math.max(96, Math.min(168, app.renderer.width * 0.11));
 
 		icons.forEach((icon, idx) => {
 			const x = screenToWorldX(leftX);

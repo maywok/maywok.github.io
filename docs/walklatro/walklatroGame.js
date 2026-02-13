@@ -1025,12 +1025,11 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		swirlSprite.alpha = 0.34 + Math.sin(swirlTime * 0.25) * 0.05;
 		updateSelectionGlow(glowTime);
 		if (state.scoring) {
-			let active = 0;
-			for (const anim of scoreAnimations) {
+			for (let i = scoreAnimations.length - 1; i >= 0; i -= 1) {
+				const anim = scoreAnimations[i];
 				anim.elapsed += dt / 60;
 				const t = anim.elapsed - anim.delay;
 				if (t < 0) continue;
-				active += 1;
 				const p = Math.min(1, t / anim.duration);
 				const shake = Math.sin(p * 20) * (1 - p) * 2;
 				anim.sprite.position.x = anim.baseX + shake;
@@ -1040,11 +1039,12 @@ export function createWalklatroOverlay(app, world, options = {}) {
 				if (p >= 1) {
 					anim.sprite.position.x = anim.baseX;
 					anim.sprite.position.y = anim.baseY;
+					anim.text.destroy();
+					scoreAnimations.splice(i, 1);
 				}
 			}
-			if (active === 0) {
+			if (scoreAnimations.length === 0) {
 				scoreLayer.removeChildren();
-				scoreAnimations.length = 0;
 				state.scoring = false;
 				state.scoreDone?.();
 				state.scoreDone = null;

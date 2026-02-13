@@ -13,7 +13,6 @@ import {
 } from './shaders.js';
 import { createPixelateFilter } from './pixelate.js';
 import { createAppLauncher } from './appLauncher.js';
-import { createSystemHud } from './systemHud.js';
 
 const THEMES = {
 	light: {
@@ -141,8 +140,8 @@ async function boot() {
 				intensity: 0.08,
 				brightness: 0.06,
 				scanStrength: 0.85,
-				curve: 0.03,
-				vignette: 0.28,
+				curve: 0.0,
+				vignette: 0.0,
 			});
 			const { filter: crtScanlinesFilter, uniforms: crtScanlinesUniforms } = createCRTScanlinesFilter(app, {
 				strength: 0.42,
@@ -247,16 +246,11 @@ async function boot() {
 			const world = new PIXI.Container();
 			world.sortableChildren = true;
 			scene.addChild(world);
-			const systemHud = createSystemHud(app, {
-				city: 'SEATTLE, WA',
-				weather: 'CLEAR 72°F',
-				topOffset: 22,
-				parent: scene,
-			});
 			const player = new Player(app);
 			player.setColors(theme.player);
 			const ENABLE_VINE_LAMPS = true;
 			const ENABLE_VINE_LAMP_LIGHTING = true;
+			// TODO: Rework vine visuals (shape, density, and color language) after layout updates are finalized.
 			const vineOptions = {
 				lamp: {
 					enabled: ENABLE_VINE_LAMPS,
@@ -345,10 +339,14 @@ async function boot() {
 			let walklatroIconGetBody = null;
 			let walklatroIconSetMouseProvider = null;
 			const dragToggleBtn = document.createElement('button');
+			const LOCK_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#ffffff" d="M17 9h-1V7a4 4 0 0 0-8 0v2H7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2zm-7-2a2 2 0 1 1 4 0v2h-4V7z"/></svg>`;
+			const UNLOCK_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#ffffff" d="M17 9h-7V7a2 2 0 0 1 3.73-1h2.21A4 4 0 0 0 8 7v2H7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2z"/></svg>`;
 			let dragEnabled = false;
 			const applyDragEnabled = (enabled) => {
 				dragEnabled = Boolean(enabled);
-				dragToggleBtn.textContent = dragEnabled ? 'Lock Icons' : 'Unlock Icons';
+				dragToggleBtn.innerHTML = dragEnabled ? UNLOCK_SVG : LOCK_SVG;
+				dragToggleBtn.setAttribute('aria-label', dragEnabled ? 'Icons unlocked. Click to lock icons.' : 'Icons locked. Click to unlock icons.');
+				dragToggleBtn.title = dragEnabled ? 'Icons unlocked (click to lock)' : 'Icons locked (click to unlock)';
 				dragToggleBtn.setAttribute('aria-pressed', dragEnabled ? 'true' : 'false');
 				appLauncher.setDragEnabled?.(dragEnabled);
 				if (blogIconSetDragEnabled) blogIconSetDragEnabled(dragEnabled);
@@ -358,39 +356,52 @@ async function boot() {
 			};
 			dragToggleBtn.type = 'button';
 			Object.assign(dragToggleBtn.style, {
-				position: 'fixed',
-				top: '16px',
-				right: '16px',
+				position: 'absolute',
 				zIndex: 1200,
 				pointerEvents: 'auto',
-				padding: '8px 12px',
+				width: '38px',
+				height: '38px',
+				padding: '0',
 				borderRadius: '10px',
 				border: '1px solid rgba(34,243,200,0.6)',
 				background: 'rgba(5, 13, 11, 0.78)',
 				color: 'rgba(234, 251, 255, 0.95)',
-				fontFamily: 'Minecraft, ui-monospace, Menlo, monospace',
-				fontSize: '12px',
 				cursor: 'pointer',
-				letterSpacing: '0.8px',
+				display: 'grid',
+				placeItems: 'center',
 			});
+			const getDockMetrics = () => {
+				const centerY = app.renderer.height * 0.57;
+				const rowGap = Math.max(74, Math.min(108, app.renderer.height * 0.15));
+				const startY = centerY - rowGap;
+				const leftX = Math.max(96, Math.min(168, app.renderer.width * 0.11));
+				const colGap = Math.max(86, Math.min(122, app.renderer.width * 0.09));
+				const iconSize = Math.max(50, Math.min(72, app.renderer.height * 0.09));
+				return { centerY, rowGap, startY, leftX, colGap, iconSize };
+			};
+			const placeLockButton = () => {
+				const m = getDockMetrics();
+				const left = Math.max(12, Math.round(m.leftX - 48));
+				const top = Math.max(12, Math.round(m.startY - 50));
+				dragToggleBtn.style.left = `${left}px`;
+				dragToggleBtn.style.top = `${top}px`;
+			};
 			dragToggleBtn.addEventListener('click', () => applyDragEnabled(!dragEnabled));
-			document.body.appendChild(dragToggleBtn);
+			root.appendChild(dragToggleBtn);
+			placeLockButton();
 			applyDragEnabled(false);
 			let lastMouseWorld = { x: app.renderer.width / 2, y: app.renderer.height / 2 };
 
 			const getLauncherDockX = () => {
-				const leftX = 110;
-				const spacing = Math.max(86, Math.min(140, app.renderer.height * 0.18));
-				return leftX + spacing;
+				const m = getDockMetrics();
+				return m.leftX + m.colGap;
 			};
-			const getLauncherLeftX = () => 110;
+			const getLauncherLeftX = () => getDockMetrics().leftX;
 			const getLauncherDockY = (index = 0) => {
-				const centerY = app.renderer.height * 0.52;
-				const spacing = Math.max(86, Math.min(140, app.renderer.height * 0.18));
-				const startY = centerY - spacing;
-				return startY + spacing * index;
+				const m = getDockMetrics();
+				return m.startY + m.rowGap * index;
 			};
-			const getLauncherIconSize = () => Math.max(48, Math.min(74, app.renderer.height * 0.1));
+			const getLauncherIconSize = () => getDockMetrics().iconSize;
 			let layoutBlogIcon = () => {};
 			let layoutLinkedinIcon = () => {};
 			let layoutReflexIcon = () => {};
@@ -828,7 +839,6 @@ async function boot() {
 			updateCRTScanlinesFilter({ uniforms: crtScanlinesUniforms }, app, dt / 60);
 			updateCursorPixelate();
 			const seconds = dt / 60;
-			systemHud.update(time);
 			if (!portfolioActive) {
 				const edgeWidth = Math.max(1, leftPortalWidth);
 				const edgeFactor = Math.max(0, Math.min(1, 1 - mouse.x / edgeWidth));
@@ -1072,7 +1082,7 @@ async function boot() {
 
 			// Reposition link platforms relative to new size
 			appLauncher.layout();
-			systemHud.layout();
+			placeLockButton();
 			layoutBlogIcon();
 			layoutLinkedinIcon();
 			layoutReflexIcon();
