@@ -222,6 +222,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		boss: false,
 		target: 0,
 		roundScore: 0,
+		animating: false,
 		deck: [],
 		discardPile: [],
 		hand: [],
@@ -340,6 +341,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 
 	const handArea = new PIXI.Container();
 	handArea.position.set(padding, headerHeight + 82);
+	const animLayer = new PIXI.Container();
+	animLayer.position.set(padding, headerHeight + 82);
 
 	const shopArea = new PIXI.Container();
 	shopArea.position.set(padding, headerHeight + 210);
@@ -399,6 +402,39 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	const upgradeRows = [];
 	const shopRowHeight = 24;
 	const shopRowWidth = windowWidth - padding * 2 - 120;
+
+	const createStaticCard = (card, cardW, cardH) => {
+		const container = new PIXI.Container();
+		const bg = new PIXI.Graphics();
+		const border = new PIXI.Graphics();
+		bg.beginFill(0x030508, 1);
+		bg.drawRoundedRect(0, 0, cardW, cardH, 6);
+		bg.endFill();
+		border.lineStyle(2, card.suit.color, 0.95);
+		border.drawRoundedRect(0, 0, cardW, cardH, 6);
+		const rank = new PIXI.Text(card.rank.id, {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 16,
+			fill: card.suit.color,
+		});
+		rank.position.set(8, 6);
+		const suit = new PIXI.Text(card.suit.label, {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 22,
+			fill: card.suit.color,
+		});
+		suit.anchor.set(0.5);
+		suit.position.set(cardW / 2, cardH / 2 + 8);
+		const footer = new PIXI.Text(card.rank.id, {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 14,
+			fill: card.suit.color,
+		});
+		footer.anchor.set(1, 1);
+		footer.position.set(cardW - 6, cardH - 6);
+		container.addChild(bg, border, rank, suit, footer);
+		return container;
+	};
 
 	const drawCard = (card, index) => {
 		const cardW = 78;
@@ -485,13 +521,14 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		const gap = 14;
 		const totalW = cards.length * cardW + (cards.length - 1) * gap;
 		const startX = (windowWidth - padding * 2 - totalW) / 2;
+		state.handLayout = { startX, cardW, cardH, gap };
 		cards.forEach((card, idx) => {
 			const cardSprite = drawCard(card, idx);
 			cardSprite.position.set(startX + idx * (cardW + gap), 0);
 			cardSprite._base.x = cardSprite.position.x;
 			cardSprite._base.y = cardSprite.position.y;
 			cardSprite.on('pointertap', () => {
-				if (state.phase !== 'hand') return;
+				if (state.phase !== 'hand' || state.animating) return;
 				if (state.selected.has(idx)) {
 					state.selected.delete(idx);
 					cardSprite._setSelected(false);
@@ -536,8 +573,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		rerollBtn.visible = state.phase === 'shop' && state.shopRerollsRemaining > 0;
 		restartBtn.visible = state.phase === 'gameover';
 		shopArea.visible = state.phase === 'shop';
-		playBtn.setEnabled(state.phase === 'hand' && state.selected.size > 0);
-		discardBtn.setEnabled(state.phase === 'hand' && state.discardsLeft > 0 && state.selected.size > 0);
+		playBtn.setEnabled(state.phase === 'hand' && !state.animating && state.selected.size > 0);
+		discardBtn.setEnabled(state.phase === 'hand' && !state.animating && state.discardsLeft > 0 && state.selected.size > 0);
 		nextBtn.setEnabled(state.phase === 'shop');
 		skipBtn.setEnabled(state.phase === 'shop');
 		rerollBtn.setEnabled(state.phase === 'shop' && state.shopRerollsRemaining > 0);
@@ -555,6 +592,50 @@ export function createWalklatroOverlay(app, world, options = {}) {
 			drawn.push(card);
 		}
 		return drawn;
+	};
+
+	const animations = [];
+	const queueSwapAnimation = (oldHand, newHand, replaceIndices) => {
+		const layout = state.handLayout;
+		if (!layout) return;
+		const { startX, cardW, cardH, gap } = layout;
+		if (!replaceIndices.length) return;
+		state.animating = true;
+		animLayer.removeChildren();
+		handArea.visible = false;
+		replaceIndices.forEach((idx) => {
+			const slotX = startX + idx * (cardW + gap);
+			const slotY = 0;
+			const oldCard = oldHand[idx];
+			const newCard = newHand[idx];
+			if (oldCard) {
+				const oldSprite = createStaticCard(oldCard, cardW, cardH);
+				oldSprite.position.set(slotX, slotY);
+				animLayer.addChild(oldSprite);
+				animations.push({
+					sprite: oldSprite,
+					from: { x: slotX, y: slotY },
+					to: { x: slotX + 50, y: slotY - 40 },
+					duration: 0.18,
+					elapsed: 0,
+					fadeOut: true,
+				});
+			}
+			if (newCard) {
+				const newSprite = createStaticCard(newCard, cardW, cardH);
+				newSprite.position.set(slotX, slotY + 40);
+				newSprite.alpha = 0;
+				animLayer.addChild(newSprite);
+				animations.push({
+					sprite: newSprite,
+					from: { x: slotX, y: slotY + 40 },
+					to: { x: slotX, y: slotY },
+					duration: 0.2,
+					elapsed: 0,
+					fadeIn: true,
+				});
+			}
+		});
 	};
 
 	const getUpgradeCost = (upgrade) => upgrade.baseCost + Math.max(0, state.ante - 1);
@@ -643,6 +724,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		if (!state.selected.size) return;
 		const selectedCards = Array.from(state.selected).map((idx) => state.hand[idx]).filter(Boolean);
 		if (!selectedCards.length) return;
+		const oldHand = state.hand.slice();
 		const handInfo = evaluateHand(selectedCards);
 		let score = handInfo.baseScore * handInfo.mult + state.mods.flat;
 		if (handInfo.isPairPlus) score += state.mods.pairBonus;
@@ -665,8 +747,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 			const [next] = drawFromDeck(1);
 			if (next) state.hand.splice(idx, 0, next);
 		}
-		drawHand();
-		refreshSelection();
+		const newHand = state.hand.slice();
+		queueSwapAnimation(oldHand, newHand, replaceIndices);
 		if (state.boss && state.roundScore >= state.target) {
 			state.phase = 'shop';
 			buildShop();
@@ -692,6 +774,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	const handleDiscard = () => {
 		if (state.discardsLeft <= 0) return;
 		if (!state.selected.size) return;
+		const oldHand = state.hand.slice();
 		const replaceIndices = Array.from(state.selected).sort((a, b) => b - a);
 		state.selected.clear();
 		for (const idx of replaceIndices) {
@@ -701,8 +784,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 			if (next) state.hand.splice(idx, 0, next);
 		}
 		state.discardsLeft = Math.max(0, state.discardsLeft - 1);
-		drawHand();
-		refreshSelection();
+		const newHand = state.hand.slice();
+		queueSwapAnimation(oldHand, newHand, replaceIndices);
 		updateStats();
 		updatePhaseUI();
 	};
@@ -800,7 +883,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	swirlDisplace.width = windowWidth;
 	swirlDisplace.height = windowHeight;
 	swirlDisplace.alpha = 0;
-	swirlDisplace.visible = false;
+	swirlDisplace.visible = true;
+	swirlDisplace.renderable = true;
 	if (swirlDisplace.texture?.baseTexture) {
 		swirlDisplace.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
 	}
@@ -821,6 +905,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		targetText,
 		resultText,
 		handArea,
+		animLayer,
 		shopArea,
 		playBtn,
 		discardBtn,
@@ -849,6 +934,30 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		swirlSprite.rotation = Math.sin(swirlTime * 0.15) * 0.02;
 		swirlSprite.alpha = 0.18 + Math.sin(swirlTime * 0.2) * 0.02;
 		updateSelectionGlow(glowTime);
+		for (let i = animations.length - 1; i >= 0; i -= 1) {
+			const anim = animations[i];
+			anim.elapsed += dt / 60;
+			const t = Math.min(1, anim.elapsed / anim.duration);
+			const ease = 1 - Math.pow(1 - t, 3);
+			anim.sprite.position.set(
+				anim.from.x + (anim.to.x - anim.from.x) * ease,
+				anim.from.y + (anim.to.y - anim.from.y) * ease,
+			);
+			if (anim.fadeOut) anim.sprite.alpha = 1 - ease;
+			if (anim.fadeIn) anim.sprite.alpha = ease;
+			if (t >= 1) {
+				anim.sprite.destroy({ children: true });
+				animations.splice(i, 1);
+			}
+		}
+		if (state.animating && animations.length === 0) {
+			state.animating = false;
+			animLayer.removeChildren();
+			handArea.visible = true;
+			drawHand();
+			refreshSelection();
+			updatePhaseUI();
+		}
 		const ease = 0.18;
 		for (const child of handArea.children) {
 			if (!child?._tilt) continue;
