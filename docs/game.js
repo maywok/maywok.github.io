@@ -768,25 +768,6 @@ async function boot() {
 			});
 		}
 
-		const platform = new PIXI.Graphics();
-		platform.beginFill(0x00e6ff, 0.18);
-		let pw = Math.max(220, Math.floor(app.renderer.width * 0.28));
-		let ph = 14;
-		let px = Math.floor((app.renderer.width - pw) / 2);
-		let py = Math.floor(app.renderer.height * 0.62);
-		let wpw = screenToWorldSize(pw);
-		let wph = screenToWorldSize(ph);
-		let wpx = screenToWorldX(px);
-		let wpy = screenToWorldY(py);
-		platform.drawRoundedRect(wpx, wpy, wpw, wph, 6);
-		platform.endFill();
-		const platformEdge = new PIXI.Graphics();
-		platformEdge.lineStyle(3, 0x00e6ff, 0.95);
-		platformEdge.moveTo(wpx + 6, wpy + wph);
-		platformEdge.lineTo(wpx + wpw - 6, wpy + wph);
-		world.addChild(platform);
-		world.addChild(platformEdge);
-
 		const mouse = {
 			x: app.renderer.width * 0.5,
 			y: app.renderer.height * 0.3,
@@ -1300,9 +1281,7 @@ async function boot() {
 				return false;
 			}
 
-			// slab first
-			resolveTopPlatform(wpx, wpy, wpw, wph);
-			// then link platforms
+			// link platforms
 			for (const lp of appLauncher.platforms) {
 				lp._updatePlatformRect?.();
 				const r = lp._platformRect;
@@ -1337,26 +1316,6 @@ async function boot() {
 			for (const v of rebuilt.vines) vines.push(v);
 			rebuildVineLights();
 			player.onResize();
-
-			// Rebuild platform for new size
-			platform.clear();
-			platform.beginFill(0x00e6ff, 0.18);
-			const npw = Math.max(220, Math.floor(app.renderer.width * 0.28));
-			const nph = 14;
-			const npx = Math.floor((app.renderer.width - npw) / 2);
-			const npy = Math.floor(app.renderer.height * 0.62);
-			wpw = screenToWorldSize(npw);
-			wph = screenToWorldSize(nph);
-			wpx = screenToWorldX(npx);
-			wpy = screenToWorldY(npy);
-			platform.drawRoundedRect(wpx, wpy, wpw, wph, 6);
-			platform.endFill();
-			platformEdge.clear();
-			platformEdge.lineStyle(3, 0x00e6ff, 0.95);
-			platformEdge.moveTo(wpx + 6, wpy + wph);
-			platformEdge.lineTo(wpx + wpw - 6, wpy + wph);
-			// Update collision references
-			pw = npw; ph = nph; px = npx; py = npy;
 
 			// Reposition link platforms relative to new size
 			appLauncher.layout();
