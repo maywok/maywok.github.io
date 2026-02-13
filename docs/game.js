@@ -269,31 +269,39 @@ async function boot() {
 			world.addChild(vinesLayer);
 
 			const ambientDebris = [];
-			for (let i = 0; i < 3; i++) {
-				const panel = new PIXI.Container();
-				const shell = new PIXI.Graphics();
-				const lines = new PIXI.Graphics();
-				const w = 86 + i * 14;
-				const h = 44 + i * 8;
-				shell.beginFill(0x060d10, 0.22);
-				shell.lineStyle(1, 0x22f3c8, 0.3);
-				shell.drawRoundedRect(-w / 2, -h / 2, w, h, 8);
-				shell.endFill();
-				lines.lineStyle(1, 0x22f3c8, 0.24);
-				for (let r = 0; r < 3; r++) {
-					const y = -h * 0.25 + r * (h * 0.24);
-					lines.moveTo(-w * 0.32, y);
-					lines.lineTo(w * (0.1 + r * 0.1), y);
-				}
-				panel.addChild(shell, lines);
-				ambientLayer.addChild(panel);
+			for (let i = 0; i < 6; i++) {
+				const shard = new PIXI.Container();
+				const glow = new PIXI.Graphics();
+				const crystal = new PIXI.Graphics();
+				const edge = new PIXI.Graphics();
+				const scale = 0.7 + Math.random() * 0.8;
+				const points = [
+					0, -22 * scale,
+					12 * scale, -6 * scale,
+					7 * scale, 16 * scale,
+					-6 * scale, 20 * scale,
+					-13 * scale, -2 * scale,
+				];
+				glow.beginFill(0x9bffd6, 0.08);
+				glow.drawCircle(0, 0, 24 * scale);
+				glow.endFill();
+				crystal.beginFill(0x091116, 0.5);
+				crystal.drawPolygon(points);
+				crystal.endFill();
+				edge.lineStyle(1, 0x22f3c8, 0.45);
+				edge.drawPolygon(points);
+				shard.addChild(glow, crystal, edge);
+				ambientLayer.addChild(shard);
 				ambientDebris.push({
-					panel,
+					panel: shard,
 					phase: Math.random() * Math.PI * 2,
-					driftX: 10 + Math.random() * 12,
-					driftY: 8 + Math.random() * 10,
+					driftX: 12 + Math.random() * 18,
+					driftY: 10 + Math.random() * 14,
 					baseX: 0,
 					baseY: 0,
+					spin: (Math.random() - 0.5) * 0.16,
+					alphaBase: 0.2 + Math.random() * 0.2,
+					parallax: 7 + Math.random() * 16,
 				});
 			}
 
@@ -376,6 +384,8 @@ async function boot() {
 			};
 			const getRingRadius = () => Math.max(120, Math.min(220, Math.min(app.renderer.width, app.renderer.height) * 0.24));
 			const getRingIconSize = () => Math.max(58, Math.min(84, app.renderer.height * 0.108));
+			const RING_THROW_BOOST = 1.35;
+			const RING_MAX_SPIN_VEL = 8.0;
 			const getRingSlotScreenPos = (slotIndex) => {
 				const core = getCoreScreenPos();
 				const radius = getRingRadius();
@@ -417,9 +427,12 @@ async function boot() {
 
 			const placeAmbientDebris = () => {
 				const anchors = [
-					{ x: app.renderer.width * 0.26, y: app.renderer.height * 0.28 },
-					{ x: app.renderer.width * 0.72, y: app.renderer.height * 0.31 },
-					{ x: app.renderer.width * 0.65, y: app.renderer.height * 0.72 },
+					{ x: app.renderer.width * 0.19, y: app.renderer.height * 0.22 },
+					{ x: app.renderer.width * 0.81, y: app.renderer.height * 0.25 },
+					{ x: app.renderer.width * 0.66, y: app.renderer.height * 0.66 },
+					{ x: app.renderer.width * 0.28, y: app.renderer.height * 0.74 },
+					{ x: app.renderer.width * 0.52, y: app.renderer.height * 0.18 },
+					{ x: app.renderer.width * 0.86, y: app.renderer.height * 0.58 },
 				];
 				for (let i = 0; i < ambientDebris.length; i++) {
 					const d = ambientDebris[i];
@@ -927,7 +940,8 @@ async function boot() {
 			const dtMs = Math.max(1, now - ringDrag.lastTime);
 			const delta = normalizeAngle(angle - ringDrag.lastAngle);
 			ringSpin += delta;
-			ringSpinVel = delta / (dtMs / 1000);
+			ringSpinVel = (delta / (dtMs / 1000)) * RING_THROW_BOOST;
+			ringSpinVel = Math.max(-RING_MAX_SPIN_VEL, Math.min(RING_MAX_SPIN_VEL, ringSpinVel));
 			ringDrag.lastAngle = angle;
 			ringDrag.lastTime = now;
 			appLauncher.layout();
@@ -1061,7 +1075,7 @@ async function boot() {
 			}
 			if (!ringDrag.active) {
 				ringSpin += ringSpinVel * seconds;
-				ringSpinVel *= Math.pow(0.86, dt);
+				ringSpinVel *= Math.pow(0.965, dt);
 				if (Math.abs(ringSpinVel) < 0.001) ringSpinVel = 0;
 			}
 			if (iconIntroProgress < 1 || ringDrag.active || Math.abs(ringSpinVel) > 0) {
@@ -1072,11 +1086,13 @@ async function boot() {
 				layoutWalklatroIcon();
 			}
 			drawSystemCore(time);
+			const mx = (mouse.x / app.renderer.width) * 2 - 1;
+			const my = (mouse.y / app.renderer.height) * 2 - 1;
 			for (const d of ambientDebris) {
-				d.panel.position.x = d.baseX + Math.sin(time * 0.28 + d.phase) * d.driftX;
-				d.panel.position.y = d.baseY + Math.cos(time * 0.24 + d.phase * 1.3) * d.driftY;
-				d.panel.rotation = Math.sin(time * 0.11 + d.phase) * 0.03;
-				d.panel.alpha = 0.34 + 0.12 * Math.sin(time * 0.35 + d.phase);
+				d.panel.position.x = d.baseX + Math.sin(time * 0.34 + d.phase) * d.driftX - mx * d.parallax;
+				d.panel.position.y = d.baseY + Math.cos(time * 0.29 + d.phase * 1.2) * d.driftY - my * (d.parallax * 0.7);
+				d.panel.rotation = Math.sin(time * 0.18 + d.phase) * d.spin;
+				d.panel.alpha = d.alphaBase + 0.1 * Math.sin(time * 0.42 + d.phase);
 			}
 			scene.alpha = 1;
 			const nx = (mouse.x / app.renderer.width) * 2 - 1;
