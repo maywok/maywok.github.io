@@ -374,8 +374,8 @@ async function boot() {
 				}
 			};
 			lockToggle.addChild(lockGlow, lockBg, lockIcon);
-			app.stage.sortableChildren = true;
-			app.stage.addChild(lockToggle);
+			lockToggle.zIndex = 150;
+			world.addChild(lockToggle);
 			let dragEnabled = false;
 			const applyDragEnabled = (enabled) => {
 				dragEnabled = Boolean(enabled);
@@ -396,7 +396,9 @@ async function boot() {
 				return { centerY, rowGap, startY, leftX, colGap, iconSize };
 			};
 			const placeLockButton = () => {
-				lockToggle.position.set(app.renderer.width - lockButtonSize - 16, app.renderer.height - lockButtonSize - 16);
+				const x = screenToWorldX(app.renderer.width - lockButtonSize - 16);
+				const y = screenToWorldY(app.renderer.height - lockButtonSize - 16);
+				lockToggle.position.set(x, y);
 			};
 			lockToggle.on('pointerover', () => {
 				lockHovered = true;
