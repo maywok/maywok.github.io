@@ -166,19 +166,19 @@ function createSwirlTexture(colors) {
 	const red = colors.red;
 	const teal = colors.teal;
 	const redGrad = ctx.createRadialGradient(size * 0.2, size * 0.25, 20, size * 0.2, size * 0.25, size * 0.9);
-	redGrad.addColorStop(0, `rgba(${(red >> 16) & 255}, ${(red >> 8) & 255}, ${red & 255}, 0.28)`);
+	redGrad.addColorStop(0, `rgba(${(red >> 16) & 255}, ${(red >> 8) & 255}, ${red & 255}, 0.42)`);
 	redGrad.addColorStop(1, 'rgba(0,0,0,0)');
 	ctx.fillStyle = redGrad;
 	ctx.fillRect(0, 0, size, size);
 	const tealGrad = ctx.createRadialGradient(size * 0.75, size * 0.55, 20, size * 0.75, size * 0.55, size * 0.9);
-	tealGrad.addColorStop(0, `rgba(${(teal >> 16) & 255}, ${(teal >> 8) & 255}, ${teal & 255}, 0.24)`);
+	tealGrad.addColorStop(0, `rgba(${(teal >> 16) & 255}, ${(teal >> 8) & 255}, ${teal & 255}, 0.38)`);
 	tealGrad.addColorStop(1, 'rgba(0,0,0,0)');
 	ctx.fillStyle = tealGrad;
 	ctx.fillRect(0, 0, size, size);
 	ctx.translate(size / 2, size / 2);
 	ctx.rotate(-0.35);
-	ctx.strokeStyle = `rgba(${(red >> 16) & 255}, ${(red >> 8) & 255}, ${red & 255}, 0.06)`;
-	ctx.lineWidth = 12;
+	ctx.strokeStyle = `rgba(${(red >> 16) & 255}, ${(red >> 8) & 255}, ${red & 255}, 0.12)`;
+	ctx.lineWidth = 14;
 	ctx.beginPath();
 	for (let t = 0; t < Math.PI * 5; t += 0.09) {
 		const r = 12 + t * 16;
@@ -356,6 +356,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	handArea.position.set(padding, headerHeight + 82);
 	const animLayer = new PIXI.Container();
 	animLayer.position.set(padding, headerHeight + 82);
+	animLayer.eventMode = 'none';
 
 	const shopArea = new PIXI.Container();
 	shopArea.position.set(padding, headerHeight + 210);
@@ -625,7 +626,11 @@ export function createWalklatroOverlay(app, world, options = {}) {
 			const oldCard = oldHand[idx];
 			const newCard = newHand[idx];
 			const existing = state.handSprites?.[idx];
-			if (existing) existing.visible = false;
+			if (existing) {
+				existing.visible = false;
+				existing.eventMode = 'none';
+				existing.cursor = 'default';
+			}
 			if (oldCard) {
 				const oldSprite = createStaticCard(oldCard, cardW, cardH);
 				oldSprite.position.set(slotX, slotY);
@@ -915,7 +920,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	};
 
 	const swirlSprite = new PIXI.Sprite(createSwirlTexture(colors));
-	swirlSprite.alpha = 0.18;
+	swirlSprite.alpha = 0.26;
 	swirlSprite.width = windowWidth;
 	swirlSprite.height = windowHeight;
 	swirlSprite.position.set(0, 0);
@@ -973,7 +978,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		swirlDisplace.x = swirlTime * 24;
 		swirlDisplace.y = swirlTime * 18;
 		swirlSprite.rotation = Math.sin(swirlTime * 0.22) * 0.03;
-		swirlSprite.alpha = 0.2 + Math.sin(swirlTime * 0.25) * 0.03;
+		swirlSprite.alpha = 0.26 + Math.sin(swirlTime * 0.25) * 0.04;
 		updateSelectionGlow(glowTime);
 		for (let i = animations.length - 1; i >= 0; i -= 1) {
 			const anim = animations[i];
