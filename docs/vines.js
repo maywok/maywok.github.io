@@ -7,8 +7,12 @@ export class Vine {
 		this.view = new PIXI.Container();
 		this.glow = new PIXI.Graphics();
 		this.line = new PIXI.Graphics();
+		this.packetLayer = new PIXI.Graphics();
+		this.anchorLayer = new PIXI.Graphics();
 		this.view.addChild(this.glow);
 		this.view.addChild(this.line);
+		this.view.addChild(this.packetLayer);
+		this.view.addChild(this.anchorLayer);
 
 		const lamp = options?.lamp ?? {};
 		this.lamp = {
@@ -63,6 +67,8 @@ export class Vine {
 		this.grabRadius = 18;
 		this._grabbedIndex = -1;
 		this.hue = 0xffffff;
+		this.packetPhase = Math.random() * Math.PI * 2;
+		this.packetSpeed = 95 + Math.random() * 30;
 	}
 
 	setColor(hue) {
@@ -108,12 +114,23 @@ export class Vine {
 		const hue = this.hue;
 		this.line.clear();
 		this.glow.clear();
+		this.packetLayer.clear();
+		this.anchorLayer.clear();
 		if (this.lamp?.enabled) {
 			this.lampGlow.clear();
 			this.lampCore.clear();
 		}
-		this.glow.lineStyle(16, hue, 0.32);
-		this.line.lineStyle(4, hue, 1.0);
+		const r = (hue >> 16) & 255;
+		const g = (hue >> 8) & 255;
+		const b = hue & 255;
+		const sheathColor = (Math.max(0, Math.min(255, Math.round(r * 0.22))) << 16)
+			| (Math.max(0, Math.min(255, Math.round(g * 0.22))) << 8)
+			| Math.max(0, Math.min(255, Math.round(b * 0.22)));
+		const coreColor = (Math.max(0, Math.min(255, Math.round(r * 0.62 + 22))) << 16)
+			| (Math.max(0, Math.min(255, Math.round(g * 0.62 + 22))) << 8)
+			| Math.max(0, Math.min(255, Math.round(b * 0.62 + 22)));
+		this.glow.lineStyle(10, hue, 0.14);
+		this.line.lineStyle(6, sheathColor, 0.95);
 
 		let minLineSq = Infinity;
 		let bestSegI = 1;
@@ -260,6 +277,92 @@ export class Vine {
 				this.glow.lineTo(px, py);
 			}
 		}
+
+		this.line.lineStyle(2, coreColor, 0.95);
+		for (let i = 0; i <= this.segments; i++) {
+			const px = this.drawX[i];
+			const py = this.drawY[i];
+			if (i === 0) this.line.moveTo(px, py);
+			else this.line.lineTo(px, py);
+		}
+
+		this.line.lineStyle(3, hue, 0.22);
+		for (let i = 1; i <= this.segments; i += 2) {
+			const ax = this.drawX[i - 1];
+			const ay = this.drawY[i - 1];
+			const bx = this.drawX[i];
+			const by = this.drawY[i];
+			const dx = bx - ax;
+			const dy = by - ay;
+			const d = Math.hypot(dx, dy) || 1;
+			const nx = -dy / d;
+			const ny = dx / d;
+			const mx = (ax + bx) * 0.5;
+			const my = (ay + by) * 0.5;
+			const tick = 3;
+			this.line.moveTo(mx - nx * tick, my - ny * tick);
+			this.line.lineTo(mx + nx * tick, my + ny * tick);
+		}
+
+		let totalLen = 0;
+		for (let i = 1; i <= this.segments; i++) {
+			const dx = this.drawX[i] - this.drawX[i - 1];
+			const dy = this.drawY[i] - this.drawY[i - 1];
+			totalLen += Math.hypot(dx, dy);
+		}
+		if (totalLen > 1) {
+			const samplePacket = (distance) => {
+				let remain = distance;
+				for (let i = 1; i <= this.segments; i++) {
+					const ax = this.drawX[i - 1];
+					const ay = this.drawY[i - 1];
+					const bx = this.drawX[i];
+					const by = this.drawY[i];
+					const segLen = Math.hypot(bx - ax, by - ay);
+					if (remain <= segLen || i === this.segments) {
+						const tSeg = segLen > 0 ? (remain / segLen) : 0;
+						return {
+							x: ax + (bx - ax) * tSeg,
+							y: ay + (by - ay) * tSeg,
+						};
+					}
+					remain -= segLen;
+				}
+				return { x: this.drawX[this.segments], y: this.drawY[this.segments] };
+			};
+
+			const packetSpacing = totalLen / 3;
+			for (let i = 0; i < 3; i++) {
+				const distance = (time * this.packetSpeed + this.packetPhase * 40 + i * packetSpacing) % totalLen;
+				const p = samplePacket(distance);
+				this.packetLayer.beginFill(hue, 0.92);
+				this.packetLayer.drawCircle(p.x, p.y, 2.2);
+				this.packetLayer.endFill();
+				this.packetLayer.beginFill(0xffffff, 0.35);
+				this.packetLayer.drawCircle(p.x, p.y, 4.4);
+				this.packetLayer.endFill();
+			}
+		}
+
+		const topX = this.drawX[0];
+		const topY = this.drawY[0];
+		this.anchorLayer.beginFill(0x0a1614, 0.95);
+		this.anchorLayer.lineStyle(1, hue, 0.45);
+		this.anchorLayer.drawRoundedRect(topX - 8, topY - 3, 16, 6, 2);
+		this.anchorLayer.endFill();
+		this.anchorLayer.beginFill(hue, 0.65);
+		this.anchorLayer.drawRect(topX - 1, topY - 2, 2, 4);
+		this.anchorLayer.endFill();
+
+		const endX = this.drawX[this.segments];
+		const endY = this.drawY[this.segments];
+		this.anchorLayer.beginFill(0x0a1614, 0.95);
+		this.anchorLayer.lineStyle(1, hue, 0.5);
+		this.anchorLayer.drawRoundedRect(endX - 5, endY - 5, 10, 10, 3);
+		this.anchorLayer.endFill();
+		this.anchorLayer.beginFill(hue, 0.6);
+		this.anchorLayer.drawCircle(endX, endY, 1.5);
+		this.anchorLayer.endFill();
 
 		if (this.lamp?.enabled) {
 			const lx = this.drawX[this.segments];
