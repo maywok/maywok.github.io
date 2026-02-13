@@ -338,38 +338,54 @@ async function boot() {
 			let walklatroIconSetDragEnabled = null;
 			let walklatroIconGetBody = null;
 			let walklatroIconSetMouseProvider = null;
-			const dragToggleBtn = document.createElement('button');
-			const LOCK_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#ffffff" d="M17 9h-1V7a4 4 0 0 0-8 0v2H7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2zm-7-2a2 2 0 1 1 4 0v2h-4V7z"/></svg>`;
-			const UNLOCK_SVG = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="#ffffff" d="M17 9h-7V7a2 2 0 0 1 3.73-1h2.21A4 4 0 0 0 8 7v2H7a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2z"/></svg>`;
+			const lockToggle = new PIXI.Container();
+			const lockBg = new PIXI.Graphics();
+			const lockGlow = new PIXI.Graphics();
+			const lockIcon = new PIXI.Graphics();
+			const lockButtonSize = 52;
+			let lockHovered = false;
+			lockToggle.eventMode = 'static';
+			lockToggle.cursor = 'pointer';
+			lockToggle.zIndex = 1000;
+			const drawLockControl = () => {
+				lockGlow.clear();
+				lockGlow.beginFill(0xffffff, lockHovered ? 0.18 : 0);
+				lockGlow.drawRoundedRect(-4, -4, lockButtonSize + 8, lockButtonSize + 8, 14);
+				lockGlow.endFill();
+
+				lockBg.clear();
+				lockBg.beginFill(0x050d0b, 0.9);
+				lockBg.lineStyle(1, 0x22f3c8, lockHovered ? 0.95 : 0.6);
+				lockBg.drawRoundedRect(0, 0, lockButtonSize, lockButtonSize, 12);
+				lockBg.endFill();
+
+				const unlocked = dragEnabled;
+				lockIcon.clear();
+				lockIcon.beginFill(0xffffff, 1);
+				lockIcon.drawRoundedRect(17, 22, 18, 16, 3);
+				lockIcon.endFill();
+				lockIcon.lineStyle(3, 0xffffff, 1);
+				if (unlocked) {
+					lockIcon.moveTo(23, 22);
+					lockIcon.arc(23, 18, 7, Math.PI * 0.15, Math.PI * 1.15, false);
+				} else {
+					lockIcon.moveTo(17, 22);
+					lockIcon.arc(26, 18, 9, Math.PI, 0, false);
+				}
+			};
+			lockToggle.addChild(lockGlow, lockBg, lockIcon);
+			app.stage.sortableChildren = true;
+			app.stage.addChild(lockToggle);
 			let dragEnabled = false;
 			const applyDragEnabled = (enabled) => {
 				dragEnabled = Boolean(enabled);
-				dragToggleBtn.innerHTML = dragEnabled ? UNLOCK_SVG : LOCK_SVG;
-				dragToggleBtn.setAttribute('aria-label', dragEnabled ? 'Icons unlocked. Click to lock icons.' : 'Icons locked. Click to unlock icons.');
-				dragToggleBtn.title = dragEnabled ? 'Icons unlocked (click to lock)' : 'Icons locked (click to unlock)';
-				dragToggleBtn.setAttribute('aria-pressed', dragEnabled ? 'true' : 'false');
 				appLauncher.setDragEnabled?.(dragEnabled);
 				if (blogIconSetDragEnabled) blogIconSetDragEnabled(dragEnabled);
 				if (linkedinIconSetDragEnabled) linkedinIconSetDragEnabled(dragEnabled);
 				if (reflexIconSetDragEnabled) reflexIconSetDragEnabled(dragEnabled);
 				if (walklatroIconSetDragEnabled) walklatroIconSetDragEnabled(dragEnabled);
+				drawLockControl();
 			};
-			dragToggleBtn.type = 'button';
-			Object.assign(dragToggleBtn.style, {
-				position: 'absolute',
-				zIndex: 1200,
-				pointerEvents: 'auto',
-				width: '38px',
-				height: '38px',
-				padding: '0',
-				borderRadius: '10px',
-				border: '1px solid rgba(34,243,200,0.6)',
-				background: 'rgba(5, 13, 11, 0.78)',
-				color: 'rgba(234, 251, 255, 0.95)',
-				cursor: 'pointer',
-				display: 'grid',
-				placeItems: 'center',
-			});
 			const getDockMetrics = () => {
 				const centerY = app.renderer.height * 0.54;
 				const rowGap = Math.max(92, Math.min(136, app.renderer.height * 0.19));
@@ -380,12 +396,17 @@ async function boot() {
 				return { centerY, rowGap, startY, leftX, colGap, iconSize };
 			};
 			const placeLockButton = () => {
-				dragToggleBtn.style.left = '16px';
-				dragToggleBtn.style.top = 'auto';
-				dragToggleBtn.style.bottom = '16px';
+				lockToggle.position.set(app.renderer.width - lockButtonSize - 16, app.renderer.height - lockButtonSize - 16);
 			};
-			dragToggleBtn.addEventListener('click', () => applyDragEnabled(!dragEnabled));
-			root.appendChild(dragToggleBtn);
+			lockToggle.on('pointerover', () => {
+				lockHovered = true;
+				drawLockControl();
+			});
+			lockToggle.on('pointerout', () => {
+				lockHovered = false;
+				drawLockControl();
+			});
+			lockToggle.on('pointertap', () => applyDragEnabled(!dragEnabled));
 			placeLockButton();
 			applyDragEnabled(false);
 			let lastMouseWorld = { x: app.renderer.width / 2, y: app.renderer.height / 2 };
