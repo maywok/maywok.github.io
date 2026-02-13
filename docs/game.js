@@ -140,7 +140,7 @@ async function boot() {
 				intensity: 0.08,
 				brightness: 0.06,
 				scanStrength: 0.85,
-				curve: 0.0,
+				curve: 0.008,
 				vignette: 0.0,
 			});
 			const { filter: crtScanlinesFilter, uniforms: crtScanlinesUniforms } = createCRTScanlinesFilter(app, {
@@ -380,11 +380,9 @@ async function boot() {
 				return { centerY, rowGap, startY, leftX, colGap, iconSize };
 			};
 			const placeLockButton = () => {
-				const m = getDockMetrics();
-				const left = Math.max(12, Math.round(m.leftX - 48));
-				const top = Math.max(12, Math.round(m.startY - 50));
-				dragToggleBtn.style.left = `${left}px`;
-				dragToggleBtn.style.top = `${top}px`;
+				dragToggleBtn.style.left = '16px';
+				dragToggleBtn.style.top = 'auto';
+				dragToggleBtn.style.bottom = '16px';
 			};
 			dragToggleBtn.addEventListener('click', () => applyDragEnabled(!dragEnabled));
 			root.appendChild(dragToggleBtn);
