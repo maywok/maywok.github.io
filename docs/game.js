@@ -309,26 +309,6 @@ async function boot() {
 			systemCore.zIndex = 8;
 			world.addChild(systemCore);
 
-			const pickupLayer = new PIXI.Container();
-			pickupLayer.zIndex = 25;
-			world.addChild(pickupLayer);
-			const pickups = [];
-			let pickupSpawnTimer = 0;
-			let pickupCollected = 0;
-			let pickupGoal = 5;
-
-			const objectiveStrip = new PIXI.Container();
-			objectiveStrip.zIndex = 180;
-			const objectiveBg = new PIXI.Graphics();
-			const objectiveText = new PIXI.Text('', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 11,
-				fill: 0xeafffb,
-				letterSpacing: 1,
-			});
-			objectiveText.anchor.set(0.5);
-			objectiveStrip.addChild(objectiveBg, objectiveText);
-			world.addChild(objectiveStrip);
 
 			function makeLampLightTexture(color = '#2f7bff') {
 				const size = 256;
@@ -382,6 +362,9 @@ async function boot() {
 
 			let iconIntroProgress = 0;
 			let dragEnabled = false;
+			let ringSpin = 0;
+			let ringSpinVel = 0;
+			const ringDrag = { active: false, lastAngle: 0, lastTime: 0 };
 			const ringSlotAngles = [-90, -30, 30, 90, 150, 210];
 			const getCoreScreenPos = () => ({
 				x: app.renderer.width * 0.5,
@@ -396,7 +379,7 @@ async function boot() {
 			const getRingSlotScreenPos = (slotIndex) => {
 				const core = getCoreScreenPos();
 				const radius = getRingRadius();
-				const angle = (ringSlotAngles[slotIndex % ringSlotAngles.length] * Math.PI) / 180;
+				const angle = (ringSlotAngles[slotIndex % ringSlotAngles.length] * Math.PI) / 180 + ringSpin;
 				return {
 					x: core.x + Math.cos(angle) * radius,
 					y: core.y + Math.sin(angle) * radius,
@@ -447,55 +430,6 @@ async function boot() {
 				}
 			};
 
-			const layoutObjectiveStrip = () => {
-				const x = screenToWorldX(app.renderer.width * 0.5);
-				const y = screenToWorldY(app.renderer.height - 26);
-				objectiveStrip.position.set(x, y);
-			};
-			const updateObjectiveStrip = () => {
-				const mode = dragEnabled ? 'ARRANGE' : 'EXPLORE';
-				objectiveText.text = `MODE ${mode}  PACKETS ${pickupCollected}/${pickupGoal}`;
-				const b = objectiveText.getLocalBounds();
-				const w = Math.ceil(b.width + 18);
-				const h = Math.ceil(b.height + 10);
-				objectiveBg.clear();
-				objectiveBg.beginFill(0x050d0b, 0.55);
-				objectiveBg.lineStyle(1, 0x22f3c8, 0.48);
-				objectiveBg.drawRoundedRect(-w / 2, -h / 2, w, h, 8);
-				objectiveBg.endFill();
-			};
-
-			const spawnPickup = () => {
-				if (pickups.length >= 4) return;
-				const core = getCoreScreenPos();
-				let sx = core.x;
-				let sy = core.y;
-				for (let attempt = 0; attempt < 10; attempt++) {
-					sx = 56 + Math.random() * (app.renderer.width - 112);
-					sy = 56 + Math.random() * (app.renderer.height - 140);
-					const dx = sx - core.x;
-					const dy = sy - core.y;
-					if (dx * dx + dy * dy > Math.pow(getRingRadius() * 0.55, 2)) break;
-				}
-				const container = new PIXI.Container();
-				const glow = new PIXI.Graphics();
-				const gem = new PIXI.Graphics();
-				glow.beginFill(0x9bffd6, 0.12);
-				glow.drawCircle(0, 0, screenToWorldSize(12));
-				glow.endFill();
-				gem.beginFill(0x9bffd6, 0.9);
-				gem.drawPolygon([
-					0, -screenToWorldSize(5),
-					screenToWorldSize(4), 0,
-					0, screenToWorldSize(5),
-					-screenToWorldSize(4), 0,
-				]);
-				gem.endFill();
-				container.addChild(glow, gem);
-				container.position.set(screenToWorldX(sx), screenToWorldY(sy));
-				pickupLayer.addChild(container);
-				pickups.push({ container, glow, born: 0, phase: Math.random() * Math.PI * 2 });
-			};
 
 			try {
 				const ghostUrl = './assets/images/ghostLogo.png';
@@ -507,8 +441,6 @@ async function boot() {
 			}
 			drawSystemCore(0);
 			placeAmbientDebris();
-			layoutObjectiveStrip();
-			updateObjectiveStrip();
 
 			const appLauncher = createAppLauncher(app, world, {
 				items: [
@@ -628,7 +560,6 @@ async function boot() {
 			const getSlotPose = (slotIndex) => getIntroPoseForSlot(slotIndex);
 			const getSlotX = (slotIndex) => getSlotPose(slotIndex).x;
 			const getSlotY = (slotIndex) => getSlotPose(slotIndex).y;
-			const getSlotSize = (slotIndex) => getSlotPose(slotIndex).size;
 			let layoutBlogIcon = () => {};
 			let layoutLinkedinIcon = () => {};
 			let layoutReflexIcon = () => {};
@@ -656,8 +587,8 @@ async function boot() {
 				const linkedinIconResult = await withTimeout(createLinkedinIcon(app, world, {
 					url: 'https://www.linkedin.com/in/mason--walker/',
 					screenScale: SCENE_SCALE,
-					dockScreenX: () => getSlotX(4),
-					dockScreenY: () => getSlotY(4),
+					dockScreenX: () => getSlotX(0),
+					dockScreenY: () => getSlotY(0),
 					backgroundWidth: screenToWorldSize(getRingIconSize()),
 					backgroundHeight: screenToWorldSize(getRingIconSize()),
 				}), 6000, 'LinkedIn icon');
@@ -692,8 +623,8 @@ async function boot() {
 			try {
 				const walklatroIconResult = await withTimeout(createWalklatroIcon(app, world, {
 					screenScale: SCENE_SCALE,
-					dockScreenX: () => getSlotX(0),
-					dockScreenY: () => getSlotY(0),
+					dockScreenX: () => getSlotX(4),
+					dockScreenY: () => getSlotY(4),
 					backgroundWidth: screenToWorldSize(getRingIconSize()),
 					backgroundHeight: screenToWorldSize(getRingIconSize()),
 				}), 6000, 'Walklatro icon');
@@ -954,10 +885,61 @@ async function boot() {
 				mouse.y = nextY;
 			}
 		}
+		function toRendererPoint(e) {
+			const rect = app.view.getBoundingClientRect();
+			if (!rect || rect.width <= 0 || rect.height <= 0) return null;
+			const x = (e.clientX - rect.left) * (app.renderer.width / rect.width);
+			const y = (e.clientY - rect.top) * (app.renderer.height / rect.height);
+			if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+			return { x, y };
+		}
+		function normalizeAngle(a) {
+			let v = a;
+			while (v > Math.PI) v -= Math.PI * 2;
+			while (v < -Math.PI) v += Math.PI * 2;
+			return v;
+		}
 		window.addEventListener('pointermove', updateMouseFromEvent);
 		window.addEventListener('pointerdown', updateMouseFromEvent);
 		window.addEventListener('pointerenter', updateMouseFromEvent);
 		window.addEventListener('mousemove', updateMouseFromEvent);
+		window.addEventListener('pointerdown', (e) => {
+			if (dragEnabled) return;
+			const p = toRendererPoint(e);
+			if (!p) return;
+			const c = getCoreScreenPos();
+			const dx = p.x - c.x;
+			const dy = p.y - c.y;
+			const d = Math.hypot(dx, dy);
+			const radius = getRingRadius();
+			if (d < radius * 0.62 || d > radius * 1.35) return;
+			ringDrag.active = true;
+			ringDrag.lastAngle = Math.atan2(dy, dx);
+			ringDrag.lastTime = performance.now ? performance.now() : Date.now();
+		});
+		window.addEventListener('pointermove', (e) => {
+			if (!ringDrag.active || dragEnabled) return;
+			const p = toRendererPoint(e);
+			if (!p) return;
+			const c = getCoreScreenPos();
+			const angle = Math.atan2(p.y - c.y, p.x - c.x);
+			const now = performance.now ? performance.now() : Date.now();
+			const dtMs = Math.max(1, now - ringDrag.lastTime);
+			const delta = normalizeAngle(angle - ringDrag.lastAngle);
+			ringSpin += delta;
+			ringSpinVel = delta / (dtMs / 1000);
+			ringDrag.lastAngle = angle;
+			ringDrag.lastTime = now;
+			appLauncher.layout();
+			layoutBlogIcon();
+			layoutLinkedinIcon();
+			layoutReflexIcon();
+			layoutWalklatroIcon();
+		});
+		const stopRingDrag = () => { ringDrag.active = false; };
+		window.addEventListener('pointerup', stopRingDrag);
+		window.addEventListener('pointercancel', stopRingDrag);
+		window.addEventListener('blur', stopRingDrag);
 		window.addEventListener('pointerdown', async () => {
 			mouse.down = true;
 			cursorContainer.visible = true;
@@ -1073,9 +1055,16 @@ async function boot() {
 				leftPortal.visible = false;
 			}
 			time += seconds;
-			const introSpeed = 0.42;
+			const introSpeed = 1.25;
 			if (iconIntroProgress < 1) {
 				iconIntroProgress = Math.min(1, iconIntroProgress + seconds * introSpeed);
+			}
+			if (!ringDrag.active) {
+				ringSpin += ringSpinVel * seconds;
+				ringSpinVel *= Math.pow(0.86, dt);
+				if (Math.abs(ringSpinVel) < 0.001) ringSpinVel = 0;
+			}
+			if (iconIntroProgress < 1 || ringDrag.active || Math.abs(ringSpinVel) > 0) {
 				appLauncher.layout();
 				layoutBlogIcon();
 				layoutLinkedinIcon();
@@ -1089,30 +1078,6 @@ async function boot() {
 				d.panel.rotation = Math.sin(time * 0.11 + d.phase) * 0.03;
 				d.panel.alpha = 0.34 + 0.12 * Math.sin(time * 0.35 + d.phase);
 			}
-			pickupSpawnTimer += seconds;
-			if (pickupSpawnTimer >= 5.0) {
-				pickupSpawnTimer = 0;
-				spawnPickup();
-			}
-			for (let i = pickups.length - 1; i >= 0; i--) {
-				const p = pickups[i];
-				p.born += seconds;
-				p.container.position.y += Math.sin(time * 2.2 + p.phase) * 0.08;
-				p.glow.alpha = 0.14 + 0.1 * Math.sin(time * 3.2 + p.phase);
-				const dx = p.container.position.x - player.view.x;
-				const dy = p.container.position.y - player.view.y;
-				if (dx * dx + dy * dy < Math.pow(screenToWorldSize(18), 2)) {
-					p.container.destroy({ children: true });
-					pickups.splice(i, 1);
-					pickupCollected += 1;
-					if (pickupCollected >= pickupGoal) {
-						pickupCollected = 0;
-						pickupGoal = Math.min(12, pickupGoal + 1);
-					}
-					updateObjectiveStrip();
-				}
-			}
-			updateObjectiveStrip();
 			scene.alpha = 1;
 			const nx = (mouse.x / app.renderer.width) * 2 - 1;
 			const ny = (mouse.y / app.renderer.height) * 2 - 1;
@@ -1303,7 +1268,6 @@ async function boot() {
 			layoutLeftPortal();
 			resizeFlowBackground();
 			placeAmbientDebris();
-			layoutObjectiveStrip();
 			drawSystemCore(time);
 			
 
@@ -1324,7 +1288,6 @@ async function boot() {
 			layoutLinkedinIcon();
 			layoutReflexIcon();
 			layoutWalklatroIcon();
-			updateObjectiveStrip();
 		}
 		window.addEventListener('resize', onResize);
 		// Run once after first paint so initial sizing is correct.
