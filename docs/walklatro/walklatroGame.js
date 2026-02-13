@@ -158,23 +158,36 @@ function createSwirlTexture(colors) {
 	const ctx = canvas.getContext('2d');
 	if (!ctx) return PIXI.Texture.WHITE;
 	ctx.clearRect(0, 0, size, size);
+	const base = ctx.createRadialGradient(size * 0.3, size * 0.35, 0, size * 0.5, size * 0.5, size * 0.8);
+	base.addColorStop(0, 'rgba(4,6,10,0.9)');
+	base.addColorStop(1, 'rgba(4,6,10,1)');
+	ctx.fillStyle = base;
+	ctx.fillRect(0, 0, size, size);
+	const red = colors.red;
+	const teal = colors.teal;
+	const redGrad = ctx.createRadialGradient(size * 0.2, size * 0.25, 20, size * 0.2, size * 0.25, size * 0.9);
+	redGrad.addColorStop(0, `rgba(${(red >> 16) & 255}, ${(red >> 8) & 255}, ${red & 255}, 0.28)`);
+	redGrad.addColorStop(1, 'rgba(0,0,0,0)');
+	ctx.fillStyle = redGrad;
+	ctx.fillRect(0, 0, size, size);
+	const tealGrad = ctx.createRadialGradient(size * 0.75, size * 0.55, 20, size * 0.75, size * 0.55, size * 0.9);
+	tealGrad.addColorStop(0, `rgba(${(teal >> 16) & 255}, ${(teal >> 8) & 255}, ${teal & 255}, 0.24)`);
+	tealGrad.addColorStop(1, 'rgba(0,0,0,0)');
+	ctx.fillStyle = tealGrad;
+	ctx.fillRect(0, 0, size, size);
 	ctx.translate(size / 2, size / 2);
-	ctx.rotate(-0.4);
-	const layers = [colors.red, colors.teal, colors.green];
-	for (let i = 0; i < layers.length; i += 1) {
-		const color = layers[i];
-		ctx.strokeStyle = `rgba(${(color >> 16) & 255}, ${(color >> 8) & 255}, ${color & 255}, 0.08)`;
-		ctx.lineWidth = 14 - i * 3;
-		ctx.beginPath();
-		for (let t = 0; t < Math.PI * 5; t += 0.08) {
-			const r = 10 + t * 16;
-			const x = Math.cos(t + i * 0.8) * r;
-			const y = Math.sin(t + i * 0.8) * r;
-			if (t === 0) ctx.moveTo(x, y);
-			else ctx.lineTo(x, y);
-		}
-		ctx.stroke();
+	ctx.rotate(-0.35);
+	ctx.strokeStyle = `rgba(${(red >> 16) & 255}, ${(red >> 8) & 255}, ${red & 255}, 0.06)`;
+	ctx.lineWidth = 12;
+	ctx.beginPath();
+	for (let t = 0; t < Math.PI * 5; t += 0.09) {
+		const r = 12 + t * 16;
+		const x = Math.cos(t) * r;
+		const y = Math.sin(t) * r;
+		if (t === 0) ctx.moveTo(x, y);
+		else ctx.lineTo(x, y);
 	}
+	ctx.stroke();
 	ctx.setTransform(1, 0, 0, 1, 0, 0);
 	return PIXI.Texture.from(canvas);
 }
@@ -514,6 +527,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 
 	const drawHand = () => {
 		handArea.removeChildren();
+		state.handSprites = [];
 		const cards = state.hand;
 		if (!cards.length) return;
 		const cardW = 78;
@@ -541,6 +555,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 				updatePhaseUI();
 			});
 			handArea.addChild(cardSprite);
+			state.handSprites[idx] = cardSprite;
 		});
 	};
 
@@ -609,7 +624,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 			const slotY = 0;
 			const oldCard = oldHand[idx];
 			const newCard = newHand[idx];
-			const existing = handArea.children[idx];
+			const existing = state.handSprites?.[idx];
 			if (existing) existing.visible = false;
 			if (oldCard) {
 				const oldSprite = createStaticCard(oldCard, cardW, cardH);
@@ -646,11 +661,12 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		if (!layout) return;
 		const { startX, cardW, cardH, gap } = layout;
 		replaceIndices.forEach((idx) => {
-			const existing = handArea.children[idx];
+			const existing = state.handSprites?.[idx];
 			const nextCard = newHand[idx];
 			const slotX = startX + idx * (cardW + gap);
 			const slotY = 0;
 			if (existing) {
+				handArea.removeChild(existing);
 				existing.destroy({ children: true });
 			}
 			if (!nextCard) return;
@@ -658,7 +674,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 			newSprite.position.set(slotX, slotY);
 			newSprite._base.x = slotX;
 			newSprite._base.y = slotY;
-			handArea.addChildAt(newSprite, idx);
+			handArea.addChild(newSprite);
+			state.handSprites[idx] = newSprite;
 		});
 	};
 
@@ -913,7 +930,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		swirlDisplace.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
 	}
 	const swirlFilter = new PIXI.filters.DisplacementFilter(swirlDisplace);
-	swirlFilter.scale.set(12, 10);
+	swirlFilter.scale.set(18, 14);
 	swirlSprite.filters = [swirlFilter];
 
 	container.addChild(
@@ -953,10 +970,10 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		if (!state.open) return;
 		glowTime += dt / 60;
 		swirlTime += dt / 60;
-		swirlDisplace.x = swirlTime * 18;
-		swirlDisplace.y = swirlTime * 12;
-		swirlSprite.rotation = Math.sin(swirlTime * 0.15) * 0.02;
-		swirlSprite.alpha = 0.18 + Math.sin(swirlTime * 0.2) * 0.02;
+		swirlDisplace.x = swirlTime * 24;
+		swirlDisplace.y = swirlTime * 18;
+		swirlSprite.rotation = Math.sin(swirlTime * 0.22) * 0.03;
+		swirlSprite.alpha = 0.2 + Math.sin(swirlTime * 0.25) * 0.03;
 		updateSelectionGlow(glowTime);
 		for (let i = animations.length - 1; i >= 0; i -= 1) {
 			const anim = animations[i];
