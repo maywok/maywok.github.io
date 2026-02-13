@@ -411,26 +411,31 @@ export function createAppLauncher(app, world, options = {}) {
 				if (icon.container.position.x < minX) {
 					icon.container.position.x = minX;
 					icon.state.vx *= -PHYSICS.bounce;
-					icon.state.angVel += (-icon.state.vx) * 0.006;
+					icon.state.angVel += (-icon.state.vx) * 0.003;
+					if (Math.abs(icon.state.vx) < 18) icon.state.vx = 0;
 				}
 			}
 				if (icon.container.position.x > maxX) {
 					icon.container.position.x = maxX;
 					icon.state.vx *= -PHYSICS.bounce;
-					icon.state.angVel += (icon.state.vx) * 0.006;
+					icon.state.angVel += (icon.state.vx) * 0.003;
+					if (Math.abs(icon.state.vx) < 18) icon.state.vx = 0;
 				}
 				if (icon.container.position.y < minY) {
 					icon.container.position.y = minY;
 					icon.state.vy *= -PHYSICS.bounce;
-					icon.state.angVel += (icon.state.vx) * 0.004;
+					icon.state.angVel += (icon.state.vx) * 0.0025;
+					if (Math.abs(icon.state.vy) < 18) icon.state.vy = 0;
 				}
 				if (icon.container.position.y > maxY) {
 					icon.container.position.y = maxY;
 					if (icon.state.vy > 0) icon.state.vy = 0;
 					icon.state.vx *= PHYSICS.floorFriction;
-					icon.state.angVel += icon.state.vx * groundRoll;
+					icon.state.angVel += icon.state.vx * (groundRoll * 0.55);
 					if (Math.abs(icon.state.vx) < 20) {
-						icon.state.angVel *= Math.pow(0.88, dtSeconds * 60);
+						icon.state.angVel *= Math.pow(0.76, dtSeconds * 60);
+						if (Math.abs(icon.state.angVel) < 0.02) icon.state.angVel = 0;
+						icon.state.vx = 0;
 					}
 					const floorMinX = minX + icon.state.radius * icon.container.scale.x;
 					const floorMaxX = maxX - icon.state.radius * icon.container.scale.x;
@@ -438,14 +443,16 @@ export function createAppLauncher(app, world, options = {}) {
 						icon.container.position.x = floorMinX;
 						if (icon.state.vx < 0) {
 							icon.state.vx *= -PHYSICS.bounce;
-							icon.state.angVel += (-icon.state.vx) * 0.006;
+							icon.state.angVel += (-icon.state.vx) * 0.003;
+							if (Math.abs(icon.state.vx) < 18) icon.state.vx = 0;
 						}
 					}
 					if (icon.container.position.x > floorMaxX) {
 						icon.container.position.x = floorMaxX;
 						if (icon.state.vx > 0) {
 							icon.state.vx *= -PHYSICS.bounce;
-							icon.state.angVel += (icon.state.vx) * 0.006;
+							icon.state.angVel += (icon.state.vx) * 0.003;
+							if (Math.abs(icon.state.vx) < 18) icon.state.vx = 0;
 						}
 					}
 				}

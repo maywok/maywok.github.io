@@ -416,6 +416,7 @@ async function boot() {
 			let ringSpin = 0;
 			let ringSpinVel = 0;
 			const ringDrag = { active: false, lastAngle: 0, lastTime: 0 };
+			const ringCandidate = { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 };
 			const ringSlotAngles = [-90, -30, 30, 90, 150, 210];
 			const getCoreScreenPos = () => ({
 				x: app.renderer.width * 0.5,
@@ -979,26 +980,6 @@ async function boot() {
 			while (v < -Math.PI) v += Math.PI * 2;
 			return v;
 		}
-		function isPointerOverIcon(screenPoint) {
-			const containers = [
-				...(Array.isArray(appLauncher?.icons) ? appLauncher.icons : []),
-				blogIconGetBody?.()?.container,
-				linkedinIconGetBody?.()?.container,
-				reflexIconGetBody?.()?.container,
-				walklatroIconGetBody?.()?.container,
-			].filter(Boolean);
-			for (const container of containers) {
-				const b = container.getBounds?.();
-				if (!b) continue;
-				if (
-					screenPoint.x >= b.x && screenPoint.x <= b.x + b.width
-					&& screenPoint.y >= b.y && screenPoint.y <= b.y + b.height
-				) {
-					return true;
-				}
-			}
-			return false;
-		}
 		window.addEventListener('pointermove', updateMouseFromEvent);
 		window.addEventListener('pointerdown', updateMouseFromEvent);
 		window.addEventListener('pointerenter', updateMouseFromEvent);
@@ -1007,21 +988,30 @@ async function boot() {
 			if (dragEnabled) return;
 			const p = toRendererPoint(e);
 			if (!p) return;
-			if (isPointerOverIcon(p)) return;
 			const c = getCoreScreenPos();
 			const dx = p.x - c.x;
 			const dy = p.y - c.y;
 			const d = Math.hypot(dx, dy);
 			const radius = getRingRadius();
 			if (d < radius * 0.62 || d > radius * 1.35) return;
-			ringDrag.active = true;
+			ringCandidate.active = true;
+			ringCandidate.startX = p.x;
+			ringCandidate.startY = p.y;
+			ringCandidate.lastX = p.x;
+			ringCandidate.lastY = p.y;
 			ringDrag.lastAngle = Math.atan2(dy, dx);
 			ringDrag.lastTime = performance.now ? performance.now() : Date.now();
 		});
 		window.addEventListener('pointermove', (e) => {
-			if (!ringDrag.active || dragEnabled) return;
+			if (dragEnabled || !ringCandidate.active) return;
 			const p = toRendererPoint(e);
 			if (!p) return;
+			const moveDx = p.x - ringCandidate.startX;
+			const moveDy = p.y - ringCandidate.startY;
+			if (!ringDrag.active && Math.hypot(moveDx, moveDy) < 7) return;
+			ringDrag.active = true;
+			ringCandidate.lastX = p.x;
+			ringCandidate.lastY = p.y;
 			const c = getCoreScreenPos();
 			const angle = Math.atan2(p.y - c.y, p.x - c.x);
 			const now = performance.now ? performance.now() : Date.now();
@@ -1038,7 +1028,10 @@ async function boot() {
 			layoutReflexIcon();
 			layoutWalklatroIcon();
 		});
-		const stopRingDrag = () => { ringDrag.active = false; };
+		const stopRingDrag = () => {
+			ringDrag.active = false;
+			ringCandidate.active = false;
+		};
 		window.addEventListener('pointerup', stopRingDrag);
 		window.addEventListener('pointercancel', stopRingDrag);
 		window.addEventListener('blur', stopRingDrag);
