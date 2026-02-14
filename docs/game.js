@@ -59,13 +59,17 @@ async function boot() {
 		let desktopTwoActive = false;
 		const ensureDesktopTwoBackground = () => {
 			if (!desktopTwoRoot || desktopTwoApp) return;
+			const DESKTOP_TWO_BG = 0xd7bf98;
 			desktopTwoApp = new PIXI.Application({
 				resizeTo: desktopTwoRoot,
-				background: 0xd7bf98,
+				background: DESKTOP_TWO_BG,
+				backgroundColor: DESKTOP_TWO_BG,
+				backgroundAlpha: 1,
 				antialias: true,
 			});
 			desktopTwoApp.start?.();
 			desktopTwoApp.ticker?.start?.();
+			desktopTwoApp.renderer.background.color = DESKTOP_TWO_BG;
 			desktopTwoApp.stage.roundPixels = true;
 			if (PIXI.settings) {
 				PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
@@ -75,12 +79,18 @@ async function boot() {
 			desktopTwoApp.view.style.width = '100%';
 			desktopTwoApp.view.style.height = '100%';
 			desktopTwoApp.view.style.display = 'block';
+			const desktopTwoBaseFill = new PIXI.Sprite(PIXI.Texture.WHITE);
+			desktopTwoBaseFill.tint = DESKTOP_TWO_BG;
+			desktopTwoBaseFill.position.set(0, 0);
+			desktopTwoBaseFill.width = desktopTwoApp.renderer.width;
+			desktopTwoBaseFill.height = desktopTwoApp.renderer.height;
+			desktopTwoApp.stage.addChild(desktopTwoBaseFill);
 			const desktopTwoScene = new PIXI.Container();
 			desktopTwoApp.stage.addChild(desktopTwoScene);
 			const { container: desktopTwoFlow, update: updateDesktopTwoFlow, resize: resizeDesktopTwoFlow } = createCrimsonFlowBackground(desktopTwoApp, {
 				lineColor: 0x0c0707,
 				glowColor: 0x6e0f1d,
-				bgColor: 0xd7bf98,
+				bgColor: DESKTOP_TWO_BG,
 				glowAlpha: 0.5,
 				parallax: 0.06,
 				pixelSize: 8,
@@ -268,6 +278,8 @@ async function boot() {
 				rightPortal.visible = true;
 			});
 			const handleDesktopTwoResize = () => {
+				desktopTwoBaseFill.width = desktopTwoApp.renderer.width;
+				desktopTwoBaseFill.height = desktopTwoApp.renderer.height;
 				resizeDesktopTwoFlow();
 				layoutRightPortal();
 			};
