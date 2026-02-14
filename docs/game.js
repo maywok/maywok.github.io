@@ -54,11 +54,9 @@ async function boot() {
 		}
 
 		const desktopTwoOverlay = document.getElementById('desktop-two-overlay');
-		const desktopTwoBackTab = document.getElementById('desktop-two-back-tab');
 		const desktopTwoRoot = document.getElementById('desktop-two-root');
 		let desktopTwoApp = null;
 		let desktopTwoActive = false;
-		let desktopTwoBackPeek = 0;
 		const ensureDesktopTwoBackground = () => {
 			if (!desktopTwoRoot || desktopTwoApp) return;
 			desktopTwoApp = new PIXI.Application({
@@ -68,10 +66,17 @@ async function boot() {
 			});
 			desktopTwoApp.start?.();
 			desktopTwoApp.ticker?.start?.();
+			desktopTwoApp.stage.roundPixels = true;
+			if (PIXI.settings) {
+				PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
+				PIXI.settings.ROUND_PIXELS = true;
+			}
 			desktopTwoRoot.appendChild(desktopTwoApp.view);
 			desktopTwoApp.view.style.width = '100%';
 			desktopTwoApp.view.style.height = '100%';
 			desktopTwoApp.view.style.display = 'block';
+			const desktopTwoScene = new PIXI.Container();
+			desktopTwoApp.stage.addChild(desktopTwoScene);
 			const { container: desktopTwoFlow, update: updateDesktopTwoFlow, resize: resizeDesktopTwoFlow } = createCrimsonFlowBackground(desktopTwoApp, {
 				lineColor: 0x6f001b,
 				glowColor: 0xa00026,
@@ -82,22 +87,145 @@ async function boot() {
 				density: 4.6,
 				speed: 0.75,
 			});
-			desktopTwoApp.stage.addChild(desktopTwoFlow);
-			desktopTwoApp.ticker.add((dt) => {
-				updateDesktopTwoFlow(dt / 60);
+			const { filter: desktopTwoFisheyeFilter, uniforms: desktopTwoFisheyeUniforms } = createCRTFisheyeFilter(desktopTwoApp, {
+				intensity: 0.08,
+				brightness: 0.06,
+				scanStrength: 0.85,
+				curve: 0.008,
+				vignette: 0.0,
 			});
-			desktopTwoApp.renderer?.on?.('resize', () => resizeDesktopTwoFlow());
+			const { filter: desktopTwoScanlinesFilter, uniforms: desktopTwoScanlinesUniforms } = createCRTScanlinesFilter(desktopTwoApp, {
+				strength: 0.42,
+				speed: 0.25,
+				noise: 0.03,
+				mask: 0.14,
+			});
+			desktopTwoFisheyeFilter.padding = 16;
+			desktopTwoScene.filters = [desktopTwoFisheyeFilter, desktopTwoScanlinesFilter];
+			desktopTwoScene.addChild(desktopTwoFlow);
+
+			const rightPortal = new PIXI.Container();
+			const rightGlowSoft = new PIXI.Graphics();
+			const rightGlow = new PIXI.Graphics();
+			const rightArrow = new PIXI.Graphics();
+			const rightPortalHitZone = new PIXI.Graphics();
+			rightPortal.addChild(rightGlowSoft, rightGlow, rightArrow, rightPortalHitZone);
+			desktopTwoScene.addChild(rightPortal);
+			rightArrow.eventMode = 'static';
+			rightArrow.cursor = 'pointer';
+			rightArrow.on('pointertap', () => setDesktopTwoActive(false));
+			rightPortalHitZone.eventMode = 'static';
+			rightPortalHitZone.cursor = 'pointer';
+			rightPortalHitZone.on('pointertap', () => setDesktopTwoActive(false));
+
+			let rightPortalWidth = 84;
+			let rightPortalProgress = 0;
+			let rightPortalShownX = 0;
+			let rightPortalHiddenX = 0;
+			let rightPortalY = 0;
+			const desktopTwoMouse = {
+				x: () => desktopTwoApp?.renderer?.width ? desktopTwoApp.renderer.width * 0.5 : 0,
+				y: () => desktopTwoApp?.renderer?.height ? desktopTwoApp.renderer.height * 0.5 : 0,
+			};
+			const updateDesktopTwoMouse = (event) => {
+				if (!desktopTwoApp?.view) return;
+				const rect = desktopTwoApp.view.getBoundingClientRect();
+				if (!rect || rect.width <= 0 || rect.height <= 0) return;
+				const x = (event.clientX - rect.left) * (desktopTwoApp.renderer.width / rect.width);
+				const y = (event.clientY - rect.top) * (desktopTwoApp.renderer.height / rect.height);
+				if (Number.isFinite(x)) desktopTwoMouse.x = x;
+				if (Number.isFinite(y)) desktopTwoMouse.y = y;
+			};
+			desktopTwoApp.view.addEventListener('pointermove', updateDesktopTwoMouse);
+			desktopTwoApp.view.addEventListener('pointerdown', updateDesktopTwoMouse);
+
+			const layoutRightPortal = () => {
+				rightPortalWidth = Math.max(56, Math.min(110, desktopTwoApp.renderer.width * 0.095));
+				const h = desktopTwoApp.renderer.height;
+				const portalW = rightPortalWidth;
+				const portalH = h;
+				rightPortalShownX = desktopTwoApp.renderer.width;
+				rightPortalY = 0;
+				rightPortalHiddenX = rightPortalShownX + portalW * 0.62;
+				rightPortal.position.set(rightPortalHiddenX, rightPortalY);
+				rightPortal.scale.set(-1, 1);
+
+				const bulge = portalW * 0.65;
+				const midY = portalH * 0.5;
+				const curveX = portalW + bulge;
+				const edgeX = portalW * 0.55;
+
+				rightGlowSoft.clear();
+				rightGlowSoft.beginFill(0x2a0d0d, 0.2);
+				rightGlowSoft.moveTo(0, 0);
+				rightGlowSoft.lineTo(edgeX, 0);
+				rightGlowSoft.quadraticCurveTo(curveX, midY, edgeX, portalH);
+				rightGlowSoft.lineTo(0, portalH);
+				rightGlowSoft.closePath();
+				rightGlowSoft.endFill();
+
+				rightGlow.clear();
+				rightGlow.beginFill(0xa5271a, 0.22);
+				rightGlow.moveTo(0, 0);
+				rightGlow.lineTo(portalW * 0.45, 0);
+				rightGlow.quadraticCurveTo(portalW + bulge * 0.35, midY, portalW * 0.45, portalH);
+				rightGlow.lineTo(0, portalH);
+				rightGlow.closePath();
+				rightGlow.endFill();
+
+				const arrowSize = Math.max(16, Math.min(26, desktopTwoApp.renderer.height * 0.038));
+				rightArrow.clear();
+				drawPixelArrow(rightArrow, arrowSize, 0xf3e0c0);
+				rightArrow.position.set(portalW * 0.52, portalH * 0.5);
+				rightArrow.hitArea = new PIXI.Circle(0, 0, arrowSize * 1.2);
+
+				rightPortalHitZone.clear();
+				rightPortalHitZone.beginFill(0xffffff, 0.001);
+				rightPortalHitZone.drawRect(0, 0, portalW * 0.88, portalH);
+				rightPortalHitZone.endFill();
+			};
+			desktopTwoApp.ticker.add((dt) => {
+				updateCRTFisheyeFilter({ uniforms: desktopTwoFisheyeUniforms }, desktopTwoApp, dt / 60);
+				updateCRTScanlinesFilter({ uniforms: desktopTwoScanlinesUniforms }, desktopTwoApp, dt / 60);
+				updateDesktopTwoFlow(dt / 60);
+
+				if (!desktopTwoActive) {
+					rightPortalProgress += (0 - rightPortalProgress) * 0.2;
+					rightGlowSoft.alpha = 0;
+					rightGlow.alpha = 0;
+					rightArrow.alpha = 0;
+					rightPortal.visible = false;
+					return;
+				}
+
+				const backEdgeWidth = Math.max(1, desktopTwoApp.renderer.width * 0.18);
+				const edgeStart = desktopTwoApp.renderer.width - backEdgeWidth;
+				const edgeFactor = Math.max(0, Math.min(1, (desktopTwoMouse.x - edgeStart) / backEdgeWidth));
+				rightPortalProgress += (edgeFactor - rightPortalProgress) * 0.2;
+				rightPortal.position.x = rightPortalHiddenX + (rightPortalShownX - rightPortalHiddenX) * rightPortalProgress;
+				rightPortal.position.y = rightPortalY;
+				rightGlowSoft.alpha = 0.08 + 0.18 * rightPortalProgress;
+				rightGlow.alpha = 0.14 + 0.32 * rightPortalProgress;
+				rightArrow.alpha = 0.22 + 0.74 * rightPortalProgress;
+				const scale = 0.8 + 0.28 * rightPortalProgress;
+				rightArrow.scale.set(scale);
+				rightPortal.visible = true;
+			});
+			const handleDesktopTwoResize = () => {
+				resizeDesktopTwoFlow();
+				layoutRightPortal();
+			};
+			desktopTwoApp.renderer?.on?.('resize', handleDesktopTwoResize);
+			handleDesktopTwoResize();
 		};
 		const setDesktopTwoActive = (next) => {
 			desktopTwoActive = next;
 			document.documentElement.classList.toggle('desktop-two-active', next);
 			if (desktopTwoOverlay) {
 				desktopTwoOverlay.setAttribute('aria-hidden', next ? 'false' : 'true');
-				if (!next) desktopTwoOverlay.style.setProperty('--peek', '0');
 			}
 			if (next) ensureDesktopTwoBackground();
 		};
-		desktopTwoBackTab?.addEventListener('click', () => setDesktopTwoActive(false));
 		window.addEventListener('keydown', (event) => {
 			if (event.key === 'Escape' && desktopTwoActive) setDesktopTwoActive(false);
 		});
@@ -1201,8 +1329,6 @@ async function boot() {
 					const scale = 0.8 + 0.28 * leftPortalProgress;
 				leftArrow.scale.set(scale);
 				leftPortal.visible = true;
-				desktopTwoBackPeek += (0 - desktopTwoBackPeek) * 0.24;
-				if (desktopTwoOverlay) desktopTwoOverlay.style.setProperty('--peek', `${Math.max(0, Math.min(1, desktopTwoBackPeek)).toFixed(3)}`);
 			} else {
 				leftPortalProgress += (0 - leftPortalProgress) * 0.2;
 				leftPortal.position.x = leftPortalHiddenX;
@@ -1211,11 +1337,6 @@ async function boot() {
 				leftGlow.alpha = 0;
 				leftArrow.alpha = 0;
 				leftPortal.visible = false;
-				const backEdgeWidth = Math.max(1, app.renderer.width * 0.18);
-				const edgeStart = app.renderer.width - backEdgeWidth;
-				const edgeFactor = Math.max(0, Math.min(1, (mouse.x - edgeStart) / backEdgeWidth));
-				desktopTwoBackPeek += (edgeFactor - desktopTwoBackPeek) * 0.2;
-				if (desktopTwoOverlay) desktopTwoOverlay.style.setProperty('--peek', `${Math.max(0, Math.min(1, desktopTwoBackPeek)).toFixed(3)}`);
 			}
 			time += seconds;
 			const introSpeed = 1.25;

@@ -54,7 +54,7 @@ body {
     z-index: 4;
     opacity: 0;
     pointer-events: none;
-    transform: translateX(100%);
+    transform: translateX(-100%);
     transition: transform 560ms cubic-bezier(.22,1,.36,1), opacity 320ms ease;
     filter: contrast(1.04) saturate(1.03);
     background: #000000;
@@ -92,13 +92,14 @@ html.desktop-two-active .desktop-two-overlay {
 }
 
 .desktop-two-back-tab {
+    display: none;
     position: absolute;
     right: 0;
     top: 0;
     bottom: 0;
     width: min(110px, 9.5vw);
-    transform: translateX(calc((1 - var(--peek, 0)) * 62%));
-    opacity: calc(0.28 + var(--peek, 0) * 0.72);
+    transform: translateX(calc((1 - var(--peek, 0)) * 100%));
+    opacity: calc(var(--peek, 0) * 0.96);
     z-index: 5;
     border: none;
     padding: 0;
@@ -166,7 +167,7 @@ html.desktop-two-active .desktop-two-overlay {
 }
 
 .desktop-two-back-tab:hover {
-    transform: translateX(calc((1 - var(--peek, 0)) * 30%));
+    transform: translateX(calc((1 - var(--peek, 0)) * 52%));
 }
 
 .desktop-two-back-tab:focus-visible {
@@ -314,7 +315,7 @@ main { padding: 24px; }
 }
 
 html.desktop-two-active #game-root {
-    transform: translateX(-100vw);
+    transform: translateX(100vw);
     pointer-events: none;
 }
 
