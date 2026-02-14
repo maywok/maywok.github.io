@@ -78,10 +78,10 @@ async function boot() {
 			const desktopTwoScene = new PIXI.Container();
 			desktopTwoApp.stage.addChild(desktopTwoScene);
 			const { container: desktopTwoFlow, update: updateDesktopTwoFlow, resize: resizeDesktopTwoFlow } = createCrimsonFlowBackground(desktopTwoApp, {
-				lineColor: 0x6f001b,
-				glowColor: 0xa00026,
-				bgColor: 0x000000,
-				glowAlpha: 0.55,
+				lineColor: 0x17090a,
+				glowColor: 0x8e1616,
+				bgColor: 0xd7bf98,
+				glowAlpha: 0.46,
 				parallax: 0.06,
 				pixelSize: 8,
 				density: 4.6,
@@ -133,8 +133,12 @@ async function boot() {
 				if (!rect || rect.width <= 0 || rect.height <= 0) return;
 				const x = (event.clientX - rect.left) * (desktopTwoApp.renderer.width / rect.width);
 				const y = (event.clientY - rect.top) * (desktopTwoApp.renderer.height / rect.height);
-				if (Number.isFinite(x)) desktopTwoMouse.x = x;
-				if (Number.isFinite(y)) desktopTwoMouse.y = y;
+				const cursorHalfW = desktopTwoCursorSprite.width * 0.5;
+				const cursorHalfH = desktopTwoCursorSprite.height * 0.5;
+				const nextX = Math.max(cursorHalfW, Math.min(desktopTwoApp.renderer.width - cursorHalfW, x));
+				const nextY = Math.max(cursorHalfH, Math.min(desktopTwoApp.renderer.height - cursorHalfH, y));
+				if (Number.isFinite(nextX)) desktopTwoMouse.x = nextX;
+				if (Number.isFinite(nextY)) desktopTwoMouse.y = nextY;
 			};
 			desktopTwoApp.view.addEventListener('pointermove', updateDesktopTwoMouse);
 			desktopTwoApp.view.addEventListener('pointerdown', updateDesktopTwoMouse);
