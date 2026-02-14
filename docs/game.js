@@ -855,13 +855,20 @@ async function boot() {
 			const leftGlowSoft = new PIXI.Graphics();
 			const leftGlow = new PIXI.Graphics();
 			const leftArrow = new PIXI.Graphics();
-			leftPortal.addChild(leftGlowSoft, leftGlow, leftArrow);
+			const leftPortalHitZone = new PIXI.Graphics();
+			leftPortal.addChild(leftGlowSoft, leftGlow, leftArrow, leftPortalHitZone);
 			world.addChild(leftPortal);
 		leftArrow.eventMode = 'static';
 		leftArrow.cursor = 'pointer';
 		leftArrow.on('pointertap', () => setPortfolioActive(true));
+		leftPortalHitZone.eventMode = 'static';
+		leftPortalHitZone.cursor = 'pointer';
+		leftPortalHitZone.on('pointertap', () => setPortfolioActive(true));
 			let leftPortalWidth = 84;
 		let leftPortalProgress = 0;
+		let leftPortalShownX = 0;
+		let leftPortalHiddenX = 0;
+		let leftPortalY = 0;
 			function drawPixelArrow(graphics, size, fillColor) {
 				const px = Math.max(1, Math.round(size / 6));
 				const grid = [
@@ -887,7 +894,10 @@ async function boot() {
 				const h = app.renderer.height;
 				const portalW = screenToWorldSize(leftPortalWidth);
 				const portalH = screenToWorldSize(h);
-				leftPortal.position.set(screenToWorldX(0), screenToWorldY(0));
+				leftPortalShownX = screenToWorldX(0);
+				leftPortalY = screenToWorldY(0);
+				leftPortalHiddenX = leftPortalShownX - portalW * 0.62;
+				leftPortal.position.set(leftPortalHiddenX, leftPortalY);
 
 				const bulge = portalW * 0.65;
 				const midY = portalH * 0.5;
@@ -895,7 +905,7 @@ async function boot() {
 				const edgeX = portalW * 0.55;
 
 				leftGlowSoft.clear();
-				leftGlowSoft.beginFill(0x9bff6a, 0.06);
+				leftGlowSoft.beginFill(0x2a0d0d, 0.2);
 				leftGlowSoft.moveTo(0, 0);
 				leftGlowSoft.lineTo(edgeX, 0);
 				leftGlowSoft.quadraticCurveTo(curveX, midY, edgeX, portalH);
@@ -904,7 +914,7 @@ async function boot() {
 				leftGlowSoft.endFill();
 
 				leftGlow.clear();
-				leftGlow.beginFill(0x9bff6a, 0.12);
+				leftGlow.beginFill(0xa5271a, 0.22);
 				leftGlow.moveTo(0, 0);
 				leftGlow.lineTo(portalW * 0.45, 0);
 				leftGlow.quadraticCurveTo(portalW + bulge * 0.35, midY, portalW * 0.45, portalH);
@@ -912,11 +922,16 @@ async function boot() {
 				leftGlow.closePath();
 				leftGlow.endFill();
 
-				const arrowSize = screenToWorldSize(Math.max(12, Math.min(22, app.renderer.height * 0.03)));
+				const arrowSize = screenToWorldSize(Math.max(16, Math.min(26, app.renderer.height * 0.038)));
 				leftArrow.clear();
-				drawPixelArrow(leftArrow, arrowSize, 0xb6ff74);
+				drawPixelArrow(leftArrow, arrowSize, 0xf3e0c0);
 				leftArrow.position.set(portalW * 0.52, portalH * 0.5);
-				leftArrow.hitArea = new PIXI.Circle(0, 0, arrowSize * 0.7);
+				leftArrow.hitArea = new PIXI.Circle(0, 0, arrowSize * 1.2);
+
+				leftPortalHitZone.clear();
+				leftPortalHitZone.beginFill(0xffffff, 0.001);
+				leftPortalHitZone.drawRect(0, 0, portalW * 0.88, portalH);
+				leftPortalHitZone.endFill();
 		}
 		layoutLeftPortal();
 
@@ -1143,17 +1158,21 @@ async function boot() {
 				drawLockControl();
 			}
 			if (!portfolioActive) {
-				const edgeWidth = Math.max(1, leftPortalWidth);
+				const edgeWidth = Math.max(1, leftPortalWidth * 1.9);
 				const edgeFactor = Math.max(0, Math.min(1, 1 - mouse.x / edgeWidth));
 				leftPortalProgress += (edgeFactor - leftPortalProgress) * 0.18;
-					leftGlowSoft.alpha = 0.02 + 0.12 * leftPortalProgress;
-					leftGlow.alpha = 0.03 + 0.16 * leftPortalProgress;
-					leftArrow.alpha = 0.04 + 0.5 * leftPortalProgress;
-					const scale = 0.68 + 0.14 * leftPortalProgress;
+				leftPortal.position.x = leftPortalHiddenX + (leftPortalShownX - leftPortalHiddenX) * leftPortalProgress;
+				leftPortal.position.y = leftPortalY;
+					leftGlowSoft.alpha = 0.08 + 0.18 * leftPortalProgress;
+					leftGlow.alpha = 0.14 + 0.32 * leftPortalProgress;
+					leftArrow.alpha = 0.22 + 0.74 * leftPortalProgress;
+					const scale = 0.8 + 0.28 * leftPortalProgress;
 				leftArrow.scale.set(scale);
 				leftPortal.visible = true;
 			} else {
 				leftPortalProgress += (0 - leftPortalProgress) * 0.2;
+				leftPortal.position.x = leftPortalHiddenX;
+				leftPortal.position.y = leftPortalY;
 				leftGlowSoft.alpha = 0;
 				leftGlow.alpha = 0;
 				leftArrow.alpha = 0;
