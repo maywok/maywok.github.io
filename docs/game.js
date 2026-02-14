@@ -55,6 +55,7 @@ async function boot() {
 
 		const portfolioOverlay = document.getElementById('portfolio-overlay');
 		const portfolioBackdrop = document.getElementById('portfolio-backdrop');
+		const portfolioBackTab = document.getElementById('portfolio-back-tab');
 		const portfolioClose = document.getElementById('portfolio-close');
 		const portfolioCards = Array.from(document.querySelectorAll('.polaroid-card'));
 		const setupPortfolioCardParallax = () => {
@@ -94,6 +95,7 @@ async function boot() {
 			}
 		};
 		portfolioBackdrop?.addEventListener('click', () => setPortfolioActive(false));
+		portfolioBackTab?.addEventListener('click', () => setPortfolioActive(false));
 		portfolioClose?.addEventListener('click', () => setPortfolioActive(false));
 		window.addEventListener('keydown', (event) => {
 			if (event.key === 'Escape' && portfolioActive) setPortfolioActive(false);
