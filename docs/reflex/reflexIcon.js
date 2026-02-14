@@ -351,29 +351,43 @@ export async function createReflexIcon(app, world, options = {}) {
 			if (container.position.x < minX) {
 				container.position.x = minX;
 				state.vx *= -PHYSICS.bounce;
+				if (Math.abs(state.vx) < 18) state.vx = 0;
 			}
 			if (container.position.x > maxX) {
 				container.position.x = maxX;
 				state.vx *= -PHYSICS.bounce;
+				if (Math.abs(state.vx) < 18) state.vx = 0;
 			}
 			if (container.position.y < minY) {
 				container.position.y = minY;
 				state.vy *= -PHYSICS.bounce;
+				if (Math.abs(state.vy) < 18) state.vy = 0;
 			}
 			if (container.position.y > maxY) {
 				container.position.y = maxY;
 				if (state.vy > 0) state.vy = 0;
 				state.vx *= PHYSICS.floorFriction;
-				state.angVel += state.vx * SPIN.groundRoll;
+				state.angVel += state.vx * (SPIN.groundRoll * 0.55);
+				if (Math.abs(state.vx) < 20) {
+					state.vx = 0;
+					state.angVel *= Math.pow(0.76, dtSeconds * 60);
+					if (Math.abs(state.angVel) < 0.02) state.angVel = 0;
+				}
 				const floorMinX = minX + state.radiusScaled;
 				const floorMaxX = maxX - state.radiusScaled;
 				if (container.position.x < floorMinX) {
 					container.position.x = floorMinX;
-					if (state.vx < 0) state.vx *= -PHYSICS.bounce;
+					if (state.vx < 0) {
+						state.vx *= -PHYSICS.bounce;
+						if (Math.abs(state.vx) < 18) state.vx = 0;
+					}
 				}
 				if (container.position.x > floorMaxX) {
 					container.position.x = floorMaxX;
-					if (state.vx > 0) state.vx *= -PHYSICS.bounce;
+					if (state.vx > 0) {
+						state.vx *= -PHYSICS.bounce;
+						if (Math.abs(state.vx) < 18) state.vx = 0;
+					}
 				}
 			}
 		}
@@ -385,14 +399,17 @@ export async function createReflexIcon(app, world, options = {}) {
 		}
 	});
 
-	function setDragEnabled(enabled) {
+	function setDragEnabled(enabled, options = {}) {
 		state.dragEnabled = Boolean(enabled);
+		const preserveMomentum = Boolean(options?.preserveMomentum);
 		if (!state.dragEnabled) state.dragging = false;
-		state.vx = 0;
-		state.vy = 0;
-		state.angVel = 0;
-		state.angle = 0;
-		container.rotation = 0;
+		if (!preserveMomentum) {
+			state.vx = 0;
+			state.vy = 0;
+			state.angVel = 0;
+			state.angle = 0;
+			container.rotation = 0;
+		}
 		state.lastDragTime = 0;
 		state.grabbed = false;
 		if (!state.dragEnabled) {

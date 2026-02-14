@@ -594,10 +594,10 @@ async function boot() {
 				dragEnabled = Boolean(enabled);
 				lockAnimTarget = dragEnabled ? 1 : 0;
 				appLauncher.setDragEnabled?.(dragEnabled, { preserveMomentum: dragEnabled });
-				if (blogIconSetDragEnabled) blogIconSetDragEnabled(dragEnabled);
-				if (linkedinIconSetDragEnabled) linkedinIconSetDragEnabled(dragEnabled);
-				if (reflexIconSetDragEnabled) reflexIconSetDragEnabled(dragEnabled);
-				if (walklatroIconSetDragEnabled) walklatroIconSetDragEnabled(dragEnabled);
+				if (blogIconSetDragEnabled) blogIconSetDragEnabled(dragEnabled, { preserveMomentum: dragEnabled });
+				if (linkedinIconSetDragEnabled) linkedinIconSetDragEnabled(dragEnabled, { preserveMomentum: dragEnabled });
+				if (reflexIconSetDragEnabled) reflexIconSetDragEnabled(dragEnabled, { preserveMomentum: dragEnabled });
+				if (walklatroIconSetDragEnabled) walklatroIconSetDragEnabled(dragEnabled, { preserveMomentum: dragEnabled });
 				if (dragEnabled) {
 					const core = getCoreWorldPos();
 					appLauncher.applyOrbitalImpulse?.(core, ringSpinVel);
