@@ -124,8 +124,8 @@ async function boot() {
 			let rightPortalHiddenX = 0;
 			let rightPortalY = 0;
 			const desktopTwoMouse = {
-				x: () => desktopTwoApp?.renderer?.width ? desktopTwoApp.renderer.width * 0.5 : 0,
-				y: () => desktopTwoApp?.renderer?.height ? desktopTwoApp.renderer.height * 0.5 : 0,
+				x: desktopTwoApp.renderer.width * 0.5,
+				y: desktopTwoApp.renderer.height * 0.5,
 			};
 			const updateDesktopTwoMouse = (event) => {
 				if (!desktopTwoApp?.view) return;
@@ -138,6 +138,45 @@ async function boot() {
 			};
 			desktopTwoApp.view.addEventListener('pointermove', updateDesktopTwoMouse);
 			desktopTwoApp.view.addEventListener('pointerdown', updateDesktopTwoMouse);
+			desktopTwoApp.view.addEventListener('pointerenter', updateDesktopTwoMouse);
+
+			const desktopTwoCursor = new PIXI.Container();
+			const desktopTwoCursorSprite = new PIXI.Sprite(cursorTexture);
+			desktopTwoCursorSprite.anchor.set(0.5);
+			const desktopTwoCursorGlow = new PIXI.Sprite(cursorTexture);
+			desktopTwoCursorGlow.anchor.set(0.5);
+			desktopTwoCursorGlow.tint = 0xff5aa8;
+			desktopTwoCursorGlow.alpha = 0.35;
+			desktopTwoCursorGlow.scale.set(1.2);
+			desktopTwoCursorGlow.blendMode = PIXI.BLEND_MODES.ADD;
+			const firstDesktopTwoCursorFrame = new PIXI.Texture(cursorBase, new PIXI.Rectangle(0, 0, frameW, frameH));
+			desktopTwoCursorSprite.texture = firstDesktopTwoCursorFrame;
+			desktopTwoCursorGlow.texture = firstDesktopTwoCursorFrame;
+			let desktopTwoCursorAnim = null;
+			if (USE_ANIMATED_CURSOR && cols > 0 && rows > 0) {
+				const frames = [];
+				for (let y = 0; y < rows; y++) {
+					for (let x = 0; x < cols; x++) {
+						if (frames.length >= CURSOR_ANIM_MAX_FRAMES) break;
+						frames.push(new PIXI.Texture(cursorBase, new PIXI.Rectangle(x * frameW, y * frameH, frameW, frameH)));
+					}
+					if (frames.length >= CURSOR_ANIM_MAX_FRAMES) break;
+				}
+				if (frames.length > 0) {
+					desktopTwoCursorAnim = new PIXI.AnimatedSprite(frames);
+					desktopTwoCursorAnim.anchor.set(0.5);
+					desktopTwoCursorAnim.animationSpeed = 0.22;
+					desktopTwoCursorAnim.play();
+				}
+			}
+			if (desktopTwoCursorAnim && desktopTwoCursorAnim.totalFrames > 1) desktopTwoCursor.addChild(desktopTwoCursorGlow, desktopTwoCursorAnim);
+			else desktopTwoCursor.addChild(desktopTwoCursorGlow, desktopTwoCursorSprite);
+			desktopTwoCursor.eventMode = 'none';
+			desktopTwoCursor.scale.set(0.85);
+			desktopTwoCursor.zIndex = 300;
+			const { filter: desktopTwoCursorPixelate, update: updateDesktopTwoCursorPixelate } = createPixelateFilter(desktopTwoApp, { pixelSize: 2 });
+			desktopTwoCursor.filters = [desktopTwoCursorPixelate];
+			desktopTwoScene.addChild(desktopTwoCursor);
 
 			const layoutRightPortal = () => {
 				rightPortalWidth = Math.max(56, Math.min(110, desktopTwoApp.renderer.width * 0.095));
@@ -188,6 +227,8 @@ async function boot() {
 				updateCRTFisheyeFilter({ uniforms: desktopTwoFisheyeUniforms }, desktopTwoApp, dt / 60);
 				updateCRTScanlinesFilter({ uniforms: desktopTwoScanlinesUniforms }, desktopTwoApp, dt / 60);
 				updateDesktopTwoFlow(dt / 60);
+				updateDesktopTwoCursorPixelate();
+				desktopTwoCursor.position.set(desktopTwoMouse.x, desktopTwoMouse.y);
 
 				if (!desktopTwoActive) {
 					rightPortalProgress += (0 - rightPortalProgress) * 0.2;

@@ -91,6 +91,12 @@ html.desktop-two-active .desktop-two-overlay {
     height: 100%;
 }
 
+.desktop-two-overlay,
+.desktop-two-root,
+.desktop-two-root canvas {
+    cursor: none !important;
+}
+
 .desktop-two-back-tab {
     display: none;
     position: absolute;
