@@ -54,9 +54,9 @@ body {
     z-index: 4;
     opacity: 0;
     pointer-events: none;
-    transform: translateX(102%);
+    transform: translateX(100%);
     transition: transform 560ms cubic-bezier(.22,1,.36,1), opacity 320ms ease;
-    filter: contrast(1.08) saturate(1.08);
+    filter: contrast(1.04) saturate(1.03);
 }
 
 .portfolio-overlay::before {
@@ -74,7 +74,7 @@ body {
 .portfolio-backdrop {
     position: absolute;
     inset: 0;
-    background: rgba(0, 0, 0, 0.72);
+    background: rgba(0, 0, 0, 0.12);
     opacity: 1;
     transition: opacity 420ms ease;
 }
@@ -94,9 +94,9 @@ html.portfolio-active .portfolio-overlay {
     min-width: 0;
     padding: clamp(16px, 2vw, 24px) clamp(20px, 2.8vw, 34px) 20px;
     overflow: hidden;
-    background: #030205;
-    border-left: 2px solid rgba(128, 18, 44, 0.7);
-    box-shadow: inset 12px 0 24px rgba(120, 20, 40, 0.2);
+    background: #dcc6a2;
+    border-left: 2px solid rgba(50, 20, 15, 0.4);
+    box-shadow: inset 12px 0 24px rgba(20, 8, 6, 0.14);
 }
 
 .portfolio-panel::before {
@@ -105,9 +105,9 @@ html.portfolio-active .portfolio-overlay {
     inset: 0;
     pointer-events: none;
     background:
-        linear-gradient(180deg, rgba(255, 76, 128, 0.06), rgba(0, 0, 0, 0.08) 24%, rgba(0,0,0,0.35) 100%),
-        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.02) 0 1px, transparent 1px 4px);
-    opacity: 0.92;
+        linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.02) 28%, rgba(0,0,0,0.06) 100%),
+        repeating-linear-gradient(0deg, rgba(95, 37, 27, 0.06) 0 1px, transparent 1px 6px);
+    opacity: 0.7;
 }
 
 .portfolio-panel::after {
@@ -117,36 +117,36 @@ html.portfolio-active .portfolio-overlay {
     pointer-events: none;
     z-index: 2;
     background:
-        repeating-linear-gradient(180deg, rgba(9, 5, 5, 0.14) 0 1px, rgba(255, 255, 255, 0.02) 1px 3px),
-        radial-gradient(circle at 12% 24%, rgba(0, 0, 0, 0.14) 0 0.75px, transparent 1px),
-        radial-gradient(circle at 67% 58%, rgba(120, 20, 20, 0.18) 0 0.75px, transparent 1px),
-        radial-gradient(circle at 41% 81%, rgba(0, 0, 0, 0.1) 0 0.75px, transparent 1px);
+        repeating-linear-gradient(180deg, rgba(9, 5, 5, 0.11) 0 1px, rgba(255, 255, 255, 0.02) 1px 3px),
+        radial-gradient(circle at 12% 24%, rgba(0, 0, 0, 0.12) 0 0.75px, transparent 1px),
+        radial-gradient(circle at 67% 58%, rgba(120, 20, 20, 0.1) 0 0.75px, transparent 1px),
+        radial-gradient(circle at 41% 81%, rgba(0, 0, 0, 0.08) 0 0.75px, transparent 1px);
     background-size: auto, 4px 4px, 5px 5px, 6px 6px;
     background-position: 0 0, 0 0, 1px 2px, 2px 1px;
     mix-blend-mode: multiply;
-    opacity: 0.36;
+    opacity: 0.28;
 }
 
 .portfolio-header {
     position: relative;
     z-index: 3;
     margin-bottom: 14px;
-    color: #e7f6ff;
+    color: #3f120e;
     font-family: var(--pixel-font);
-    text-shadow: 0 0 10px rgba(34,243,200,0.26), 0 0 18px rgba(34,243,200,0.18);
+    text-shadow: none;
 }
 
 .portfolio-header h2 {
     margin: 0 0 6px;
     font-size: clamp(16px, 2.2vw, 24px);
-    letter-spacing: 0.8px;
+    letter-spacing: 0.5px;
 }
 
 .portfolio-header p {
     margin: 0;
     font-size: 9px;
-    color: rgba(216, 248, 255, 0.82);
-    opacity: 0.88;
+    color: #5a2119;
+    opacity: 0.82;
 }
 
 .portfolio-close {
@@ -156,40 +156,130 @@ html.portfolio-active .portfolio-overlay {
     z-index: 4;
     width: 28px;
     height: 28px;
-    border: 1px solid rgba(47, 250, 211, 0.45);
+    border: 1px solid #6b1f17;
     border-radius: 6px;
-    background: rgba(4, 18, 16, 0.76);
-    color: rgba(230, 255, 252, 0.86);
+    background: #f3e6d2;
+    color: #5b1510;
     font-size: 17px;
     line-height: 1;
     cursor: pointer;
 }
 
 .portfolio-close:hover {
-    background: rgba(8, 30, 27, 0.95);
+    background: #f6ede0;
 }
 
 .portfolio-back-tab {
     position: absolute;
-    right: 8px;
-    top: 50%;
-    transform: translateY(-50%) translateX(calc((1 - var(--peek, 0)) * 28px));
-    opacity: calc(0.34 + var(--peek, 0) * 0.66);
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: min(110px, 9.5vw);
+    transform: translateX(calc((1 - var(--peek, 0)) * 62%));
+    opacity: calc(0.28 + var(--peek, 0) * 0.72);
     z-index: 6;
-    width: 44px;
-    height: 96px;
-    border: 1px solid rgba(37, 255, 212, 0.58);
-    border-radius: 11px;
+    border: none;
+    border-radius: 0;
     padding: 0;
-    background: rgba(0, 12, 10, 0.78);
-    color: rgba(216, 255, 245, 0.96);
-    font-family: var(--pixel-font);
-    font-size: 22px;
-    letter-spacing: 0;
-    line-height: 1;
+    background: transparent;
+    color: transparent;
+    font-size: 0;
+    line-height: 0;
     cursor: pointer;
-    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.36), inset 0 0 12px rgba(34,243,200,0.12);
-    transition: transform 220ms ease, background 220ms ease, box-shadow 220ms ease;
+    box-shadow: none;
+    transition: transform 220ms ease, opacity 220ms ease;
+    overflow: visible;
+}
+
+.portfolio-back-tab::before,
+.portfolio-back-tab::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    pointer-events: none;
+}
+
+.portfolio-back-tab::before {
+    width: 100%;
+    background: rgba(42, 13, 13, 0.2);
+    clip-path: path('M 0 0 L 55% 0 Q 100% 50% 55% 100% L 0 100% Z');
+}
+
+.portfolio-back-tab::after {
+    width: 82%;
+    background: rgba(165, 39, 26, 0.22);
+    clip-path: path('M 0 0 L 50% 0 Q 100% 50% 50% 100% L 0 100% Z');
+}
+
+.portfolio-back-tab span,
+.portfolio-back-tab {
+    --arrow-size: clamp(16px, 2.2vw, 26px);
+}
+
+.portfolio-back-tab {
+    background-image:
+        radial-gradient(circle at 54% 50%, rgba(0,0,0,0) 0 49%, rgba(0,0,0,0.0) 50%);
+}
+
+.portfolio-back-tab:focus-visible {
+    outline: 2px solid rgba(243, 224, 192, 0.9);
+    outline-offset: -8px;
+}
+
+.portfolio-back-tab:hover {
+    transform: translateX(calc((1 - var(--peek, 0)) * 30%));
+}
+
+.portfolio-back-tab {
+    --px: max(1px, calc(var(--arrow-size) / 6));
+}
+
+.portfolio-back-tab:where(*) {
+    text-indent: -9999px;
+}
+
+.portfolio-back-tab::marker {
+    content: none;
+}
+
+.portfolio-back-tab > * {
+    display: none;
+}
+
+.portfolio-back-tab {
+    background-repeat: no-repeat;
+    background-position: 52% 50%;
+    background-size: calc(var(--px) * 5) calc(var(--px) * 5);
+    background-image:
+        linear-gradient(#f3e0c0, #f3e0c0),
+        linear-gradient(#f3e0c0, #f3e0c0),
+        linear-gradient(#f3e0c0, #f3e0c0),
+        linear-gradient(#f3e0c0, #f3e0c0),
+        linear-gradient(#f3e0c0, #f3e0c0),
+        linear-gradient(#f3e0c0, #f3e0c0),
+        linear-gradient(#f3e0c0, #f3e0c0),
+        linear-gradient(#f3e0c0, #f3e0c0),
+        linear-gradient(#f3e0c0, #f3e0c0),
+        linear-gradient(#f3e0c0, #f3e0c0),
+        linear-gradient(#f3e0c0, #f3e0c0);
+    background-size:
+        var(--px) var(--px), var(--px) var(--px), var(--px) var(--px), var(--px) var(--px), var(--px) var(--px),
+        var(--px) var(--px), var(--px) var(--px), var(--px) var(--px), var(--px) var(--px), var(--px) var(--px),
+        var(--px) var(--px);
+    background-position:
+        calc(52% + var(--px) * 0) calc(50% - var(--px) * 2),
+        calc(52% - var(--px) * 1) calc(50% - var(--px) * 1),
+        calc(52% + var(--px) * 0) calc(50% - var(--px) * 1),
+        calc(52% - var(--px) * 2) calc(50% + var(--px) * 0),
+        calc(52% - var(--px) * 1) calc(50% + var(--px) * 0),
+        calc(52% + var(--px) * 0) calc(50% + var(--px) * 0),
+        calc(52% + var(--px) * 1) calc(50% + var(--px) * 0),
+        calc(52% + var(--px) * 2) calc(50% + var(--px) * 0),
+        calc(52% - var(--px) * 1) calc(50% + var(--px) * 1),
+        calc(52% + var(--px) * 0) calc(50% + var(--px) * 1),
+        calc(52% + var(--px) * 0) calc(50% + var(--px) * 2);
 }
 .portfolio-back-tab:hover {
     transform: translateY(-50%) translateX(calc((1 - var(--peek, 0)) * 12px));
@@ -202,8 +292,8 @@ html.portfolio-active .portfolio-overlay {
     inset: 0;
     overflow: hidden;
     z-index: 1;
-    background: #020104;
-    filter: saturate(1.22) contrast(1.16);
+    background: #d7bf98;
+    filter: saturate(1.12) contrast(1.08);
 }
 
 .portfolio-lava::before,
@@ -218,63 +308,30 @@ html.portfolio-active .portfolio-overlay {
     background:
         repeating-linear-gradient(
             180deg,
-            rgba(0,0,0,0) 0 66px,
-            rgba(255, 26, 94, 0.88) 66px 82px,
-            rgba(255, 92, 132, 0.4) 82px 88px,
-            rgba(0,0,0,0) 88px 166px
+            rgba(0,0,0,0) 0 46px,
+            rgba(142, 16, 16, 0.68) 46px 56px,
+            rgba(18, 10, 10, 0.8) 56px 64px,
+            rgba(0,0,0,0) 64px 116px
         );
-    opacity: 0.92;
-    filter: blur(1.2px);
-    transform: skewY(-1.8deg) scale(1.06);
-    animation: portfolioFlowA 17s linear infinite;
+    mix-blend-mode: multiply;
+    opacity: 0.74;
+    transform: skewY(-2.2deg) scale(1.04);
+    animation: portfolioFlowA 22s linear infinite;
 }
 
 .portfolio-lava::after {
     background:
         repeating-linear-gradient(
             180deg,
-            rgba(0,0,0,0) 8px 74px,
-            rgba(255, 12, 88, 0.66) 74px 90px,
-            rgba(255, 180, 206, 0.24) 90px 97px,
-            rgba(0,0,0,0) 97px 174px
+            rgba(0,0,0,0) 6px 52px,
+            rgba(205, 34, 34, 0.44) 52px 61px,
+            rgba(248, 168, 146, 0.18) 61px 66px,
+            rgba(0,0,0,0) 66px 126px
         );
-    opacity: 0.8;
-    filter: blur(4.5px);
-    transform: skewY(1.4deg) translateX(-70px);
-    animation: portfolioFlowB 13s linear infinite;
-}
-
-.lava-node {
-    position: absolute;
-    top: 0;
-    width: 2px;
-    height: 80px;
-    background: linear-gradient(180deg, rgba(250,250,250,0.86), rgba(140,140,140,0.74));
-    box-shadow: 0 0 4px rgba(255,255,255,0.26);
-}
-
-.lava-node::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    bottom: -16px;
-    width: 36px;
-    height: 36px;
-    transform: translateX(-50%);
-    border-radius: 999px;
-    background: radial-gradient(circle at 45% 42%, rgba(201,255,236,0.9) 0 15%, rgba(84, 255, 164, 0.84) 16% 55%, rgba(30, 160, 76, 0.4) 56% 100%);
-    box-shadow: 0 0 26px rgba(84, 255, 164, 0.44), 0 0 45px rgba(84, 255, 164, 0.28);
-}
-
-.lava-node.n1 { left: 5%; height: 86px; }
-.lava-node.n2 { left: 15%; height: 88px; }
-.lava-node.n3 { left: 25%; height: 82px; }
-.lava-node.n4 { left: 35%; height: 90px; }
-.lava-node.n5 { left: 45%; height: 80px; }
-.lava-node.n6 { left: 55%; height: 86px; }
-
-@media (max-width: 1080px) {
-    .lava-node.n6 { display: none; }
+    opacity: 0.7;
+    filter: blur(5px);
+    transform: skewY(1.8deg) translateX(-50px);
+    animation: portfolioFlowB 18s linear infinite;
 }
 
 @keyframes portfolioFlowA {
