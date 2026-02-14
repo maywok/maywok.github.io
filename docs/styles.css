@@ -48,7 +48,7 @@ body {
     border-radius: 12px;
 }
 
-.portfolio-overlay {
+.desktop-two-overlay {
     position: fixed;
     inset: 0;
     z-index: 4;
@@ -57,119 +57,41 @@ body {
     transform: translateX(100%);
     transition: transform 560ms cubic-bezier(.22,1,.36,1), opacity 320ms ease;
     filter: contrast(1.04) saturate(1.03);
+    background: #000000;
 }
 
-.portfolio-overlay::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    z-index: 5;
-    background:
-        repeating-linear-gradient(180deg, rgba(0,0,0,0.1) 0 1px, rgba(255,255,255,0.015) 1px 3px),
-        radial-gradient(120% 80% at 50% 50%, rgba(0,0,0,0) 0%, rgba(20,8,8,0.14) 78%, rgba(8,4,4,0.24) 100%);
-    opacity: 0.34;
-}
-
-.portfolio-backdrop {
-    position: absolute;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.12);
-    opacity: 1;
-    transition: opacity 420ms ease;
-}
-
-html.portfolio-active .portfolio-overlay {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateX(0);
-}
-
-.portfolio-panel {
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 100vw;
-    min-width: 0;
-    padding: clamp(16px, 2vw, 24px) clamp(20px, 2.8vw, 34px) 20px;
-    overflow: hidden;
-    background: #dcc6a2;
-    border-left: 2px solid rgba(50, 20, 15, 0.4);
-    box-shadow: inset 12px 0 24px rgba(20, 8, 6, 0.14);
-}
-
-.portfolio-panel::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background:
-        linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.02) 28%, rgba(0,0,0,0.06) 100%),
-        repeating-linear-gradient(0deg, rgba(95, 37, 27, 0.06) 0 1px, transparent 1px 6px);
-    opacity: 0.7;
-}
-
-.portfolio-panel::after {
+.desktop-two-overlay::before {
     content: "";
     position: absolute;
     inset: 0;
     pointer-events: none;
     z-index: 2;
     background:
-        repeating-linear-gradient(180deg, rgba(9, 5, 5, 0.11) 0 1px, rgba(255, 255, 255, 0.02) 1px 3px),
-        radial-gradient(circle at 12% 24%, rgba(0, 0, 0, 0.12) 0 0.75px, transparent 1px),
-        radial-gradient(circle at 67% 58%, rgba(120, 20, 20, 0.1) 0 0.75px, transparent 1px),
-        radial-gradient(circle at 41% 81%, rgba(0, 0, 0, 0.08) 0 0.75px, transparent 1px);
-    background-size: auto, 4px 4px, 5px 5px, 6px 6px;
-    background-position: 0 0, 0 0, 1px 2px, 2px 1px;
-    mix-blend-mode: multiply;
-    opacity: 0.28;
+        repeating-linear-gradient(180deg, rgba(0,0,0,0.1) 0 1px, rgba(255,255,255,0.015) 1px 3px),
+        radial-gradient(120% 80% at 50% 50%, rgba(0,0,0,0) 0%, rgba(20,8,8,0.14) 78%, rgba(8,4,4,0.24) 100%);
+    opacity: 0.34;
 }
 
-.portfolio-header {
-    position: relative;
-    z-index: 3;
-    margin-bottom: 14px;
-    color: #3f120e;
-    font-family: var(--pixel-font);
-    text-shadow: none;
+html.desktop-two-active .desktop-two-overlay {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
 }
 
-.portfolio-header h2 {
-    margin: 0 0 6px;
-    font-size: clamp(16px, 2.2vw, 24px);
-    letter-spacing: 0.5px;
-}
-
-.portfolio-header p {
-    margin: 0;
-    font-size: 9px;
-    color: #5a2119;
-    opacity: 0.82;
-}
-
-.portfolio-close {
+.desktop-two-root {
     position: absolute;
-    right: 14px;
-    top: 10px;
-    z-index: 4;
-    width: 28px;
-    height: 28px;
-    border: 1px solid #6b1f17;
-    border-radius: 6px;
-    background: #f3e6d2;
-    color: #5b1510;
-    font-size: 17px;
-    line-height: 1;
-    cursor: pointer;
+    inset: 0;
+    background: #000000;
+    z-index: 1;
 }
 
-.portfolio-close:hover {
-    background: #f6ede0;
+.desktop-two-root canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
 }
 
-.portfolio-back-tab {
+.desktop-two-back-tab {
     position: absolute;
     right: 0;
     top: 0;
@@ -177,22 +99,16 @@ html.portfolio-active .portfolio-overlay {
     width: min(110px, 9.5vw);
     transform: translateX(calc((1 - var(--peek, 0)) * 62%));
     opacity: calc(0.28 + var(--peek, 0) * 0.72);
-    z-index: 6;
+    z-index: 5;
     border: none;
-    border-radius: 0;
     padding: 0;
     background: transparent;
-    color: transparent;
-    font-size: 0;
-    line-height: 0;
     cursor: pointer;
-    box-shadow: none;
     transition: transform 220ms ease, opacity 220ms ease;
-    overflow: visible;
 }
 
-.portfolio-back-tab::before,
-.portfolio-back-tab::after {
+.desktop-two-back-tab::before,
+.desktop-two-back-tab::after {
     content: "";
     position: absolute;
     top: 0;
@@ -201,54 +117,21 @@ html.portfolio-active .portfolio-overlay {
     pointer-events: none;
 }
 
-.portfolio-back-tab::before {
+.desktop-two-back-tab::before {
     width: 100%;
     background: rgba(42, 13, 13, 0.2);
     clip-path: path('M 0 0 L 55% 0 Q 100% 50% 55% 100% L 0 100% Z');
 }
 
-.portfolio-back-tab::after {
+.desktop-two-back-tab::after {
     width: 82%;
     background: rgba(165, 39, 26, 0.22);
     clip-path: path('M 0 0 L 50% 0 Q 100% 50% 50% 100% L 0 100% Z');
 }
 
-.portfolio-back-tab span,
-.portfolio-back-tab {
+.desktop-two-back-tab {
     --arrow-size: clamp(16px, 2.2vw, 26px);
-}
-
-.portfolio-back-tab {
-    background-image:
-        radial-gradient(circle at 54% 50%, rgba(0,0,0,0) 0 49%, rgba(0,0,0,0.0) 50%);
-}
-
-.portfolio-back-tab:focus-visible {
-    outline: 2px solid rgba(243, 224, 192, 0.9);
-    outline-offset: -8px;
-}
-
-.portfolio-back-tab:hover {
-    transform: translateX(calc((1 - var(--peek, 0)) * 30%));
-}
-
-.portfolio-back-tab {
     --px: max(1px, calc(var(--arrow-size) / 6));
-}
-
-.portfolio-back-tab:where(*) {
-    text-indent: -9999px;
-}
-
-.portfolio-back-tab::marker {
-    content: none;
-}
-
-.portfolio-back-tab > * {
-    display: none;
-}
-
-.portfolio-back-tab {
     background-repeat: no-repeat;
     background-position: 52% 50%;
     background-size: calc(var(--px) * 5) calc(var(--px) * 5);
@@ -281,227 +164,14 @@ html.portfolio-active .portfolio-overlay {
         calc(52% + var(--px) * 0) calc(50% + var(--px) * 1),
         calc(52% + var(--px) * 0) calc(50% + var(--px) * 2);
 }
-.portfolio-back-tab:hover {
-    transform: translateY(-50%) translateX(calc((1 - var(--peek, 0)) * 12px));
-    background: rgba(0, 22, 18, 0.95);
-    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.42), inset 0 0 14px rgba(34,243,200,0.26);
+
+.desktop-two-back-tab:hover {
+    transform: translateX(calc((1 - var(--peek, 0)) * 30%));
 }
 
-.portfolio-lava {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
-    z-index: 1;
-    background: #d7bf98;
-    filter: saturate(1.12) contrast(1.08);
-}
-
-.portfolio-lava::before,
-.portfolio-lava::after {
-    content: "";
-    position: absolute;
-    inset: -20% -20%;
-    pointer-events: none;
-}
-
-.portfolio-lava::before {
-    background:
-        repeating-linear-gradient(
-            180deg,
-            rgba(0,0,0,0) 0 46px,
-            rgba(142, 16, 16, 0.68) 46px 56px,
-            rgba(18, 10, 10, 0.8) 56px 64px,
-            rgba(0,0,0,0) 64px 116px
-        );
-    mix-blend-mode: multiply;
-    opacity: 0.74;
-    transform: skewY(-2.2deg) scale(1.04);
-    animation: portfolioFlowA 22s linear infinite;
-}
-
-.portfolio-lava::after {
-    background:
-        repeating-linear-gradient(
-            180deg,
-            rgba(0,0,0,0) 6px 52px,
-            rgba(205, 34, 34, 0.44) 52px 61px,
-            rgba(248, 168, 146, 0.18) 61px 66px,
-            rgba(0,0,0,0) 66px 126px
-        );
-    opacity: 0.7;
-    filter: blur(5px);
-    transform: skewY(1.8deg) translateX(-50px);
-    animation: portfolioFlowB 18s linear infinite;
-}
-
-@keyframes portfolioFlowA {
-    0% { background-position: 0 0; }
-    100% { background-position: -280px 36px; }
-}
-
-@keyframes portfolioFlowB {
-    0% { background-position: 0 0; }
-    100% { background-position: 220px -30px; }
-}
-
-.polaroid-grid {
-    position: relative;
-    z-index: 3;
-    perspective: 900px;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    grid-template-rows: repeat(2, minmax(0, 1fr));
-    gap: clamp(10px, 1.4vw, 18px);
-    padding: 90px 48px 4px 8px;
-    height: calc(100vh - 74px);
-    overflow: hidden;
-}
-
-@media (max-width: 980px) {
-    .polaroid-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        grid-template-rows: repeat(3, minmax(0, 1fr));
-        height: calc(100vh - 86px);
-        overflow: auto;
-        padding-right: 14px;
-    }
-}
-
-.polaroid-card {
-    --r: -1.2deg;
-    --rx: 0deg;
-    --ry: 0deg;
-    --tx: 0px;
-    --ty: 0px;
-    --sheen-x: 50%;
-    --sheen-y: 40%;
-    background: rgba(247, 244, 237, 0.95);
-    border: 2px solid rgba(48, 255, 220, 0.35);
-    border-bottom: 10px solid rgba(247, 244, 237, 0.98);
-    border-radius: 9px;
-    padding: 8px 8px 10px;
-    min-height: 0;
-    box-shadow: 0 10px 18px rgba(0, 0, 0, 0.38), 0 0 0 1px rgba(255,255,255,0.44) inset, 0 0 18px rgba(34,243,200,0.14);
-    position: relative;
-    isolation: isolate;
-    display: flex;
-    flex-direction: column;
-    transform-style: preserve-3d;
-    transform: translate3d(var(--tx), var(--ty), 0) rotate(var(--r)) rotateX(var(--rx)) rotateY(var(--ry));
-    transition: transform 220ms cubic-bezier(.22,1,.36,1), box-shadow 220ms ease;
-    background-image:
-        repeating-linear-gradient(0deg, rgba(88, 28, 20, 0.03) 0 1px, transparent 1px 4px),
-        repeating-linear-gradient(90deg, rgba(88, 28, 20, 0.03) 0 1px, transparent 1px 5px),
-        linear-gradient(180deg, rgba(255,255,255,0.82), rgba(250,243,232,0.9));
-}
-
-.polaroid-card:nth-child(even) { --r: 1.1deg; }
-
-.polaroid-card::before {
-    content: "";
-    position: absolute;
-    inset: 7px;
-    pointer-events: none;
-    border-radius: 3px;
-    background:
-        radial-gradient(circle at var(--sheen-x) var(--sheen-y), rgba(255,255,255,0.52) 0%, rgba(255,255,255,0.22) 22%, rgba(255,255,255,0) 56%),
-        conic-gradient(from 130deg at var(--sheen-x) var(--sheen-y), rgba(255, 60, 120, 0.34), rgba(255, 170, 60, 0.28), rgba(255, 240, 120, 0.24), rgba(90, 255, 180, 0.28), rgba(80, 180, 255, 0.32), rgba(195, 100, 255, 0.3), rgba(255, 60, 120, 0.34)),
-        linear-gradient(120deg, rgba(255,255,255,0.22), rgba(255,255,255,0.02) 38%, rgba(255,255,255,0.12) 56%, rgba(255,255,255,0) 82%);
-    mix-blend-mode: color-dodge;
-    opacity: 0.62;
-    transition: opacity 220ms ease;
-    z-index: 2;
-}
-
-.polaroid-card::after {
-    content: "印";
-    position: absolute;
-    right: 10px;
-    bottom: 8px;
-    width: 20px;
-    height: 20px;
-    border-radius: 2px;
-    background: rgba(114, 20, 20, 0.92);
-    color: rgba(255, 242, 226, 0.92);
-    font-family: var(--pixel-font);
-    font-size: 10px;
-    line-height: 20px;
-    text-align: center;
-    box-shadow: 0 2px 5px rgba(60, 8, 8, 0.24);
-    z-index: 4;
-}
-
-.polaroid-card:hover {
-    --tx: 0px;
-    --ty: -4px;
-    box-shadow: 0 16px 24px rgba(0, 0, 0, 0.48), inset 0 0 0 1px rgba(255, 255, 255, 0.5);
-}
-
-.polaroid-card:hover::before {
-    opacity: 0.78;
-}
-
-.polaroid-photo {
-    flex: 1;
-    min-height: 0;
-    border: 1px dashed rgba(32, 18, 18, 0.42);
-    border-radius: 4px;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-}
-
-.photo-resume {
-    background-image: linear-gradient(135deg, rgba(255, 202, 220, 0.14), rgba(0, 0, 0, 0.08)), url('./assets/images/logo.png');
-}
-
-.photo-github {
-    background-image: linear-gradient(135deg, rgba(210, 255, 242, 0.2), rgba(0, 0, 0, 0.08)), url('./assets/images/ghostLogo.png');
-}
-
-.photo-linkedin {
-    background-image: linear-gradient(135deg, rgba(170, 225, 255, 0.24), rgba(0, 0, 0, 0.08)), url('./assets/spritesheet/linkedin.png');
-    background-size: 55%, cover;
-}
-
-.photo-walklatro {
-    background-image: linear-gradient(135deg, rgba(255, 220, 120, 0.2), rgba(0, 0, 0, 0.06)), url('./assets/spritesheet/frozenMug.png');
-}
-
-.photo-reflex {
-    background-image: linear-gradient(135deg, rgba(255, 110, 160, 0.22), rgba(0, 0, 0, 0.08)), url('./assets/spritesheet/reflexCity.png');
-}
-
-.photo-blog {
-    background-image: linear-gradient(135deg, rgba(130, 255, 214, 0.18), rgba(0, 0, 0, 0.08)), url('./assets/images/background.gif');
-}
-
-.polaroid-link {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
-    height: 100%;
-    text-decoration: none;
-    color: inherit;
-}
-
-.polaroid-title {
-    margin: 0;
-    font-family: var(--pixel-font);
-    font-size: 11px;
-    color: #221516;
-    letter-spacing: 0.3px;
-}
-
-.polaroid-caption {
-    margin-top: 0;
-    font-family: var(--pixel-font);
-    font-size: 8px;
-    line-height: 1.35;
-    color: rgba(56, 30, 32, 0.86);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+.desktop-two-back-tab:focus-visible {
+    outline: 2px solid rgba(243, 224, 192, 0.9);
+    outline-offset: -8px;
 }
 
 #game-root {
@@ -643,7 +313,7 @@ main { padding: 24px; }
     transition: opacity 400ms ease, transform 520ms cubic-bezier(.22,1,.36,1);
 }
 
-html.portfolio-active #game-root {
+html.desktop-two-active #game-root {
     transform: translateX(-100vw);
     pointer-events: none;
 }

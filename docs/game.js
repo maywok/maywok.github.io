@@ -53,56 +53,54 @@ async function boot() {
 			throw new Error('Missing #game-root element');
 		}
 
-		const portfolioOverlay = document.getElementById('portfolio-overlay');
-		const portfolioBackdrop = document.getElementById('portfolio-backdrop');
-		const portfolioBackTab = document.getElementById('portfolio-back-tab');
-		const portfolioClose = document.getElementById('portfolio-close');
-		const portfolioCards = Array.from(document.querySelectorAll('.polaroid-card'));
-		const setupPortfolioCardParallax = () => {
-			for (const card of portfolioCards) {
-				card.addEventListener('pointermove', (event) => {
-					const rect = card.getBoundingClientRect();
-					if (!rect.width || !rect.height) return;
-					const x = (event.clientX - rect.left) / rect.width;
-					const y = (event.clientY - rect.top) / rect.height;
-					const nx = (x - 0.5) * 2;
-					const ny = (y - 0.5) * 2;
-					const ry = Math.max(-6, Math.min(6, nx * 6));
-					const rx = Math.max(-5, Math.min(5, -ny * 5));
-					card.style.setProperty('--rx', `${rx.toFixed(2)}deg`);
-					card.style.setProperty('--ry', `${ry.toFixed(2)}deg`);
-					card.style.setProperty('--tx', `${(nx * 1.4).toFixed(2)}px`);
-					card.style.setProperty('--ty', `${(-4 - ny * 0.9).toFixed(2)}px`);
-					card.style.setProperty('--sheen-x', `${(x * 100).toFixed(1)}%`);
-					card.style.setProperty('--sheen-y', `${(y * 100).toFixed(1)}%`);
-				});
-				card.addEventListener('pointerleave', () => {
-					card.style.setProperty('--rx', '0deg');
-					card.style.setProperty('--ry', '0deg');
-					card.style.setProperty('--tx', '0px');
-					card.style.setProperty('--ty', '0px');
-					card.style.setProperty('--sheen-x', '50%');
-					card.style.setProperty('--sheen-y', '40%');
-				});
-			}
+		const desktopTwoOverlay = document.getElementById('desktop-two-overlay');
+		const desktopTwoBackTab = document.getElementById('desktop-two-back-tab');
+		const desktopTwoRoot = document.getElementById('desktop-two-root');
+		let desktopTwoApp = null;
+		let desktopTwoActive = false;
+		let desktopTwoBackPeek = 0;
+		const ensureDesktopTwoBackground = () => {
+			if (!desktopTwoRoot || desktopTwoApp) return;
+			desktopTwoApp = new PIXI.Application({
+				resizeTo: desktopTwoRoot,
+				background: THEMES[loadThemeKey()].appBackground,
+				antialias: true,
+			});
+			desktopTwoApp.start?.();
+			desktopTwoApp.ticker?.start?.();
+			desktopTwoRoot.appendChild(desktopTwoApp.view);
+			desktopTwoApp.view.style.width = '100%';
+			desktopTwoApp.view.style.height = '100%';
+			desktopTwoApp.view.style.display = 'block';
+			const { container: desktopTwoFlow, update: updateDesktopTwoFlow, resize: resizeDesktopTwoFlow } = createCrimsonFlowBackground(desktopTwoApp, {
+				lineColor: 0x6f001b,
+				glowColor: 0xa00026,
+				bgColor: 0x000000,
+				glowAlpha: 0.55,
+				parallax: 0.06,
+				pixelSize: 8,
+				density: 4.6,
+				speed: 0.75,
+			});
+			desktopTwoApp.stage.addChild(desktopTwoFlow);
+			desktopTwoApp.ticker.add((dt) => {
+				updateDesktopTwoFlow(dt / 60);
+			});
+			desktopTwoApp.renderer?.on?.('resize', () => resizeDesktopTwoFlow());
 		};
-		let portfolioActive = false;
-		let portfolioBackPeek = 0;
-		const setPortfolioActive = (next) => {
-			portfolioActive = next;
-			document.documentElement.classList.toggle('portfolio-active', next);
-			if (portfolioOverlay) {
-				portfolioOverlay.setAttribute('aria-hidden', next ? 'false' : 'true');
-				if (!next) portfolioOverlay.style.setProperty('--peek', '0');
+		const setDesktopTwoActive = (next) => {
+			desktopTwoActive = next;
+			document.documentElement.classList.toggle('desktop-two-active', next);
+			if (desktopTwoOverlay) {
+				desktopTwoOverlay.setAttribute('aria-hidden', next ? 'false' : 'true');
+				if (!next) desktopTwoOverlay.style.setProperty('--peek', '0');
 			}
+			if (next) ensureDesktopTwoBackground();
 		};
-		portfolioBackdrop?.addEventListener('click', () => setPortfolioActive(false));
-		portfolioBackTab?.addEventListener('click', () => setPortfolioActive(false));
-		portfolioClose?.addEventListener('click', () => setPortfolioActive(false));
+		desktopTwoBackTab?.addEventListener('click', () => setDesktopTwoActive(false));
 		window.addEventListener('keydown', (event) => {
-			if (event.key === 'Escape' && portfolioActive) setPortfolioActive(false);
+			if (event.key === 'Escape' && desktopTwoActive) setDesktopTwoActive(false);
 		});
-		setupPortfolioCardParallax();
 
 		if (document.fonts && document.fonts.load) {
 			try {
@@ -894,10 +892,10 @@ async function boot() {
 			world.addChild(leftPortal);
 		leftArrow.eventMode = 'static';
 		leftArrow.cursor = 'pointer';
-		leftArrow.on('pointertap', () => setPortfolioActive(true));
+		leftArrow.on('pointertap', () => setDesktopTwoActive(true));
 		leftPortalHitZone.eventMode = 'static';
 		leftPortalHitZone.cursor = 'pointer';
-		leftPortalHitZone.on('pointertap', () => setPortfolioActive(true));
+		leftPortalHitZone.on('pointertap', () => setDesktopTwoActive(true));
 			let leftPortalWidth = 84;
 		let leftPortalProgress = 0;
 		let leftPortalShownX = 0;
@@ -1191,7 +1189,7 @@ async function boot() {
 			if (Math.abs(lockHover - prevHover) > 0.001 || Math.abs(lockAnim - prevAnim) > 0.001 || lockNeedsRedraw) {
 				drawLockControl();
 			}
-			if (!portfolioActive) {
+			if (!desktopTwoActive) {
 				const edgeWidth = Math.max(1, leftPortalWidth * 1.9);
 				const edgeFactor = Math.max(0, Math.min(1, 1 - mouse.x / edgeWidth));
 				leftPortalProgress += (edgeFactor - leftPortalProgress) * 0.18;
@@ -1203,8 +1201,8 @@ async function boot() {
 					const scale = 0.8 + 0.28 * leftPortalProgress;
 				leftArrow.scale.set(scale);
 				leftPortal.visible = true;
-				portfolioBackPeek += (0 - portfolioBackPeek) * 0.24;
-				if (portfolioOverlay) portfolioOverlay.style.setProperty('--peek', `${Math.max(0, Math.min(1, portfolioBackPeek)).toFixed(3)}`);
+				desktopTwoBackPeek += (0 - desktopTwoBackPeek) * 0.24;
+				if (desktopTwoOverlay) desktopTwoOverlay.style.setProperty('--peek', `${Math.max(0, Math.min(1, desktopTwoBackPeek)).toFixed(3)}`);
 			} else {
 				leftPortalProgress += (0 - leftPortalProgress) * 0.2;
 				leftPortal.position.x = leftPortalHiddenX;
@@ -1216,8 +1214,8 @@ async function boot() {
 				const backEdgeWidth = Math.max(1, app.renderer.width * 0.18);
 				const edgeStart = app.renderer.width - backEdgeWidth;
 				const edgeFactor = Math.max(0, Math.min(1, (mouse.x - edgeStart) / backEdgeWidth));
-				portfolioBackPeek += (edgeFactor - portfolioBackPeek) * 0.2;
-				if (portfolioOverlay) portfolioOverlay.style.setProperty('--peek', `${Math.max(0, Math.min(1, portfolioBackPeek)).toFixed(3)}`);
+				desktopTwoBackPeek += (edgeFactor - desktopTwoBackPeek) * 0.2;
+				if (desktopTwoOverlay) desktopTwoOverlay.style.setProperty('--peek', `${Math.max(0, Math.min(1, desktopTwoBackPeek)).toFixed(3)}`);
 			}
 			time += seconds;
 			const introSpeed = 1.25;
