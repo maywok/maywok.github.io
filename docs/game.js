@@ -529,6 +529,10 @@ async function boot() {
 			let walklatroIconSetDragEnabled = null;
 			let walklatroIconGetBody = null;
 			let walklatroIconSetMouseProvider = null;
+			let layoutBlogIcon = () => {};
+			let layoutLinkedinIcon = () => {};
+			let layoutReflexIcon = () => {};
+			let layoutWalklatroIcon = () => {};
 			const lockToggle = new PIXI.Container();
 			const lockBg = new PIXI.Graphics();
 			const lockGlow = new PIXI.Graphics();
@@ -653,10 +657,6 @@ async function boot() {
 			const getSlotPose = (slotIndex) => getIntroPoseForSlot(slotIndex);
 			const getSlotX = (slotIndex) => getSlotPose(slotIndex).x;
 			const getSlotY = (slotIndex) => getSlotPose(slotIndex).y;
-			let layoutBlogIcon = () => {};
-			let layoutLinkedinIcon = () => {};
-			let layoutReflexIcon = () => {};
-			let layoutWalklatroIcon = () => {};
 			try {
 				const blogIconResult = await withTimeout(createBlogIcon(app, world, {
 					url: '/blog',
