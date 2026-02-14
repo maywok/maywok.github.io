@@ -76,9 +76,11 @@ async function boot() {
 				PIXI.settings.ROUND_PIXELS = true;
 			}
 			desktopTwoRoot.appendChild(desktopTwoApp.view);
+			desktopTwoRoot.style.backgroundColor = '#d7bf98';
 			desktopTwoApp.view.style.width = '100%';
 			desktopTwoApp.view.style.height = '100%';
 			desktopTwoApp.view.style.display = 'block';
+			desktopTwoApp.view.style.backgroundColor = '#d7bf98';
 			const desktopTwoBaseFill = new PIXI.Sprite(PIXI.Texture.WHITE);
 			desktopTwoBaseFill.tint = DESKTOP_TWO_BG;
 			desktopTwoBaseFill.position.set(0, 0);
@@ -99,16 +101,16 @@ async function boot() {
 			});
 			const { filter: desktopTwoFisheyeFilter, uniforms: desktopTwoFisheyeUniforms } = createCRTFisheyeFilter(desktopTwoApp, {
 				intensity: 0.08,
-				brightness: 0.06,
-				scanStrength: 0.85,
+				brightness: 0.12,
+				scanStrength: 0.42,
 				curve: 0.008,
 				vignette: 0.0,
 			});
 			const { filter: desktopTwoScanlinesFilter, uniforms: desktopTwoScanlinesUniforms } = createCRTScanlinesFilter(desktopTwoApp, {
-				strength: 0.42,
+				strength: 0.2,
 				speed: 0.25,
-				noise: 0.03,
-				mask: 0.14,
+				noise: 0.02,
+				mask: 0.05,
 			});
 			desktopTwoFisheyeFilter.padding = 16;
 			desktopTwoScene.filters = [desktopTwoFisheyeFilter, desktopTwoScanlinesFilter];
