@@ -223,10 +223,21 @@ async function boot() {
 				rightPortalHitZone.drawRect(0, 0, portalW * 0.88, portalH);
 				rightPortalHitZone.endFill();
 			};
+			let desktopTwoTime = 0;
+			const DESKTOP_TWO_PARALLAX = 9;
+			const DESKTOP_TWO_SMOOTHING = 0.08;
+			const desktopTwoCameraOffset = { x: 0, y: 0 };
 			desktopTwoApp.ticker.add((dt) => {
+				desktopTwoTime += dt / 60;
 				updateCRTFisheyeFilter({ uniforms: desktopTwoFisheyeUniforms }, desktopTwoApp, dt / 60);
 				updateCRTScanlinesFilter({ uniforms: desktopTwoScanlinesUniforms }, desktopTwoApp, dt / 60);
-				updateDesktopTwoFlow(dt / 60);
+				const nx = (desktopTwoMouse.x / Math.max(1, desktopTwoApp.renderer.width)) * 2 - 1;
+				const ny = (desktopTwoMouse.y / Math.max(1, desktopTwoApp.renderer.height)) * 2 - 1;
+				const targetX = -nx * DESKTOP_TWO_PARALLAX;
+				const targetY = -ny * DESKTOP_TWO_PARALLAX;
+				desktopTwoCameraOffset.x += (targetX - desktopTwoCameraOffset.x) * DESKTOP_TWO_SMOOTHING;
+				desktopTwoCameraOffset.y += (targetY - desktopTwoCameraOffset.y) * DESKTOP_TWO_SMOOTHING;
+				updateDesktopTwoFlow(desktopTwoTime, desktopTwoCameraOffset);
 				updateDesktopTwoCursorPixelate();
 				desktopTwoCursor.position.set(desktopTwoMouse.x, desktopTwoMouse.y);
 
