@@ -173,6 +173,7 @@ html.portfolio-active .portfolio-panel {
 .polaroid-grid {
     position: relative;
     z-index: 3;
+    perspective: 900px;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
@@ -182,15 +183,68 @@ html.portfolio-active .portfolio-panel {
 }
 
 .polaroid-card {
+    --r: -1.2deg;
+    --rx: 0deg;
+    --ry: 0deg;
+    --tx: 0px;
+    --ty: 0px;
+    --sheen-x: 50%;
+    --sheen-y: 40%;
     background: #f8f3ea;
     border: 1px solid rgba(78, 20, 18, 0.35);
     border-bottom: 9px solid #f8f3ea;
     padding: 10px 10px 12px;
-    box-shadow: 0 8px 14px rgba(50, 12, 10, 0.22);
-    transform: rotate(-1.2deg);
+    box-shadow: 0 8px 14px rgba(50, 12, 10, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    position: relative;
+    isolation: isolate;
+    transform-style: preserve-3d;
+    transform: translate3d(var(--tx), var(--ty), 0) rotate(var(--r)) rotateX(var(--rx)) rotateY(var(--ry));
+    transition: transform 220ms cubic-bezier(.22,1,.36,1), box-shadow 220ms ease;
+    background-image:
+        repeating-linear-gradient(0deg, rgba(88, 28, 20, 0.03) 0 1px, transparent 1px 4px),
+        repeating-linear-gradient(90deg, rgba(88, 28, 20, 0.03) 0 1px, transparent 1px 5px),
+        linear-gradient(180deg, rgba(255,255,255,0.82), rgba(250,243,232,0.9));
 }
 
-.polaroid-card:nth-child(even) { transform: rotate(1.1deg); }
+.polaroid-card:nth-child(even) { --r: 1.1deg; }
+
+.polaroid-card::before {
+    content: "";
+    position: absolute;
+    inset: 7px;
+    pointer-events: none;
+    border-radius: 3px;
+    background:
+        radial-gradient(circle at var(--sheen-x) var(--sheen-y), rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.2) 22%, rgba(255,255,255,0) 56%),
+        linear-gradient(120deg, rgba(255,255,255,0.22), rgba(255,255,255,0.02) 38%, rgba(255,255,255,0.12) 56%, rgba(255,255,255,0) 82%);
+    mix-blend-mode: screen;
+    opacity: 0.52;
+    z-index: 2;
+}
+
+.polaroid-card::after {
+    content: "印";
+    position: absolute;
+    right: 10px;
+    bottom: 8px;
+    width: 20px;
+    height: 20px;
+    border-radius: 2px;
+    background: rgba(141, 22, 22, 0.88);
+    color: rgba(255, 242, 226, 0.92);
+    font-family: var(--pixel-font);
+    font-size: 10px;
+    line-height: 20px;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(60, 8, 8, 0.24);
+    z-index: 4;
+}
+
+.polaroid-card:hover {
+    --tx: 0px;
+    --ty: -6px;
+    box-shadow: 0 16px 26px rgba(50, 12, 10, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.42);
+}
 
 .polaroid-photo {
     aspect-ratio: 4 / 3;

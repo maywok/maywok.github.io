@@ -56,6 +56,35 @@ async function boot() {
 		const portfolioOverlay = document.getElementById('portfolio-overlay');
 		const portfolioBackdrop = document.getElementById('portfolio-backdrop');
 		const portfolioClose = document.getElementById('portfolio-close');
+		const portfolioCards = Array.from(document.querySelectorAll('.polaroid-card'));
+		const setupPortfolioCardParallax = () => {
+			for (const card of portfolioCards) {
+				card.addEventListener('pointermove', (event) => {
+					const rect = card.getBoundingClientRect();
+					if (!rect.width || !rect.height) return;
+					const x = (event.clientX - rect.left) / rect.width;
+					const y = (event.clientY - rect.top) / rect.height;
+					const nx = (x - 0.5) * 2;
+					const ny = (y - 0.5) * 2;
+					const ry = Math.max(-6, Math.min(6, nx * 6));
+					const rx = Math.max(-5, Math.min(5, -ny * 5));
+					card.style.setProperty('--rx', `${rx.toFixed(2)}deg`);
+					card.style.setProperty('--ry', `${ry.toFixed(2)}deg`);
+					card.style.setProperty('--tx', `${(nx * 1.4).toFixed(2)}px`);
+					card.style.setProperty('--ty', `${(-4 - ny * 0.9).toFixed(2)}px`);
+					card.style.setProperty('--sheen-x', `${(x * 100).toFixed(1)}%`);
+					card.style.setProperty('--sheen-y', `${(y * 100).toFixed(1)}%`);
+				});
+				card.addEventListener('pointerleave', () => {
+					card.style.setProperty('--rx', '0deg');
+					card.style.setProperty('--ry', '0deg');
+					card.style.setProperty('--tx', '0px');
+					card.style.setProperty('--ty', '0px');
+					card.style.setProperty('--sheen-x', '50%');
+					card.style.setProperty('--sheen-y', '40%');
+				});
+			}
+		};
 		let portfolioActive = false;
 		const setPortfolioActive = (next) => {
 			portfolioActive = next;
@@ -69,6 +98,7 @@ async function boot() {
 		window.addEventListener('keydown', (event) => {
 			if (event.key === 'Escape' && portfolioActive) setPortfolioActive(false);
 		});
+		setupPortfolioCardParallax();
 
 		if (document.fonts && document.fonts.load) {
 			try {
