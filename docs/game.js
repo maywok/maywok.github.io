@@ -619,6 +619,16 @@ async function boot() {
 					}
 					ringDrag.active = false;
 					ringCandidate.active = false;
+				} else {
+					ringDrag.active = false;
+					ringCandidate.active = false;
+					ringSpinVel = 0;
+					ringSpin = 0;
+					appLauncher.layout();
+					layoutBlogIcon();
+					layoutLinkedinIcon();
+					layoutReflexIcon();
+					layoutWalklatroIcon();
 				}
 				lockNeedsRedraw = true;
 			};
