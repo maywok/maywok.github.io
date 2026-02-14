@@ -61,7 +61,7 @@ async function boot() {
 			if (!desktopTwoRoot || desktopTwoApp) return;
 			desktopTwoApp = new PIXI.Application({
 				resizeTo: desktopTwoRoot,
-				background: THEMES[loadThemeKey()].appBackground,
+				background: 0xd7bf98,
 				antialias: true,
 			});
 			desktopTwoApp.start?.();
@@ -78,13 +78,13 @@ async function boot() {
 			const desktopTwoScene = new PIXI.Container();
 			desktopTwoApp.stage.addChild(desktopTwoScene);
 			const { container: desktopTwoFlow, update: updateDesktopTwoFlow, resize: resizeDesktopTwoFlow } = createCrimsonFlowBackground(desktopTwoApp, {
-				lineColor: 0x17090a,
-				glowColor: 0x8e1616,
+				lineColor: 0x0c0707,
+				glowColor: 0x6e0f1d,
 				bgColor: 0xd7bf98,
-				glowAlpha: 0.46,
+				glowAlpha: 0.5,
 				parallax: 0.06,
 				pixelSize: 8,
-				density: 4.6,
+				density: 4.85,
 				speed: 0.75,
 			});
 			const { filter: desktopTwoFisheyeFilter, uniforms: desktopTwoFisheyeUniforms } = createCRTFisheyeFilter(desktopTwoApp, {
