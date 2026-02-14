@@ -628,11 +628,11 @@ async function boot() {
 					ringCandidate.active = false;
 					ringSpinVel = 0;
 					ringSpin = 0;
-					appLauncher.layout();
-					layoutBlogIcon();
-					layoutLinkedinIcon();
-					layoutReflexIcon();
-					layoutWalklatroIcon();
+					appLauncher.layout(false);
+					layoutBlogIcon(false);
+					layoutLinkedinIcon(false);
+					layoutReflexIcon(false);
+					layoutWalklatroIcon(false);
 				}
 				lockNeedsRedraw = true;
 			};

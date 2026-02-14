@@ -284,7 +284,7 @@ export function createAppLauncher(app, world, options = {}) {
 		return { container: iconContainer, state, drawIcon, glow, border, cardMotion, iconSprite, hoverSprite };
 	}
 
-	function layout() {
+	function layout(snap = true) {
 		const centerY = app.renderer.height * 0.54;
 		const spacing = Math.max(92, Math.min(136, app.renderer.height * 0.19));
 		const startY = centerY - spacing;
@@ -308,11 +308,11 @@ export function createAppLauncher(app, world, options = {}) {
 			const y = screenToWorldY(sy);
 			icon.state.base.x = x;
 			icon.state.base.y = y;
-			if (!dragState.enabled) {
+			if (!dragState.enabled && snap) {
 				icon.state.free.x = x;
 				icon.state.free.y = y;
 			}
-			icon.container.position.set(x, y);
+			if (snap) icon.container.position.set(x, y);
 			icon.drawIcon(screenToWorldSize(ssize));
 			icon.container._updatePlatformRect?.();
 		});

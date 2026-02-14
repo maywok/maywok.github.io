@@ -205,7 +205,7 @@ export async function createReflexIcon(app, world, options = {}) {
 		state.lastDragTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 	});
 
-	function layout() {
+	function layout(snap = true) {
 		const bounds = container.getLocalBounds();
 		const w = bounds.width * container.scale.x;
 		const h = bounds.height * container.scale.y;
@@ -219,11 +219,11 @@ export async function createReflexIcon(app, world, options = {}) {
 		const worldY = (screenY - cy) / screenScale + cy;
 		state.base.x = worldX;
 		state.base.y = worldY;
-		if (!state.dragEnabled) {
+		if (!state.dragEnabled && snap) {
 			state.free.x = worldX;
 			state.free.y = worldY;
 		}
-		container.position.set(worldX, worldY);
+		if (snap) container.position.set(worldX, worldY);
 	}
 
 	world.addChild(container);
