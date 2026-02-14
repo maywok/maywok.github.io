@@ -430,7 +430,8 @@ export function createAppLauncher(app, world, options = {}) {
 					icon.container.position.y = minBoundY;
 					icon.state.vy *= -PHYSICS.bounce;
 					icon.state.angVel += (icon.state.vx) * 0.0025;
-					if (Math.abs(icon.state.vy) < 18) icon.state.vy = 0;
+					icon.state.angVel += icon.state.vx * (groundRoll * 0.35);
+					icon.state.angVel *= Math.pow(0.82, dtSeconds * 60);
 				}
 				if (icon.container.position.y > maxBoundY) {
 					icon.container.position.y = maxBoundY;
@@ -459,6 +460,11 @@ export function createAppLauncher(app, world, options = {}) {
 							icon.state.angVel += (icon.state.vx) * 0.003;
 							if (Math.abs(icon.state.vx) < 18) icon.state.vx = 0;
 						}
+					}
+					if (Math.abs(icon.state.vx) < 8 && Math.abs(icon.state.vy) < 8 && Math.abs(icon.state.angVel) < 0.08) {
+						icon.state.vx = 0;
+						icon.state.vy = 0;
+						icon.state.angVel = 0;
 					}
 				}
 				icon.state.angVel *= Math.pow(spinDamp, dtSeconds * 60);

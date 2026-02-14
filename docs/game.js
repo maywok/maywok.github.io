@@ -617,6 +617,8 @@ async function boot() {
 						st.vy += dx * ringSpinVel;
 						st.angVel += ringSpinVel * 0.35;
 					}
+					ringDrag.active = false;
+					ringCandidate.active = false;
 				}
 				lockNeedsRedraw = true;
 			};
@@ -1161,7 +1163,7 @@ async function boot() {
 				if (!Number.isFinite(ringSpin)) ringSpin = 0;
 				if (Math.abs(ringSpinVel) < 0.001) ringSpinVel = 0;
 			}
-			if (iconIntroProgress < 1 || ringDrag.active || Math.abs(ringSpinVel) > 0) {
+			if (!dragEnabled && (iconIntroProgress < 1 || ringDrag.active || Math.abs(ringSpinVel) > 0)) {
 				appLauncher.layout();
 				layoutBlogIcon();
 				layoutLinkedinIcon();

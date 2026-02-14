@@ -351,7 +351,8 @@ export async function createWalklatroIcon(app, world, options = {}) {
 				container.position.y = maxBoundY;
 				if (state.vy > 0) state.vy = 0;
 				state.vx *= PHYSICS.floorFriction;
-				state.angVel += state.vx * (SPIN.groundRoll * 0.55);
+				state.angVel += state.vx * (SPIN.groundRoll * 0.35);
+				state.angVel *= Math.pow(0.82, dtSeconds * 60);
 				if (Math.abs(state.vx) < 20) {
 					state.vx = 0;
 					state.angVel *= Math.pow(0.76, dtSeconds * 60);
@@ -372,6 +373,11 @@ export async function createWalklatroIcon(app, world, options = {}) {
 						state.vx *= -PHYSICS.bounce;
 						if (Math.abs(state.vx) < 18) state.vx = 0;
 					}
+				}
+				if (Math.abs(state.vx) < 8 && Math.abs(state.vy) < 8 && Math.abs(state.angVel) < 0.08) {
+					state.vx = 0;
+					state.vy = 0;
+					state.angVel = 0;
 				}
 			}
 		}
