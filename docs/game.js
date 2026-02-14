@@ -54,7 +54,8 @@ async function boot() {
 		}
 
 		const portfolioOverlay = document.getElementById('portfolio-overlay');
-		const portfolioVideo = document.getElementById('portfolio-video');
+		const portfolioBackdrop = document.getElementById('portfolio-backdrop');
+		const portfolioClose = document.getElementById('portfolio-close');
 		let portfolioActive = false;
 		const setPortfolioActive = (next) => {
 			portfolioActive = next;
@@ -62,15 +63,12 @@ async function boot() {
 			if (portfolioOverlay) {
 				portfolioOverlay.setAttribute('aria-hidden', next ? 'false' : 'true');
 			}
-			if (portfolioVideo) {
-				if (next) {
-					const p = portfolioVideo.play();
-					if (p && typeof p.catch === 'function') p.catch(() => {});
-				} else {
-					portfolioVideo.pause();
-				}
-			}
 		};
+		portfolioBackdrop?.addEventListener('click', () => setPortfolioActive(false));
+		portfolioClose?.addEventListener('click', () => setPortfolioActive(false));
+		window.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape' && portfolioActive) setPortfolioActive(false);
+		});
 
 		if (document.fonts && document.fonts.load) {
 			try {
