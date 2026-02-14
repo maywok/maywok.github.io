@@ -992,8 +992,8 @@ async function boot() {
 			const dx = p.x - c.x;
 			const dy = p.y - c.y;
 			const d = Math.hypot(dx, dy);
-			const radius = getRingRadius();
-			if (d < radius * 0.62 || d > radius * 1.35) return;
+			const coreControlRadius = Math.max(34, getRingRadius() * 0.36);
+			if (d > coreControlRadius) return;
 			ringCandidate.active = true;
 			ringCandidate.startX = p.x;
 			ringCandidate.startY = p.y;

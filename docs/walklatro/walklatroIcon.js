@@ -260,6 +260,10 @@ export async function createWalklatroIcon(app, world, options = {}) {
 		const maxX = screenToWorldX(app.renderer.width - PHYSICS.margin);
 		const minY = screenToWorldY(PHYSICS.margin);
 		const maxY = screenToWorldY(app.renderer.height - PHYSICS.margin);
+		const minBoundX = minX + state.radiusScaled;
+		const maxBoundX = maxX - state.radiusScaled;
+		const minBoundY = minY + state.radiusScaled;
+		const maxBoundY = maxY - state.radiusScaled;
 		const mouse = state.mouseProvider?.();
 		const dtSeconds = dt / 60;
 		if (mouse) {
@@ -328,23 +332,23 @@ export async function createWalklatroIcon(app, world, options = {}) {
 			state.vy *= PHYSICS.airDamp;
 			container.position.x += state.vx * (dt / 60);
 			container.position.y += state.vy * (dt / 60);
-			if (container.position.x < minX) {
-				container.position.x = minX;
+			if (container.position.x < minBoundX) {
+				container.position.x = minBoundX;
 				state.vx *= -PHYSICS.bounce;
 				if (Math.abs(state.vx) < 18) state.vx = 0;
 			}
-			if (container.position.x > maxX) {
-				container.position.x = maxX;
+			if (container.position.x > maxBoundX) {
+				container.position.x = maxBoundX;
 				state.vx *= -PHYSICS.bounce;
 				if (Math.abs(state.vx) < 18) state.vx = 0;
 			}
-			if (container.position.y < minY) {
-				container.position.y = minY;
+			if (container.position.y < minBoundY) {
+				container.position.y = minBoundY;
 				state.vy *= -PHYSICS.bounce;
 				if (Math.abs(state.vy) < 18) state.vy = 0;
 			}
-			if (container.position.y > maxY) {
-				container.position.y = maxY;
+			if (container.position.y > maxBoundY) {
+				container.position.y = maxBoundY;
 				if (state.vy > 0) state.vy = 0;
 				state.vx *= PHYSICS.floorFriction;
 				state.angVel += state.vx * (SPIN.groundRoll * 0.55);
@@ -353,8 +357,8 @@ export async function createWalklatroIcon(app, world, options = {}) {
 					state.angVel *= Math.pow(0.76, dtSeconds * 60);
 					if (Math.abs(state.angVel) < 0.02) state.angVel = 0;
 				}
-				const floorMinX = minX + state.radiusScaled;
-				const floorMaxX = maxX - state.radiusScaled;
+				const floorMinX = minBoundX;
+				const floorMaxX = maxBoundX;
 				if (container.position.x < floorMinX) {
 					container.position.x = floorMinX;
 					if (state.vx < 0) {

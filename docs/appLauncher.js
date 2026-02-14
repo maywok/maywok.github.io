@@ -352,6 +352,11 @@ export function createAppLauncher(app, world, options = {}) {
 			dragState.grabbed = null;
 		}
 		icons.forEach((icon) => {
+			const radiusBound = icon.state.radius * icon.container.scale.x;
+			const minBoundX = minX + radiusBound;
+			const maxBoundX = maxX - radiusBound;
+			const minBoundY = minY + radiusBound;
+			const maxBoundY = maxY - radiusBound;
 			const scale = icon.state.hovered ? 1.08 : 1.0;
 			const amp = icon.state.hovered ? 6 : 3;
 			const bounce = Math.sin(time * 3 + icon.state.phase) * amp;
@@ -408,27 +413,27 @@ export function createAppLauncher(app, world, options = {}) {
 				icon.state.vy *= PHYSICS.airDamp;
 				icon.container.position.x += icon.state.vx * dtSeconds;
 				icon.container.position.y += icon.state.vy * dtSeconds;
-				if (icon.container.position.x < minX) {
-					icon.container.position.x = minX;
+				if (icon.container.position.x < minBoundX) {
+					icon.container.position.x = minBoundX;
 					icon.state.vx *= -PHYSICS.bounce;
 					icon.state.angVel += (-icon.state.vx) * 0.003;
 					if (Math.abs(icon.state.vx) < 18) icon.state.vx = 0;
 				}
 			}
-				if (icon.container.position.x > maxX) {
-					icon.container.position.x = maxX;
+				if (icon.container.position.x > maxBoundX) {
+					icon.container.position.x = maxBoundX;
 					icon.state.vx *= -PHYSICS.bounce;
 					icon.state.angVel += (icon.state.vx) * 0.003;
 					if (Math.abs(icon.state.vx) < 18) icon.state.vx = 0;
 				}
-				if (icon.container.position.y < minY) {
-					icon.container.position.y = minY;
+				if (icon.container.position.y < minBoundY) {
+					icon.container.position.y = minBoundY;
 					icon.state.vy *= -PHYSICS.bounce;
 					icon.state.angVel += (icon.state.vx) * 0.0025;
 					if (Math.abs(icon.state.vy) < 18) icon.state.vy = 0;
 				}
-				if (icon.container.position.y > maxY) {
-					icon.container.position.y = maxY;
+				if (icon.container.position.y > maxBoundY) {
+					icon.container.position.y = maxBoundY;
 					if (icon.state.vy > 0) icon.state.vy = 0;
 					icon.state.vx *= PHYSICS.floorFriction;
 					icon.state.angVel += icon.state.vx * (groundRoll * 0.55);
@@ -437,8 +442,8 @@ export function createAppLauncher(app, world, options = {}) {
 						if (Math.abs(icon.state.angVel) < 0.02) icon.state.angVel = 0;
 						icon.state.vx = 0;
 					}
-					const floorMinX = minX + icon.state.radius * icon.container.scale.x;
-					const floorMaxX = maxX - icon.state.radius * icon.container.scale.x;
+					const floorMinX = minBoundX;
+					const floorMaxX = maxBoundX;
 					if (icon.container.position.x < floorMinX) {
 						icon.container.position.x = floorMinX;
 						if (icon.state.vx < 0) {
