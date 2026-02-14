@@ -87,11 +87,13 @@ async function boot() {
 			}
 		};
 		let portfolioActive = false;
+		let portfolioBackPeek = 0;
 		const setPortfolioActive = (next) => {
 			portfolioActive = next;
 			document.documentElement.classList.toggle('portfolio-active', next);
 			if (portfolioOverlay) {
 				portfolioOverlay.setAttribute('aria-hidden', next ? 'false' : 'true');
+				if (!next) portfolioOverlay.style.setProperty('--peek', '0');
 			}
 		};
 		portfolioBackdrop?.addEventListener('click', () => setPortfolioActive(false));
@@ -1201,6 +1203,8 @@ async function boot() {
 					const scale = 0.8 + 0.28 * leftPortalProgress;
 				leftArrow.scale.set(scale);
 				leftPortal.visible = true;
+				portfolioBackPeek += (0 - portfolioBackPeek) * 0.24;
+				if (portfolioOverlay) portfolioOverlay.style.setProperty('--peek', `${Math.max(0, Math.min(1, portfolioBackPeek)).toFixed(3)}`);
 			} else {
 				leftPortalProgress += (0 - leftPortalProgress) * 0.2;
 				leftPortal.position.x = leftPortalHiddenX;
@@ -1209,6 +1213,11 @@ async function boot() {
 				leftGlow.alpha = 0;
 				leftArrow.alpha = 0;
 				leftPortal.visible = false;
+				const backEdgeWidth = Math.max(1, app.renderer.width * 0.18);
+				const edgeStart = app.renderer.width - backEdgeWidth;
+				const edgeFactor = Math.max(0, Math.min(1, (mouse.x - edgeStart) / backEdgeWidth));
+				portfolioBackPeek += (edgeFactor - portfolioBackPeek) * 0.2;
+				if (portfolioOverlay) portfolioOverlay.style.setProperty('--peek', `${Math.max(0, Math.min(1, portfolioBackPeek)).toFixed(3)}`);
 			}
 			time += seconds;
 			const introSpeed = 1.25;
