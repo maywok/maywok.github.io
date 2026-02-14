@@ -105,6 +105,23 @@ html.portfolio-active .portfolio-panel {
     opacity: 0.7;
 }
 
+.portfolio-panel::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
+    background:
+        repeating-linear-gradient(180deg, rgba(9, 5, 5, 0.11) 0 1px, rgba(255, 255, 255, 0.02) 1px 3px),
+        radial-gradient(circle at 12% 24%, rgba(0, 0, 0, 0.12) 0 0.75px, transparent 1px),
+        radial-gradient(circle at 67% 58%, rgba(120, 20, 20, 0.1) 0 0.75px, transparent 1px),
+        radial-gradient(circle at 41% 81%, rgba(0, 0, 0, 0.08) 0 0.75px, transparent 1px);
+    background-size: auto, 4px 4px, 5px 5px, 6px 6px;
+    background-position: 0 0, 0 0, 1px 2px, 2px 1px;
+    mix-blend-mode: multiply;
+    opacity: 0.28;
+}
+
 .portfolio-header {
     position: relative;
     z-index: 3;
