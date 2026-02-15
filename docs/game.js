@@ -100,20 +100,20 @@ async function boot() {
 				speed: 0.75,
 			});
 			const { filter: desktopTwoFisheyeFilter, uniforms: desktopTwoFisheyeUniforms } = createCRTFisheyeFilter(desktopTwoApp, {
-				intensity: 0.08,
-				brightness: 0.12,
-				scanStrength: 0.42,
-				curve: 0.008,
+				intensity: 0.0,
+				brightness: 0.0,
+				scanStrength: 0.0,
+				curve: 0.0,
 				vignette: 0.0,
 			});
 			const { filter: desktopTwoScanlinesFilter, uniforms: desktopTwoScanlinesUniforms } = createCRTScanlinesFilter(desktopTwoApp, {
-				strength: 0.2,
+				strength: 0.0,
 				speed: 0.25,
-				noise: 0.02,
-				mask: 0.05,
+				noise: 0.0,
+				mask: 0.0,
 			});
 			desktopTwoFisheyeFilter.padding = 16;
-			desktopTwoScene.filters = [desktopTwoFisheyeFilter, desktopTwoScanlinesFilter];
+			desktopTwoScene.filters = null;
 			desktopTwoScene.addChild(desktopTwoFlow);
 
 			const rightPortal = new PIXI.Container();
