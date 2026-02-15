@@ -55,60 +55,6 @@ async function boot() {
 
 		const desktopTwoOverlay = document.getElementById('desktop-two-overlay');
 		const desktopTwoRoot = document.getElementById('desktop-two-root');
-		const desktopTwoPolaroids = document.getElementById('desktop-two-polaroids');
-		const desktopTwoPolaroidCards = desktopTwoPolaroids
-			? Array.from(desktopTwoPolaroids.querySelectorAll('.desktop-two-polaroid'))
-			: [];
-		let desktopTwoPolaroidsBound = false;
-		const bindDesktopTwoPolaroids = () => {
-			if (desktopTwoPolaroidsBound || !desktopTwoOverlay || !desktopTwoPolaroids) return;
-			desktopTwoPolaroidsBound = true;
-
-			const setGridFromEvent = (event) => {
-				const rect = desktopTwoPolaroids.getBoundingClientRect();
-				if (!rect || rect.width <= 0 || rect.height <= 0) return;
-				const nx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-				const ny = ((event.clientY - rect.top) / rect.height) * 2 - 1;
-				desktopTwoPolaroids.style.setProperty('--mx', String(Math.max(-1, Math.min(1, nx)).toFixed(4)));
-				desktopTwoPolaroids.style.setProperty('--my', String(Math.max(-1, Math.min(1, ny)).toFixed(4)));
-			};
-
-			desktopTwoOverlay.addEventListener('pointermove', setGridFromEvent);
-			desktopTwoOverlay.addEventListener('pointerleave', () => {
-				desktopTwoPolaroids.style.setProperty('--mx', '0');
-				desktopTwoPolaroids.style.setProperty('--my', '0');
-			});
-
-			desktopTwoPolaroidCards.forEach((card) => {
-				const depth = Number(card.dataset.depth || '1') || 1;
-				const resetCard = () => {
-					card.style.setProperty('--tilt-x', '0deg');
-					card.style.setProperty('--tilt-y', '0deg');
-					card.style.setProperty('--shift-x', '0px');
-					card.style.setProperty('--shift-y', '0px');
-					card.style.setProperty('--foil-x', '50%');
-					card.style.setProperty('--foil-y', '50%');
-					card.style.setProperty('--foil-a', '0.32');
-				};
-				card.addEventListener('pointermove', (event) => {
-					const rect = card.getBoundingClientRect();
-					if (!rect || rect.width <= 0 || rect.height <= 0) return;
-					const rx = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-					const ry = ((event.clientY - rect.top) / rect.height) * 2 - 1;
-					const clampedX = Math.max(-1, Math.min(1, rx));
-					const clampedY = Math.max(-1, Math.min(1, ry));
-					card.style.setProperty('--tilt-x', `${(-clampedY * 4.2).toFixed(3)}deg`);
-					card.style.setProperty('--tilt-y', `${(clampedX * 5.4).toFixed(3)}deg`);
-					card.style.setProperty('--shift-x', `${(clampedX * 6.8 * depth).toFixed(3)}px`);
-					card.style.setProperty('--shift-y', `${(clampedY * 5.2 * depth).toFixed(3)}px`);
-					card.style.setProperty('--foil-x', `${(50 + clampedX * 22).toFixed(2)}%`);
-					card.style.setProperty('--foil-y', `${(50 + clampedY * 22).toFixed(2)}%`);
-					card.style.setProperty('--foil-a', `${(0.26 + Math.abs(clampedX) * 0.1 + Math.abs(clampedY) * 0.1).toFixed(3)}`);
-				});
-				card.addEventListener('pointerleave', resetCard);
-				resetCard();
-			});
-		};
 		let desktopTwoApp = null;
 		let desktopTwoActive = false;
 		const ensureDesktopTwoBackground = () => {
@@ -209,9 +155,6 @@ async function boot() {
 			desktopTwoApp.view.addEventListener('pointermove', updateDesktopTwoMouse);
 			desktopTwoApp.view.addEventListener('pointerdown', updateDesktopTwoMouse);
 			desktopTwoApp.view.addEventListener('pointerenter', updateDesktopTwoMouse);
-			desktopTwoOverlay?.addEventListener('pointermove', updateDesktopTwoMouse);
-			desktopTwoOverlay?.addEventListener('pointerdown', updateDesktopTwoMouse);
-			desktopTwoOverlay?.addEventListener('pointerenter', updateDesktopTwoMouse);
 
 			const desktopTwoCursor = new PIXI.Container();
 			const desktopTwoCursorSprite = new PIXI.Sprite(cursorTexture);
@@ -351,10 +294,7 @@ async function boot() {
 			if (desktopTwoOverlay) {
 				desktopTwoOverlay.setAttribute('aria-hidden', next ? 'false' : 'true');
 			}
-			if (next) {
-				ensureDesktopTwoBackground();
-				bindDesktopTwoPolaroids();
-			}
+			if (next) ensureDesktopTwoBackground();
 		};
 		window.addEventListener('keydown', (event) => {
 			if (event.key === 'Escape' && desktopTwoActive) setDesktopTwoActive(false);
