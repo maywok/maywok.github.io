@@ -210,7 +210,7 @@ export function createCrimsonFlowBackground(app, options = {}) {
   glow.blendMode = PIXI.BLEND_MODES.ADD;
   const { filter: glowFilter, uniforms: glowUniforms } = createFlowFilter(app, {
     lineColor: glowColor,
-    bgColor,
+    bgColor: 0x000000,
     lineWidth: 0.22,
     glowWidth: 0.6,
     glowStrength: 0.9,
