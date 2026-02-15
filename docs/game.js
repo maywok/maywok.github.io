@@ -89,33 +89,32 @@ async function boot() {
 			desktopTwoApp.stage.addChild(desktopTwoBaseFill);
 			const desktopTwoScene = new PIXI.Container();
 			desktopTwoApp.stage.addChild(desktopTwoScene);
-			desktopTwoScene.filters = null;
-			const desktopTwoLines = new PIXI.Graphics();
-			desktopTwoScene.addChild(desktopTwoLines);
-			const drawDesktopTwoLines = (time = 0, offset = { x: 0, y: 0 }) => {
-				const w = desktopTwoApp.renderer.width;
-				const h = desktopTwoApp.renderer.height;
-				desktopTwoLines.clear();
-				const lineCount = Math.max(16, Math.round(h / 54));
-				const stepX = 36;
-				for (let i = 0; i < lineCount; i++) {
-					const yBase = (i + 0.5) * (h / lineCount);
-					desktopTwoLines.lineStyle(2, 0x170d0d, 0.26);
-					desktopTwoLines.moveTo(-40, yBase);
-					for (let x = -40; x <= w + 40; x += stepX) {
-						const waveA = Math.sin((x * 0.011) + (time * 0.95) + i * 0.43) * 11;
-						const waveB = Math.sin((x * 0.0065) - (time * 0.58) + i * 0.19) * 7;
-						desktopTwoLines.lineTo(x + offset.x * 0.24, yBase + waveA + waveB + offset.y * 0.18);
-					}
-					desktopTwoLines.lineStyle(2, 0x7a1326, 0.36);
-					desktopTwoLines.moveTo(-40, yBase + 2);
-					for (let x = -40; x <= w + 40; x += stepX) {
-						const waveA = Math.sin((x * 0.0125) + (time * 1.08) + i * 0.39) * 8;
-						const waveB = Math.sin((x * 0.0045) - (time * 0.62) + i * 0.22) * 5;
-						desktopTwoLines.lineTo(x + offset.x * 0.3, yBase + waveA + waveB + offset.y * 0.2 + 2);
-					}
-				}
-			};
+			const { container: desktopTwoFlow, update: updateDesktopTwoFlow, resize: resizeDesktopTwoFlow } = createCrimsonFlowBackground(desktopTwoApp, {
+				lineColor: 0x2a1414,
+				glowColor: 0x8f1b31,
+				bgColor: DESKTOP_TWO_BG,
+				glowAlpha: 0.55,
+				parallax: 0.06,
+				pixelSize: 8,
+				density: 4.6,
+				speed: 0.75,
+			});
+			const { filter: desktopTwoFisheyeFilter, uniforms: desktopTwoFisheyeUniforms } = createCRTFisheyeFilter(desktopTwoApp, {
+				intensity: 0.08,
+				brightness: 0.06,
+				scanStrength: 0.85,
+				curve: 0.008,
+				vignette: 0.0,
+			});
+			const { filter: desktopTwoScanlinesFilter, uniforms: desktopTwoScanlinesUniforms } = createCRTScanlinesFilter(desktopTwoApp, {
+				strength: 0.42,
+				speed: 0.25,
+				noise: 0.03,
+				mask: 0.14,
+			});
+			desktopTwoFisheyeFilter.padding = 16;
+			desktopTwoScene.filters = [desktopTwoFisheyeFilter, desktopTwoScanlinesFilter];
+			desktopTwoScene.addChild(desktopTwoFlow);
 
 			const rightPortal = new PIXI.Container();
 			const rightGlowSoft = new PIXI.Graphics();
@@ -246,13 +245,15 @@ async function boot() {
 			const desktopTwoCameraOffset = { x: 0, y: 0 };
 			desktopTwoApp.ticker.add((dt) => {
 				desktopTwoTime += dt / 60;
+				updateCRTFisheyeFilter({ uniforms: desktopTwoFisheyeUniforms }, desktopTwoApp, dt / 60);
+				updateCRTScanlinesFilter({ uniforms: desktopTwoScanlinesUniforms }, desktopTwoApp, dt / 60);
 				const nx = (desktopTwoMouse.x / Math.max(1, desktopTwoApp.renderer.width)) * 2 - 1;
 				const ny = (desktopTwoMouse.y / Math.max(1, desktopTwoApp.renderer.height)) * 2 - 1;
 				const targetX = -nx * DESKTOP_TWO_PARALLAX;
 				const targetY = -ny * DESKTOP_TWO_PARALLAX;
 				desktopTwoCameraOffset.x += (targetX - desktopTwoCameraOffset.x) * DESKTOP_TWO_SMOOTHING;
 				desktopTwoCameraOffset.y += (targetY - desktopTwoCameraOffset.y) * DESKTOP_TWO_SMOOTHING;
-				drawDesktopTwoLines(desktopTwoTime, desktopTwoCameraOffset);
+				updateDesktopTwoFlow(desktopTwoTime, desktopTwoCameraOffset);
 				updateDesktopTwoCursorPixelate();
 				desktopTwoCursor.position.set(desktopTwoMouse.x, desktopTwoMouse.y);
 
@@ -281,7 +282,7 @@ async function boot() {
 			const handleDesktopTwoResize = () => {
 				desktopTwoBaseFill.width = desktopTwoApp.renderer.width;
 				desktopTwoBaseFill.height = desktopTwoApp.renderer.height;
-				drawDesktopTwoLines(desktopTwoTime, desktopTwoCameraOffset);
+				resizeDesktopTwoFlow();
 				layoutRightPortal();
 			};
 			desktopTwoApp.renderer?.on?.('resize', handleDesktopTwoResize);
