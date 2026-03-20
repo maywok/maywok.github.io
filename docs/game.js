@@ -501,6 +501,26 @@ async function boot() {
 
 			const ambientDebris = [];
 			const ambientBaseColors = [0x4ab0ff, 0xff4d5a, 0xd2b48c, 0x6dff9a, 0xffffff];
+			const hsvToRgbInt = (h, s, v) => {
+				const hh = ((h % 1) + 1) % 1;
+				const i = Math.floor(hh * 6);
+				const f = hh * 6 - i;
+				const p = v * (1 - s);
+				const q = v * (1 - f * s);
+				const t = v * (1 - (1 - f) * s);
+				let r = v;
+				let g = t;
+				let b = p;
+				switch (i % 6) {
+					case 0: r = v; g = t; b = p; break;
+					case 1: r = q; g = v; b = p; break;
+					case 2: r = p; g = v; b = t; break;
+					case 3: r = p; g = q; b = v; break;
+					case 4: r = t; g = p; b = v; break;
+					default: r = v; g = p; b = q; break;
+				}
+				return ((Math.round(r * 255) & 255) << 16) | ((Math.round(g * 255) & 255) << 8) | (Math.round(b * 255) & 255);
+			};
 			const mixColors = (a, b, t) => {
 				const ar = (a >> 16) & 255;
 				const ag = (a >> 8) & 255;
@@ -584,10 +604,12 @@ async function boot() {
 			const coreFrame = new PIXI.Graphics();
 			const coreRing = new PIXI.Graphics();
 			const coreDial = new PIXI.Graphics();
-			const coreCrankArm = new PIXI.Graphics();
-			const coreCrankKnob = new PIXI.Graphics();
-			const coreSpinArrows = new PIXI.Graphics();
-			const coreHintText = new PIXI.Text('GRAB CRANK + DRAG', {
+			const coreHourHand = new PIXI.Graphics();
+			const coreMinuteHand = new PIXI.Graphics();
+			const coreSecondHand = new PIXI.Graphics();
+			const coreTickMarks = new PIXI.Graphics();
+			const coreSecondTrail = new PIXI.Graphics();
+			const coreHintText = new PIXI.Text('CLOCK CORE // DRAG RING', {
 				fontFamily: 'Minecraft, monospace',
 				fontSize: 11,
 				fill: 0xe6ffe8,
@@ -601,7 +623,7 @@ async function boot() {
 			coreGhost.tint = 0x9bffd6;
 			coreGhost.alpha = 0.38;
 			coreGhost.visible = false;
-			systemCore.addChild(coreAura, coreFrame, coreRing, coreDial, coreGhost, coreCrankArm, coreCrankKnob, coreSpinArrows, coreHintText);
+			systemCore.addChild(coreAura, coreFrame, coreRing, coreDial, coreTickMarks, coreSecondTrail, coreHourHand, coreMinuteHand, coreSecondHand, coreGhost, coreHintText);
 			systemCore.zIndex = 8;
 			world.addChild(systemCore);
 
@@ -707,20 +729,37 @@ async function boot() {
 				const pulse = 0.72 + 0.28 * Math.sin(time * 1.6);
 				const ringR = screenToWorldSize(72);
 				const outerR = screenToWorldSize(92);
-				const innerR = screenToWorldSize(26);
-				const crankLen = screenToWorldSize(48);
-				const crankAngle = ringSpin - Math.PI * 0.5;
-				const crankX = Math.cos(crankAngle) * crankLen;
-				const crankY = Math.sin(crankAngle) * crankLen;
+				const innerR = screenToWorldSize(56);
+				const now = new Date();
+				const h = now.getHours() % 12;
+				const m = now.getMinutes();
+				const s = now.getSeconds();
+				const ms = now.getMilliseconds();
+				const secTick = Math.min(1, ms / 180);
+				const secEase = secTick * secTick * (3 - 2 * secTick);
+				const secondUnits = s + secEase;
+				const minuteUnits = m + s / 60 + ms / 60000;
+				const hourUnits = h + minuteUnits / 60;
+				const secondAngle = secondUnits / 60 * Math.PI * 2 - Math.PI * 0.5;
+				const minuteAngle = minuteUnits / 60 * Math.PI * 2 - Math.PI * 0.5;
+				const hourAngle = hourUnits / 12 * Math.PI * 2 - Math.PI * 0.5;
+				const rgbHue = (time * 0.035) % 1;
+				const rgbA = hsvToRgbInt(rgbHue, 0.82, 1.0);
+				const rgbB = hsvToRgbInt((rgbHue + 0.2) % 1, 0.78, 1.0);
+				const rgbC = hsvToRgbInt((rgbHue + 0.52) % 1, 0.86, 1.0);
+				const rgbSoft = hsvToRgbInt((rgbHue + 0.07) % 1, 0.45, 0.95);
 				coreAura.clear();
-				coreAura.beginFill(0x22f3c8, (0.05 + activeBoost * 0.05) * pulse);
+				coreAura.beginFill(rgbA, (0.08 + activeBoost * 0.08) * pulse);
 				coreAura.drawCircle(0, 0, outerR + screenToWorldSize(8));
+				coreAura.endFill();
+				coreAura.beginFill(rgbB, (0.05 + activeBoost * 0.06) * pulse);
+				coreAura.drawCircle(0, 0, outerR + screenToWorldSize(18));
 				coreAura.endFill();
 
 				coreFrame.clear();
-				coreFrame.lineStyle(2, 0x6cffe3, 0.24 + activeBoost * 0.24);
+				coreFrame.lineStyle(2.2, rgbA, 0.34 + activeBoost * 0.34);
 				coreFrame.drawCircle(0, 0, outerR);
-				coreFrame.lineStyle(1, 0xbfffea, 0.18 + activeBoost * 0.18);
+				coreFrame.lineStyle(1.3, rgbSoft, 0.24 + activeBoost * 0.26);
 				for (let i = 0; i < 16; i++) {
 					const a = (Math.PI * 2 * i) / 16 + ringSpin * 0.12;
 					const x0 = Math.cos(a) * screenToWorldSize(84);
@@ -735,56 +774,78 @@ async function boot() {
 				coreRing.beginFill(0x061512, 0.78);
 				coreRing.drawCircle(0, 0, ringR);
 				coreRing.endFill();
-				coreRing.lineStyle(2, 0x22f3c8, 0.5 + activeBoost * 0.34);
+				coreRing.lineStyle(2.4, rgbB, 0.56 + activeBoost * 0.34);
 				coreRing.drawCircle(0, 0, ringR);
-				coreRing.lineStyle(1, 0x9bffd6, 0.22 + activeBoost * 0.24);
+				coreRing.lineStyle(1.2, rgbSoft, 0.24 + activeBoost * 0.24);
 				coreRing.drawCircle(0, 0, screenToWorldSize(82));
 
 				coreDial.clear();
-				coreDial.beginFill(0x0b221d, 0.92);
+				coreDial.beginFill(0x071017, 0.96);
 				coreDial.drawCircle(0, 0, innerR);
 				coreDial.endFill();
-				coreDial.lineStyle(2, 0xcffff2, 0.42 + activeBoost * 0.36);
+				coreDial.lineStyle(2.1, rgbC, 0.6 + activeBoost * 0.28);
 				coreDial.drawCircle(0, 0, innerR - screenToWorldSize(2));
 
-				coreCrankArm.clear();
-				coreCrankArm.lineStyle(3, 0xf0e2b4, 0.82 + activeBoost * 0.14);
-				coreCrankArm.moveTo(0, 0);
-				coreCrankArm.lineTo(crankX, crankY);
+				coreTickMarks.clear();
+				for (let i = 0; i < 60; i++) {
+					const a = (Math.PI * 2 * i) / 60 - Math.PI * 0.5;
+					const major = i % 5 === 0;
+					const r0 = innerR - (major ? screenToWorldSize(12) : screenToWorldSize(7));
+					const r1 = innerR - screenToWorldSize(2.2);
+					const alpha = major ? (0.72 + activeBoost * 0.2) : 0.36;
+					coreTickMarks.lineStyle(major ? 2.1 : 1.1, major ? rgbA : rgbSoft, alpha);
+					coreTickMarks.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
+					coreTickMarks.lineTo(Math.cos(a) * r1, Math.sin(a) * r1);
+				}
 
-				coreCrankKnob.clear();
-				coreCrankKnob.beginFill(0xead3a0, 0.95);
-				coreCrankKnob.drawCircle(crankX, crankY, screenToWorldSize(8));
-				coreCrankKnob.endFill();
-				coreCrankKnob.lineStyle(2, 0x6a4d29, 0.72);
-				coreCrankKnob.drawCircle(crankX, crankY, screenToWorldSize(8));
+				coreSecondTrail.clear();
+				const secTrailR = innerR - screenToWorldSize(5);
+				coreSecondTrail.lineStyle(1.4, rgbC, 0.32 + activeBoost * 0.34);
+				coreSecondTrail.arc(0, 0, secTrailR, secondAngle - 0.45, secondAngle);
 
-				coreSpinArrows.clear();
-				coreSpinArrows.lineStyle(2, 0xf8dda2, 0.3 + activeBoost * 0.5);
-				coreSpinArrows.arc(0, 0, screenToWorldSize(58), -2.35 + ringSpin * 0.08, -0.72 + ringSpin * 0.08);
-				coreSpinArrows.arc(0, 0, screenToWorldSize(58), 0.78 + ringSpin * 0.08, 2.42 + ringSpin * 0.08);
-				const ah = screenToWorldSize(7);
-				const a1 = -0.72 + ringSpin * 0.08;
-				const a2 = 2.42 + ringSpin * 0.08;
-				const x1 = Math.cos(a1) * screenToWorldSize(58);
-				const y1 = Math.sin(a1) * screenToWorldSize(58);
-				const x2 = Math.cos(a2) * screenToWorldSize(58);
-				const y2 = Math.sin(a2) * screenToWorldSize(58);
-				coreSpinArrows.lineStyle(2, 0xf8dda2, 0.3 + activeBoost * 0.5);
-				coreSpinArrows.moveTo(x1, y1);
-				coreSpinArrows.lineTo(x1 - Math.cos(a1 - 0.5) * ah, y1 - Math.sin(a1 - 0.5) * ah);
-				coreSpinArrows.moveTo(x1, y1);
-				coreSpinArrows.lineTo(x1 - Math.cos(a1 + 0.5) * ah, y1 - Math.sin(a1 + 0.5) * ah);
-				coreSpinArrows.moveTo(x2, y2);
-				coreSpinArrows.lineTo(x2 - Math.cos(a2 - 0.5) * ah, y2 - Math.sin(a2 - 0.5) * ah);
-				coreSpinArrows.moveTo(x2, y2);
-				coreSpinArrows.lineTo(x2 - Math.cos(a2 + 0.5) * ah, y2 - Math.sin(a2 + 0.5) * ah);
+				const hourLen = innerR - screenToWorldSize(24);
+				const minuteLen = innerR - screenToWorldSize(14);
+				const secondLen = innerR - screenToWorldSize(8);
+				const hourX = Math.cos(hourAngle) * hourLen;
+				const hourY = Math.sin(hourAngle) * hourLen;
+				const minuteX = Math.cos(minuteAngle) * minuteLen;
+				const minuteY = Math.sin(minuteAngle) * minuteLen;
+				const secondX = Math.cos(secondAngle) * secondLen;
+				const secondY = Math.sin(secondAngle) * secondLen;
+
+				coreHourHand.clear();
+				coreHourHand.lineStyle({ width: screenToWorldSize(5.2), color: rgbA, alpha: 0.9, cap: PIXI.LINE_CAP.ROUND, join: PIXI.LINE_JOIN.ROUND });
+				coreHourHand.moveTo(0, 0);
+				coreHourHand.lineTo(hourX, hourY);
+				coreHourHand.lineStyle({ width: screenToWorldSize(1.5), color: rgbSoft, alpha: 0.78, cap: PIXI.LINE_CAP.ROUND, join: PIXI.LINE_JOIN.ROUND });
+				coreHourHand.moveTo(0, 0);
+				coreHourHand.lineTo(hourX * 0.84, hourY * 0.84);
+
+				coreMinuteHand.clear();
+				coreMinuteHand.lineStyle({ width: screenToWorldSize(3.8), color: rgbB, alpha: 0.96, cap: PIXI.LINE_CAP.ROUND, join: PIXI.LINE_JOIN.ROUND });
+				coreMinuteHand.moveTo(0, 0);
+				coreMinuteHand.lineTo(minuteX, minuteY);
+
+				coreSecondHand.clear();
+				coreSecondHand.lineStyle({ width: screenToWorldSize(2), color: rgbC, alpha: 0.98, cap: PIXI.LINE_CAP.ROUND, join: PIXI.LINE_JOIN.ROUND });
+				coreSecondHand.moveTo(-Math.cos(secondAngle) * screenToWorldSize(10), -Math.sin(secondAngle) * screenToWorldSize(10));
+				coreSecondHand.lineTo(secondX, secondY);
+				coreSecondHand.beginFill(rgbC, 0.95);
+				coreSecondHand.drawCircle(0, 0, screenToWorldSize(3.8));
+				coreSecondHand.endFill();
+				coreSecondHand.lineStyle(1.2, rgbSoft, 0.7);
+				coreSecondHand.drawCircle(0, 0, screenToWorldSize(3.8));
+				coreSecondHand.beginFill(rgbA, 0.88);
+				coreSecondHand.drawCircle(secondX, secondY, screenToWorldSize(2.8));
+				coreSecondHand.endFill();
 
 				coreHintText.position.set(0, screenToWorldSize(96));
 				coreHintText.alpha = dragEnabled ? 0 : (0.26 + 0.56 * activeBoost + 0.08 * Math.sin(time * 3.2));
-				coreGhost.width = screenToWorldSize(96);
-				coreGhost.height = screenToWorldSize(96);
-				coreGhost.alpha = 0.34 + activeBoost * 0.2;
+				coreHintText.style.fill = rgbSoft;
+				coreGhost.width = screenToWorldSize(34);
+				coreGhost.height = screenToWorldSize(34);
+				coreGhost.tint = rgbA;
+				coreGhost.alpha = 0.76 + activeBoost * 0.18;
 			};
 
 			const placeAmbientDebris = () => {
@@ -953,7 +1014,7 @@ async function boot() {
 			let basketballHover = 0;
 			let basketballMode = false;
 			let basketballScore = 0;
-			const iconScoreState = new WeakMap();
+			const iconScoreState = new Map();
 			basketballToggle.eventMode = 'none';
 			basketballToggle.cursor = 'pointer';
 			const drawBasketballToggle = () => {
@@ -1162,7 +1223,7 @@ async function boot() {
 					basketballScore = 0;
 					arcadeScoreText.text = 'SCORE 0';
 					hoopTrailPoints.length = 0;
-					iconScoreState.clear?.();
+					iconScoreState.clear();
 				}
 			});
 			placeLockButton();
@@ -1923,22 +1984,25 @@ async function boot() {
 					const key = body.container;
 					let st = iconScoreState.get(key);
 					if (!st) {
-						st = { lastY: body.container.position.y, cooldown: 0 };
+						st = { lastY: body.container.position.y, lastX: body.container.position.x, cooldown: 0 };
 						iconScoreState.set(key, st);
 					}
 					st.cooldown = Math.max(0, st.cooldown - seconds);
 					const dx = body.container.position.x - arcadeState.hoopWorldX;
+					const prevDx = st.lastX - arcadeState.hoopWorldX;
 					const prevDy = st.lastY - arcadeState.hoopWorldY;
 					const dy = body.container.position.y - arcadeState.hoopWorldY;
 					const falling = (body.state?.vy ?? 0) > 24;
-					const crossedDown = prevDy < -arcadeState.hoopInnerRadius * 0.25 && dy >= arcadeState.hoopInnerRadius * 0.05;
+					const crossedDown = prevDy < -arcadeState.hoopInnerRadius * 0.45 && dy >= -arcadeState.hoopInnerRadius * 0.04;
+					const entersFromSide = Math.abs(prevDx) > arcadeState.hoopInnerRadius * 1.05 && Math.abs(dx) <= arcadeState.hoopInnerRadius * 0.9 && dy > -arcadeState.hoopInnerRadius * 0.42;
 					const inRimX = Math.abs(dx) <= arcadeState.hoopInnerRadius * 0.95;
-					if (st.cooldown <= 0 && crossedDown && inRimX && falling) {
+					if (st.cooldown <= 0 && falling && ((crossedDown && inRimX) || entersFromSide)) {
 						basketballScore += 1;
 						arcadeScoreText.text = `SCORE ${basketballScore}`;
 						st.cooldown = 0.75;
 					}
 					st.lastY = body.container.position.y;
+					st.lastX = body.container.position.x;
 				}
 			} else {
 				arcadeLayer.visible = false;
