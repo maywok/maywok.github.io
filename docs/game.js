@@ -688,14 +688,16 @@ async function boot() {
 				x: desktopTwoApp.renderer.width * 0.5,
 				y: desktopTwoApp.renderer.height * 0.5,
 			};
+			let desktopTwoCursorSpriteRef = null;
+			const desktopTwoCursorFallbackHalf = Math.max(10, frameW * 0.45);
 			const updateDesktopTwoMouse = (event) => {
 				if (!desktopTwoApp?.view) return;
 				const rect = desktopTwoApp.view.getBoundingClientRect();
 				if (!rect || rect.width <= 0 || rect.height <= 0) return;
 				const x = (event.clientX - rect.left) * (desktopTwoApp.renderer.width / rect.width);
 				const y = (event.clientY - rect.top) * (desktopTwoApp.renderer.height / rect.height);
-				const cursorHalfW = desktopTwoCursorSprite.width * 0.5;
-				const cursorHalfH = desktopTwoCursorSprite.height * 0.5;
+				const cursorHalfW = desktopTwoCursorSpriteRef ? desktopTwoCursorSpriteRef.width * 0.5 : desktopTwoCursorFallbackHalf;
+				const cursorHalfH = desktopTwoCursorSpriteRef ? desktopTwoCursorSpriteRef.height * 0.5 : desktopTwoCursorFallbackHalf;
 				const nextX = Math.max(cursorHalfW, Math.min(desktopTwoApp.renderer.width - cursorHalfW, x));
 				const nextY = Math.max(cursorHalfH, Math.min(desktopTwoApp.renderer.height - cursorHalfH, y));
 				if (Number.isFinite(nextX)) desktopTwoMouse.x = nextX;
@@ -707,6 +709,7 @@ async function boot() {
 
 			const desktopTwoCursor = new PIXI.Container();
 			const desktopTwoCursorSprite = new PIXI.Sprite(cursorTexture);
+			desktopTwoCursorSpriteRef = desktopTwoCursorSprite;
 			desktopTwoCursorSprite.anchor.set(0.5);
 			const desktopTwoCursorGlow = new PIXI.Sprite(cursorTexture);
 			desktopTwoCursorGlow.anchor.set(0.5);
@@ -862,6 +865,8 @@ async function boot() {
 				});
 				updateDesktopTwoFlow(desktopTwoTime, desktopTwoCameraOffset);
 				updateDesktopTwoCursorPixelate();
+				desktopTwoCursor.visible = desktopTwoActive;
+				desktopTwoCursor.alpha = desktopTwoActive ? 1 : 0;
 				desktopTwoCursor.position.set(desktopTwoMouse.x, desktopTwoMouse.y);
 
 				if (!desktopTwoActive) {

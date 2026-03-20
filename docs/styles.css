@@ -108,6 +108,7 @@ html.desktop-two-active body::before {
 }
 
 .portfolio-ui {
+    display: none !important;
     position: absolute;
     inset: 0;
     z-index: 3;
