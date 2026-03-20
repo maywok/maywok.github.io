@@ -336,7 +336,12 @@ async function boot() {
 			const DEBUG_SHAPES = false;
 			const scene = new PIXI.Container();
 			app.stage.addChild(scene);
-			const { container: flowBackground, update: updateFlowBackground, resize: resizeFlowBackground } = createCrimsonFlowBackground(app, {
+			const {
+				container: flowBackground,
+				update: updateFlowBackground,
+				resize: resizeFlowBackground,
+				setAmbience: setFlowAmbience,
+			} = createCrimsonFlowBackground(app, {
 				lineColor: 0x6f001b,
 				glowColor: 0xa00026,
 				bgColor: 0x000000,
@@ -543,6 +548,135 @@ async function boot() {
 				if (b === a) b = ambientBaseColors[(ambientBaseColors.indexOf(a) + 1) % ambientBaseColors.length];
 				return mixColors(a, b, 0.25 + Math.random() * 0.5);
 			};
+			const clamp01 = (v) => Math.max(0, Math.min(1, v));
+			const FLOW_BASE = {
+				lineColor: 0x6f001b,
+				glowColor: 0xa00026,
+				mistColorA: 0x180f16,
+				mistColorB: 0x0d1824,
+				mistColorC: 0x22152a,
+				sparkStrength: 0.14,
+				glowStrength: 0.35,
+				speed: 0.75,
+				density: 4.6,
+				glowAlpha: 0.55,
+			};
+			const LAMP_BASE = {
+				color: 0x9bff6a,
+				glowColor: 0x37ff7a,
+				glowAlpha: 0.4,
+				coreAlpha: 0.96,
+			};
+			const BASE_MOOD = {
+				waveTint: 0xa31d4f,
+				waveMix: 0.14,
+				lampTint: 0x37ff7a,
+				glowStrength: 0.0,
+				contrast: 0.0,
+				vignette: 0.01,
+				particleColor: 0x37223f,
+				waveMotion: 1.0,
+				lampBoost: 0.0,
+			};
+			const MOOD_TRANSITION_SECONDS = 0.34;
+			const MOOD_MAP = {
+				default: BASE_MOOD,
+				GitHub: {
+					waveTint: 0x5b5768,
+					waveMix: 0.12,
+					lampTint: 0xba9bc7,
+					glowStrength: 0.06,
+					contrast: 0.008,
+					vignette: 0.03,
+					particleColor: 0x4b334f,
+					waveMotion: 1.03,
+					lampBoost: 0.08,
+				},
+				LinkedIn: {
+					waveTint: 0x2f5ea7,
+					waveMix: 0.22,
+					lampTint: 0x62bbff,
+					glowStrength: 0.12,
+					contrast: 0.02,
+					vignette: 0.05,
+					particleColor: 0x2b4f8b,
+					waveMotion: 1.08,
+					lampBoost: 0.16,
+				},
+				Blog: {
+					waveTint: 0x4d8c60,
+					waveMix: 0.2,
+					lampTint: 0x82e79b,
+					glowStrength: 0.1,
+					contrast: 0.014,
+					vignette: 0.045,
+					particleColor: 0x3c6c4d,
+					waveMotion: 1.06,
+					lampBoost: 0.13,
+				},
+				Reflex: {
+					waveTint: 0xd14c8d,
+					waveMix: 0.24,
+					lampTint: 0xff7f9d,
+					glowStrength: 0.18,
+					contrast: 0.024,
+					vignette: 0.055,
+					particleColor: 0x7a2f5d,
+					waveMotion: 1.1,
+					lampBoost: 0.2,
+				},
+				Resume: {
+					waveTint: 0xc29661,
+					waveMix: 0.16,
+					lampTint: 0xf2c487,
+					glowStrength: 0.1,
+					contrast: 0.01,
+					vignette: 0.038,
+					particleColor: 0x7f6040,
+					waveMotion: 1.04,
+					lampBoost: 0.11,
+				},
+				Walklatro: {
+					waveTint: 0xc6914b,
+					waveMix: 0.17,
+					lampTint: 0xf2c46f,
+					glowStrength: 0.11,
+					contrast: 0.014,
+					vignette: 0.04,
+					particleColor: 0x8a6137,
+					waveMotion: 1.05,
+					lampBoost: 0.12,
+				},
+			};
+			const hoverMoodSources = new Map();
+			let activeMoodEntry = null;
+			let moodTarget = { ...BASE_MOOD };
+			const moodCurrent = { ...BASE_MOOD };
+			const getMoodProfile = (key) => MOOD_MAP[key] || MOOD_MAP.default;
+			const resolveActiveMood = () => {
+				let last = null;
+				for (const entry of hoverMoodSources.values()) last = entry;
+				activeMoodEntry = last;
+				moodTarget = { ...getMoodProfile(last?.key || 'default') };
+				window.moodTarget = {
+					key: last?.key || 'default',
+					...moodTarget,
+				};
+			};
+			const setMoodHover = (key, hovered, container) => {
+				if (!container) return;
+				if (hovered) {
+					hoverMoodSources.delete(container);
+					hoverMoodSources.set(container, {
+						key: getMoodProfile(key) === MOOD_MAP.default && key !== 'default' ? 'default' : key,
+						container,
+					});
+				} else {
+					hoverMoodSources.delete(container);
+				}
+				resolveActiveMood();
+			};
+			resolveActiveMood();
 			for (let i = 0; i < 10; i++) {
 				const node = new PIXI.Container();
 				const glow = new PIXI.Graphics();
@@ -608,6 +742,7 @@ async function boot() {
 			const coreTickMarks = new PIXI.Graphics();
 			const coreSecondTrail = new PIXI.Graphics();
 			const coreSpinCue = new PIXI.Graphics();
+			const coreDialGlow = new PIXI.Graphics();
 			const coreNumerals = new PIXI.Container();
 			const numeralStyle = {
 				fontFamily: 'Minecraft, monospace',
@@ -629,7 +764,7 @@ async function boot() {
 			coreGhost.tint = 0x9bffd6;
 			coreGhost.alpha = 0.38;
 			coreGhost.visible = false;
-			systemCore.addChild(coreDial, coreTickMarks, coreNumerals, coreSecondTrail, coreHourHand, coreMinuteHand, coreSecondHand, coreGhost, coreSpinCue);
+			systemCore.addChild(coreDialGlow, coreDial, coreTickMarks, coreNumerals, coreSecondTrail, coreHourHand, coreMinuteHand, coreSecondHand, coreGhost, coreSpinCue);
 			systemCore.zIndex = 8;
 			world.addChild(systemCore);
 
@@ -688,6 +823,8 @@ async function boot() {
 			let dragEnabled = false;
 			let ringSpin = 0;
 			let ringSpinVel = 0;
+			const CORE_CLOCK_SCALE = 1.3;
+			const CORE_BASE_HALF_SIZE = 49;
 			const ringDrag = { active: false, lastAngle: 0, lastTime: 0 };
 			const ringCandidate = { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 };
 			const ringSlotAngles = [-90, -30, 30, 90, 150, 210];
@@ -699,15 +836,28 @@ async function boot() {
 				const p = getCoreScreenPos();
 				return { x: screenToWorldX(p.x), y: screenToWorldY(p.y) };
 			};
-			const getRingRadius = () => Math.max(120, Math.min(220, Math.min(app.renderer.width, app.renderer.height) * 0.24));
-			const getCoreControlRadius = () => Math.max(44, getRingRadius() * 0.46);
+			const getClockHalfScreenSize = () => CORE_BASE_HALF_SIZE * CORE_CLOCK_SCALE;
 			const getRingIconSize = () => Math.max(58, Math.min(84, app.renderer.height * 0.108));
+			const getRingRadius = () => {
+				const baseRadius = Math.max(120, Math.min(220, Math.min(app.renderer.width, app.renderer.height) * 0.24));
+				const clockHalf = getClockHalfScreenSize();
+				const iconHalf = getRingIconSize() * 0.5;
+				const collisionClearance = clockHalf * 0.5;
+				const required = clockHalf + iconHalf + collisionClearance;
+				return Math.max(baseRadius, required);
+			};
+			const getRingSlotRadius = (slotIndex) => {
+				const slot = ((slotIndex % ringSlotAngles.length) + ringSlotAngles.length) % ringSlotAngles.length;
+				const emphasis = (slot === 0 || slot === 5) ? getClockHalfScreenSize() * 0.12 : 0;
+				return getRingRadius() + emphasis;
+			};
+			const getCoreControlRadius = () => Math.max(44, getRingRadius() * 0.46);
 			let coreHoverAmount = 0;
 			const RING_THROW_BOOST = 1.7;
 			const RING_MAX_SPIN_VEL = 10.5;
 			const getRingSlotScreenPos = (slotIndex) => {
 				const core = getCoreScreenPos();
-				const radius = getRingRadius();
+				const radius = getRingSlotRadius(slotIndex);
 				const angle = (ringSlotAngles[slotIndex % ringSlotAngles.length] * Math.PI) / 180 + ringSpin;
 				return {
 					x: core.x + Math.cos(angle) * radius,
@@ -733,7 +883,7 @@ async function boot() {
 				const spinEnergy = Math.min(1, Math.abs(ringSpinVel) * 0.22);
 				const activeBoost = Math.max(coreHoverAmount, ringDrag.active ? 1 : 0, spinEnergy);
 				const pulse = 0.72 + 0.28 * Math.sin(time * 1.6);
-				const dialHalf = screenToWorldSize(49);
+				const dialHalf = screenToWorldSize(CORE_BASE_HALF_SIZE * CORE_CLOCK_SCALE);
 				const markerR = dialHalf - screenToWorldSize(8);
 				const now = new Date();
 				const h = now.getHours() % 12;
@@ -754,12 +904,23 @@ async function boot() {
 				const rgbC = hsvToRgbInt((rgbHue + 0.52) % 1, 0.86, 1.0);
 				const rgbSoft = hsvToRgbInt((rgbHue + 0.07) % 1, 0.45, 0.95);
 				const spinCueAlpha = dragEnabled ? 0.12 : (0.28 + activeBoost * 0.36 + 0.08 * Math.sin(time * 3.2));
+				const dialGlowPad = screenToWorldSize(9);
+				coreDialGlow.clear();
+				coreDialGlow.beginFill(0xff5fa8, (0.08 + activeBoost * 0.1) * pulse);
+				coreDialGlow.drawRoundedRect(-dialHalf - dialGlowPad, -dialHalf - dialGlowPad, (dialHalf + dialGlowPad) * 2, (dialHalf + dialGlowPad) * 2, screenToWorldSize(10));
+				coreDialGlow.endFill();
+				coreDialGlow.beginFill(0x71f0ff, (0.05 + activeBoost * 0.07) * pulse);
+				coreDialGlow.drawRoundedRect(-dialHalf - dialGlowPad * 1.6, -dialHalf - dialGlowPad * 1.6, (dialHalf + dialGlowPad * 1.6) * 2, (dialHalf + dialGlowPad * 1.6) * 2, screenToWorldSize(12));
+				coreDialGlow.endFill();
+
 				coreDial.clear();
 				coreDial.beginFill(0x0b1118, (0.9 + 0.06 * pulse));
 				coreDial.drawRoundedRect(-dialHalf, -dialHalf, dialHalf * 2, dialHalf * 2, screenToWorldSize(7));
 				coreDial.endFill();
-				coreDial.lineStyle(2.1, rgbC, 0.62 + activeBoost * 0.3);
+				coreDial.lineStyle(3.1, rgbC, 0.66 + activeBoost * 0.3);
 				coreDial.drawRoundedRect(-dialHalf + screenToWorldSize(2), -dialHalf + screenToWorldSize(2), (dialHalf - screenToWorldSize(2)) * 2, (dialHalf - screenToWorldSize(2)) * 2, screenToWorldSize(6));
+				coreDial.lineStyle(2.1, rgbSoft, 0.5 + activeBoost * 0.24);
+				coreDial.drawRoundedRect(-dialHalf + screenToWorldSize(5), -dialHalf + screenToWorldSize(5), (dialHalf - screenToWorldSize(5)) * 2, (dialHalf - screenToWorldSize(5)) * 2, screenToWorldSize(5));
 
 				coreTickMarks.clear();
 				for (let i = 0; i < 12; i++) {
@@ -829,7 +990,7 @@ async function boot() {
 				coreSpinCue.clear();
 				coreSpinCue.lineStyle(2, rgbB, spinCueAlpha);
 				const cueHead = screenToWorldSize(7);
-				const cueOffset = screenToWorldSize(74);
+				const cueOffset = dialHalf + screenToWorldSize(24);
 				const cueTilt = Math.sin(ringSpin * 0.4) * cueHead * 0.28;
 				const leftX = -cueOffset;
 				const rightX = cueOffset;
@@ -884,6 +1045,7 @@ async function boot() {
 				items: [
 					{
 						label: 'Resume',
+						moodKey: 'Resume',
 						glyph: 'R',
 						tooltip: 'Open Resume',
 						url: './assets/files/mason-walker-resume.pdf',
@@ -901,24 +1063,28 @@ async function boot() {
 					},
 					{
 						label: 'GitHub',
+						moodKey: 'GitHub',
 						glyph: 'G',
 						tooltip: 'View GitHub',
 						url: 'https://github.com/maywok',
-						panelFill: 0xf3e3cf,
+						panelFill: 0x171c24,
 						panelFillAlpha: 0.96,
-						panelBorder: 0x8f5b3b,
+						panelBorder: 0xff5fa8,
 						panelBorderAlpha: 0.95,
-						glyphColor: 0x362117,
-						labelColor: 0x543527,
-						glowAlpha: 0.1,
-						glowHoverAlpha: 0.26,
+						glyphColor: 0xe8edf8,
+						labelColor: 0xd0d8ec,
+						glowAlpha: 0.08,
+						glowHoverAlpha: 0.24,
 						ornament: 'cat',
-						ornamentColor: 0x3a2a1f,
+						ornamentColor: 0xff5fa8,
 					},
 				],
 				screenToWorldX,
 				screenToWorldY,
 				screenToWorldSize,
+				onHoverChange: ({ hovered, key, container }) => {
+					setMoodHover(key, hovered, container);
+				},
 				layoutProvider: ({ index }) => {
 					const slot = index === 0 ? 5 : 1;
 					return getIntroPoseForSlot(slot);
@@ -1326,6 +1492,7 @@ async function boot() {
 				const blogIconResult = await withTimeout(createBlogIcon(app, world, {
 					url: '/blog',
 					screenScale: SCENE_SCALE,
+					onHoverChange: ({ hovered, key, container }) => setMoodHover(key, hovered, container),
 					dockScreenX: () => getSlotX(2),
 					dockScreenY: () => getSlotY(2),
 					panelFill: 0x2a1b12,
@@ -1349,6 +1516,7 @@ async function boot() {
 				const linkedinIconResult = await withTimeout(createLinkedinIcon(app, world, {
 					url: 'https://www.linkedin.com/in/mason--walker/',
 					screenScale: SCENE_SCALE,
+					onHoverChange: ({ hovered, key, container }) => setMoodHover(key, hovered, container),
 					dockScreenX: () => getSlotX(0),
 					dockScreenY: () => getSlotY(0),
 					panelFill: 0x0c1c3a,
@@ -1371,6 +1539,7 @@ async function boot() {
 			try {
 				const reflexIconResult = await withTimeout(createReflexIcon(app, world, {
 					screenScale: SCENE_SCALE,
+					onHoverChange: ({ hovered, key, container }) => setMoodHover(key, hovered, container),
 					dockScreenX: () => getSlotX(3),
 					dockScreenY: () => getSlotY(3),
 					panelFill: 0x2a1119,
@@ -1393,6 +1562,7 @@ async function boot() {
 			try {
 				const walklatroIconResult = await withTimeout(createWalklatroIcon(app, world, {
 					screenScale: SCENE_SCALE,
+					onHoverChange: ({ hovered, key, container }) => setMoodHover(key, hovered, container),
 					dockScreenX: () => getSlotX(4),
 					dockScreenY: () => getSlotY(4),
 					panelFill: 0x1c1208,
@@ -1870,6 +2040,39 @@ async function boot() {
 				leftPortal.visible = false;
 			}
 			time += seconds;
+			const moodLerp = 1 - Math.exp(-seconds / MOOD_TRANSITION_SECONDS);
+			moodCurrent.waveTint = mixColors(moodCurrent.waveTint, moodTarget.waveTint, moodLerp);
+			moodCurrent.lampTint = mixColors(moodCurrent.lampTint, moodTarget.lampTint, moodLerp);
+			moodCurrent.particleColor = mixColors(moodCurrent.particleColor, moodTarget.particleColor, moodLerp);
+			moodCurrent.waveMix += (moodTarget.waveMix - moodCurrent.waveMix) * moodLerp;
+			moodCurrent.glowStrength += (moodTarget.glowStrength - moodCurrent.glowStrength) * moodLerp;
+			moodCurrent.contrast += (moodTarget.contrast - moodCurrent.contrast) * moodLerp;
+			moodCurrent.vignette += (moodTarget.vignette - moodCurrent.vignette) * moodLerp;
+			moodCurrent.waveMotion += (moodTarget.waveMotion - moodCurrent.waveMotion) * moodLerp;
+			moodCurrent.lampBoost += (moodTarget.lampBoost - moodCurrent.lampBoost) * moodLerp;
+			const blendedLineColor = mixColors(FLOW_BASE.lineColor, moodCurrent.waveTint, clamp01(moodCurrent.waveMix));
+			const blendedGlowColor = mixColors(FLOW_BASE.glowColor, moodCurrent.waveTint, clamp01(moodCurrent.waveMix + 0.1));
+			const blendedMistB = mixColors(FLOW_BASE.mistColorB, moodCurrent.waveTint, clamp01(moodCurrent.waveMix * 0.38));
+			const blendedMistC = mixColors(FLOW_BASE.mistColorC, moodCurrent.particleColor, 0.5);
+			setFlowAmbience?.({
+				lineColor: blendedLineColor,
+				glowColor: blendedGlowColor,
+				mistColorA: FLOW_BASE.mistColorA,
+				mistColorB: blendedMistB,
+				mistColorC: blendedMistC,
+				sparkStrength: FLOW_BASE.sparkStrength + moodCurrent.glowStrength * 0.1,
+				glowStrength: FLOW_BASE.glowStrength + moodCurrent.glowStrength * 0.32,
+				speed: FLOW_BASE.speed * (1 + (moodCurrent.waveMotion - 1) * 0.9),
+				density: FLOW_BASE.density * (1 + (moodCurrent.waveMotion - 1) * 0.45),
+				glowAlpha: clamp01(FLOW_BASE.glowAlpha + moodCurrent.glowStrength * 0.16),
+			});
+			crtFisheyeUniforms.u_vignette = clamp01(moodCurrent.vignette);
+			crtFisheyeUniforms.u_brightness = 0.06 + moodCurrent.contrast;
+			crtScanlinesUniforms.u_strength = 0.42 + moodCurrent.contrast * 0.45;
+			window.moodCurrent = {
+				key: activeMoodEntry?.key || 'default',
+				...moodCurrent,
+			};
 			const introSpeed = 1.25;
 			if (iconIntroProgress < 1) {
 				iconIntroProgress = Math.min(1, iconIntroProgress + seconds * introSpeed);
@@ -2157,15 +2360,49 @@ async function boot() {
 				arcadeSweepHoverTarget = 0;
 				arcadeSweepHover = 0;
 			}
-			for (const vine of vines) vine.update(time, mouseWorld, seconds);
+			const lampBoostByIndex = new Array(vines.length).fill(0);
+			if (activeMoodEntry?.container) {
+				const hoverX = activeMoodEntry.container.position.x;
+				const hoverY = activeMoodEntry.container.position.y;
+				const rankedLamps = [];
+				for (let i = 0; i < vines.length; i++) {
+					const p = vines[i]?.getLampPosition?.();
+					if (!p) continue;
+					const dx = p.x - hoverX;
+					const dy = p.y - hoverY;
+					rankedLamps.push({ i, d2: dx * dx + dy * dy });
+				}
+				rankedLamps.sort((a, b) => a.d2 - b.d2);
+				for (let i = 0; i < Math.min(3, rankedLamps.length); i++) {
+					lampBoostByIndex[rankedLamps[i].i] = 1 - i * 0.28;
+				}
+			}
+			for (let i = 0; i < vines.length; i++) {
+				const vine = vines[i];
+				const localBoost = lampBoostByIndex[i] * (0.58 + moodCurrent.lampBoost * 1.25);
+				const vineHue = mixColors(theme.vines.hue, moodCurrent.lampTint, clamp01(0.12 + moodCurrent.waveMix * 0.45));
+				vine.setColor(vineHue);
+				if (vine?.lamp?.enabled) {
+					vine.lamp.color = mixColors(LAMP_BASE.color, moodCurrent.lampTint, 0.28 + moodCurrent.glowStrength * 0.34);
+					vine.lamp.glowColor = mixColors(LAMP_BASE.glowColor, moodCurrent.lampTint, 0.44 + moodCurrent.glowStrength * 0.36);
+					vine.lamp.glowAlpha = clamp01(0.32 + moodCurrent.glowStrength * 0.2 + localBoost * 0.22);
+					vine.lamp.coreAlpha = clamp01(0.92 + localBoost * 0.08);
+				}
+				vine.update(time, mouseWorld, seconds);
+			}
 			if (ENABLE_VINE_LAMP_LIGHTING && ENABLE_VINE_LAMPS) {
 				for (let i = 0; i < vines.length; i++) {
 					const v = vines[i];
 					const s = vineLightSprites[i];
 					if (!s || !v?.lamp?.enabled) continue;
 					const p = v.getLampPosition();
+					const localBoost = lampBoostByIndex[i] * (0.55 + moodCurrent.lampBoost * 1.25);
+					const pulse = 0.42 + 0.1 * Math.sin(time * 2.0 + i * 0.5);
 					s.position.set(p.x, p.y);
-					s.alpha = 0.45 + 0.1 * Math.sin(time * 2.0 + i * 0.5);
+					s.tint = mixColors(LAMP_BASE.glowColor, moodCurrent.lampTint, 0.46 + moodCurrent.glowStrength * 0.3);
+					s.alpha = clamp01(pulse + moodCurrent.glowStrength * 0.18 + localBoost * 0.45);
+					const baseScale = lampLightRadius / (lampLightTexture.width * 0.5);
+					s.scale.set(baseScale * (1 + localBoost * 0.16));
 				}
 			}
 

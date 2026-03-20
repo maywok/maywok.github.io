@@ -33,6 +33,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		useHtmlPreview = true,
 		dockScreenX = null,
 		dockScreenY = null,
+		onHoverChange = null,
 	} = options;
 
 	function extractFrameIndex(name) {
@@ -358,6 +359,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		state.hovered = true;
 		state.previewTarget = 1;
 		preview.visible = true;
+		onHoverChange?.({ hovered: true, key: 'Blog', container });
 		frozenSprite.visible = false;
 		hoverSprite.visible = true;
 		hoverSprite.gotoAndPlay(0);
@@ -369,6 +371,7 @@ export async function createBlogIcon(app, world, options = {}) {
 	container.on('pointerout', () => {
 		state.hovered = false;
 		state.previewTarget = 0;
+		onHoverChange?.({ hovered: false, key: 'Blog', container });
 		hoverSprite.stop();
 		hoverSprite.visible = false;
 		frozenSprite.visible = true;

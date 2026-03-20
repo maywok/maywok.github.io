@@ -19,6 +19,7 @@ export async function createReflexIcon(app, world, options = {}) {
 		panelBorderAlpha = 0.94,
 		dockScreenX = null,
 		dockScreenY = null,
+		onHoverChange = null,
 	} = options;
 
 	const playerIdleJsonUrl = './assets/spritesheet/json/blueNinjaIdle.json';
@@ -276,6 +277,7 @@ export async function createReflexIcon(app, world, options = {}) {
 	container.cursor = 'pointer';
 	container.on('pointerover', () => {
 		state.hovered = true;
+		onHoverChange?.({ hovered: true, key: 'Reflex', container });
 		idleSprite.visible = false;
 		runSprite.visible = true;
 	});
@@ -285,6 +287,7 @@ export async function createReflexIcon(app, world, options = {}) {
 	});
 	container.on('pointerout', () => {
 		state.hovered = false;
+		onHoverChange?.({ hovered: false, key: 'Reflex', container });
 		cardMotion.reset();
 		runSprite.visible = false;
 		idleSprite.visible = true;

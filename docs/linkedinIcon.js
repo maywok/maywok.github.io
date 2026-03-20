@@ -24,6 +24,7 @@ export async function createLinkedinIcon(app, world, options = {}) {
 		panelBorderAlpha = 0.94,
 		dockScreenX = null,
 		dockScreenY = null,
+		onHoverChange = null,
 	} = options;
 
 	function extractFrameIndex(name) {
@@ -175,6 +176,7 @@ export async function createLinkedinIcon(app, world, options = {}) {
 	container.cursor = 'pointer';
 	container.on('pointerover', () => {
 		state.hovered = true;
+		onHoverChange?.({ hovered: true, key: 'LinkedIn', container });
 		frozenSprite.visible = false;
 		hoverSprite.visible = true;
 		hoverSprite.gotoAndPlay(0);
@@ -185,6 +187,7 @@ export async function createLinkedinIcon(app, world, options = {}) {
 	});
 	container.on('pointerout', () => {
 		state.hovered = false;
+		onHoverChange?.({ hovered: false, key: 'LinkedIn', container });
 		hoverSprite.stop();
 		hoverSprite.visible = false;
 		frozenSprite.visible = true;

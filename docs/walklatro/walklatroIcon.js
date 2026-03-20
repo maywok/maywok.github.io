@@ -19,6 +19,7 @@ export async function createWalklatroIcon(app, world, options = {}) {
 		panelBorderAlpha = 0.94,
 		dockScreenX = null,
 		dockScreenY = null,
+		onHoverChange = null,
 	} = options;
 
 	const colors = {
@@ -174,6 +175,7 @@ export async function createWalklatroIcon(app, world, options = {}) {
 	container.cursor = 'pointer';
 	container.on('pointerover', () => {
 		state.hovered = true;
+		onHoverChange?.({ hovered: true, key: 'Walklatro', container });
 	});
 	container.on('pointermove', (event) => {
 		if (!state.hovered) return;
@@ -181,6 +183,7 @@ export async function createWalklatroIcon(app, world, options = {}) {
 	});
 	container.on('pointerout', () => {
 		state.hovered = false;
+		onHoverChange?.({ hovered: false, key: 'Walklatro', container });
 		cardMotion.reset();
 	});
 	container.on('pointertap', () => {

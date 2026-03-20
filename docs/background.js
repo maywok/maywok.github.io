@@ -83,6 +83,13 @@ function colorToVec3(color) {
   return new Float32Array([r, g, b]);
 }
 
+function writeColorToVec3(target, color) {
+  if (!target || target.length < 3) return;
+  target[0] = ((color >> 16) & 255) / 255;
+  target[1] = ((color >> 8) & 255) / 255;
+  target[2] = (color & 255) / 255;
+}
+
 function createFlowFilter(app, options = {}) {
   const {
     lineColor = 0x7f0020,
@@ -223,6 +230,19 @@ export function createCrimsonFlowBackground(app, options = {}) {
     autoTick = true,
   } = options;
 
+  const baseConfig = {
+    lineColor,
+    glowColor,
+    mistColorA,
+    mistColorB,
+    mistColorC,
+    mistStrength,
+    sparkStrength,
+    glowAlpha,
+    speed,
+    density,
+  };
+
   const container = new PIXI.Container();
   const baseTexture = PIXI.Texture.WHITE;
 
@@ -311,6 +331,53 @@ export function createCrimsonFlowBackground(app, options = {}) {
     container.destroy({ children: true });
   }
 
+  function setAmbience(config = {}) {
+    const next = config || {};
+    if (typeof next.lineColor === 'number') {
+      writeColorToVec3(coreUniforms.u_lineColor, next.lineColor);
+    }
+    if (typeof next.glowColor === 'number') {
+      writeColorToVec3(glowUniforms.u_lineColor, next.glowColor);
+    }
+    if (typeof next.bgColor === 'number') {
+      writeColorToVec3(coreUniforms.u_bgColor, next.bgColor);
+    }
+    if (typeof next.mistColorA === 'number') {
+      writeColorToVec3(coreUniforms.u_mistColorA, next.mistColorA);
+    }
+    if (typeof next.mistColorB === 'number') {
+      writeColorToVec3(coreUniforms.u_mistColorB, next.mistColorB);
+    }
+    if (typeof next.mistColorC === 'number') {
+      writeColorToVec3(coreUniforms.u_mistColorC, next.mistColorC);
+    }
+    if (Number.isFinite(next.mistStrength)) {
+      coreUniforms.u_mistStrength = Math.max(0, next.mistStrength);
+    }
+    if (Number.isFinite(next.sparkStrength)) {
+      coreUniforms.u_sparkStrength = Math.max(0, next.sparkStrength);
+    }
+    if (Number.isFinite(next.glowStrength)) {
+      coreUniforms.u_glowStrength = Math.max(0, next.glowStrength);
+      glowUniforms.u_glowStrength = Math.max(0, next.glowStrength + 0.35);
+    }
+    if (Number.isFinite(next.speed)) {
+      coreUniforms.u_speed = Math.max(0.01, next.speed);
+      glowUniforms.u_speed = Math.max(0.01, next.speed);
+    }
+    if (Number.isFinite(next.density)) {
+      coreUniforms.u_density = Math.max(0.1, next.density);
+      glowUniforms.u_density = Math.max(0.1, next.density);
+    }
+    if (Number.isFinite(next.glowAlpha)) {
+      glow.alpha = Math.max(0, Math.min(1, next.glowAlpha));
+    }
+  }
+
+  function resetAmbience() {
+    setAmbience(baseConfig);
+  }
+
   if (autoTick && app?.ticker?.add) {
     state.lastExternalUpdate = nowMs();
     state.tickerFn = (dt) => {
@@ -323,5 +390,5 @@ export function createCrimsonFlowBackground(app, options = {}) {
     app.ticker.add(state.tickerFn);
   }
 
-  return { container, update, resize, destroy };
+  return { container, update, resize, destroy, setAmbience, resetAmbience };
 }
