@@ -55,6 +55,63 @@ async function boot() {
 
 		const desktopTwoOverlay = document.getElementById('desktop-two-overlay');
 		const desktopTwoRoot = document.getElementById('desktop-two-root');
+		const portfolioUi = document.getElementById('portfolio-ui');
+		const cartridgeSlots = portfolioUi ? Array.from(portfolioUi.querySelectorAll('.cartridge-slot')) : [];
+		const projectWindow = document.getElementById('project-window');
+		const projectWindowClose = document.getElementById('project-window-close');
+		const projectEmptyLine = document.getElementById('project-empty-line');
+		const BRO_PLACEHOLDER_WORDS = [
+			'brochacho',
+			'broteinshake',
+			'Hy-bro-gen',
+			"Bro'dway",
+			'brototype',
+			'brofile',
+			'Bilbro Baggins',
+			'Brosidon',
+			'bro-cean',
+		];
+		const pickBroPlaceholderWord = () => {
+			if (!BRO_PLACEHOLDER_WORDS.length) return 'brochacho';
+			return BRO_PLACEHOLDER_WORDS[Math.floor(Math.random() * BRO_PLACEHOLDER_WORDS.length)];
+		};
+		const isProjectWindowOpen = () => Boolean(projectWindow && !projectWindow.hidden);
+		const closeProjectWindow = ({ immediate = false } = {}) => {
+			if (!projectWindow) return;
+			projectWindow.classList.remove('is-booting', 'is-open');
+			if (immediate) {
+				projectWindow.hidden = true;
+				return;
+			}
+			window.setTimeout(() => {
+				if (!projectWindow.classList.contains('is-open')) {
+					projectWindow.hidden = true;
+				}
+			}, 120);
+		};
+		const openProjectWindow = () => {
+			if (!projectWindow) return;
+			if (projectEmptyLine) {
+				projectEmptyLine.textContent = `Nothing here yet, ${pickBroPlaceholderWord()}.`;
+			}
+			projectWindow.hidden = false;
+			projectWindow.classList.remove('is-booting', 'is-open');
+			void projectWindow.offsetWidth;
+			projectWindow.classList.add('is-open', 'is-booting');
+			window.setTimeout(() => {
+				projectWindow.classList.remove('is-booting');
+			}, 240);
+		};
+		for (const slot of cartridgeSlots) {
+			slot.addEventListener('click', openProjectWindow);
+		}
+		projectWindowClose?.addEventListener('click', () => closeProjectWindow());
+		const setPortfolioUiActive = (active) => {
+			if (!portfolioUi) return;
+			portfolioUi.setAttribute('aria-hidden', active ? 'false' : 'true');
+			if (!active) closeProjectWindow({ immediate: true });
+		};
+		setPortfolioUiActive(false);
 		let desktopTwoApp = null;
 		let desktopTwoActive = false;
 		let onDesktopTwoActivated = null;
@@ -472,7 +529,7 @@ async function boot() {
 				desktopTwoCameraOffset.x += (targetX - desktopTwoCameraOffset.x) * DESKTOP_TWO_SMOOTHING;
 				desktopTwoCameraOffset.y += (targetY - desktopTwoCameraOffset.y) * DESKTOP_TWO_SMOOTHING;
 				desktopTwoPanelBoot += ((desktopTwoActive ? 1 : 0) - desktopTwoPanelBoot) * Math.min(1, dtSeconds * 9);
-				portfolioPanel.visible = desktopTwoPanelBoot > 0.01;
+				portfolioPanel.visible = !portfolioUi && desktopTwoPanelBoot > 0.01;
 				portfolioPanel.alpha = desktopTwoPanelBoot;
 				portfolioPanel.scale.set(0.98 + desktopTwoPanelBoot * 0.02);
 				if (desktopTwoCartridgeHover !== desktopTwoLastCartridgeHover) {
@@ -536,13 +593,19 @@ async function boot() {
 			if (desktopTwoOverlay) {
 				desktopTwoOverlay.setAttribute('aria-hidden', next ? 'false' : 'true');
 			}
+			setPortfolioUiActive(next);
 			if (next) {
 				ensureDesktopTwoBackground();
 				onDesktopTwoActivated?.();
 			}
 		};
 		window.addEventListener('keydown', (event) => {
-			if (event.key === 'Escape' && desktopTwoActive) setDesktopTwoActive(false);
+			if (event.key !== 'Escape') return;
+			if (desktopTwoActive && isProjectWindowOpen()) {
+				closeProjectWindow();
+				return;
+			}
+			if (desktopTwoActive) setDesktopTwoActive(false);
 		});
 
 		if (document.fonts && document.fonts.load) {
@@ -1591,7 +1654,7 @@ async function boot() {
 			};
 			const respawnArcadeTarget = (target, forceTypeIndex = null) => {
 				target.typeIndex = Number.isInteger(forceTypeIndex) ? forceTypeIndex : getArcadeTargetTypeIndex();
-				target.screenX = arcadeRand(app.renderer.width * 0.1, app.renderer.width * 0.44);
+				target.screenX = arcadeRand(app.renderer.width * 0.58, app.renderer.width * 0.9);
 				target.screenY = arcadeRand(app.renderer.height * 0.2, app.renderer.height * 0.63);
 				target.phase = Math.random() * Math.PI * 2;
 				target.phaseVel = arcadeRand(1.3, 2.6);
