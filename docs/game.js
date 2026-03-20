@@ -943,9 +943,156 @@ async function boot() {
 			lockToggle.addChild(lockGlow, lockBg, lockIcon);
 			lockToggle.zIndex = 150;
 			world.addChild(lockToggle);
+
+			const basketballToggle = new PIXI.Container();
+			const basketballBg = new PIXI.Graphics();
+			const basketballGlow = new PIXI.Graphics();
+			const basketballGlyph = new PIXI.Graphics();
+			const basketballButtonSize = 46;
+			let basketballHoverTarget = 0;
+			let basketballHover = 0;
+			let basketballMode = false;
+			let basketballScore = 0;
+			const iconScoreState = new WeakMap();
+			basketballToggle.eventMode = 'none';
+			basketballToggle.cursor = 'pointer';
+			const drawBasketballToggle = () => {
+				const hover = Math.max(0, Math.min(1, basketballHover));
+				basketballGlow.clear();
+				basketballGlow.beginFill(0x89d6ff, 0.08 + hover * 0.24);
+				basketballGlow.drawRoundedRect(-3, -3, basketballButtonSize + 6, basketballButtonSize + 6, 12);
+				basketballGlow.endFill();
+
+				basketballBg.clear();
+				basketballBg.beginFill(0x081526, 0.86);
+				basketballBg.lineStyle(1, 0x89d6ff, 0.5 + hover * 0.35);
+				basketballBg.drawRoundedRect(0, 0, basketballButtonSize, basketballButtonSize, 11);
+				basketballBg.endFill();
+
+				const cx = basketballButtonSize * 0.5;
+				const cy = basketballButtonSize * 0.5;
+				const r = basketballButtonSize * 0.27;
+				basketballGlyph.clear();
+				basketballGlyph.beginFill(0xf6a351, 0.95);
+				basketballGlyph.drawCircle(cx, cy, r);
+				basketballGlyph.endFill();
+				basketballGlyph.lineStyle(1.3, 0x5e2c17, 0.95);
+				basketballGlyph.moveTo(cx - r, cy);
+				basketballGlyph.lineTo(cx + r, cy);
+				basketballGlyph.moveTo(cx, cy - r);
+				basketballGlyph.lineTo(cx, cy + r);
+				basketballGlyph.arc(cx, cy, r * 0.7, -1.12, 1.12);
+				basketballGlyph.arc(cx, cy, r * 0.7, Math.PI - 1.12, Math.PI + 1.12);
+
+				basketballToggle.scale.set(1 + hover * 0.04);
+				basketballToggle.pivot.set((basketballButtonSize * basketballToggle.scale.x - basketballButtonSize) * 0.5, (basketballButtonSize * basketballToggle.scale.y - basketballButtonSize) * 0.5);
+			};
+			basketballToggle.addChild(basketballGlow, basketballBg, basketballGlyph);
+			basketballToggle.zIndex = 150;
+			basketballToggle.visible = false;
+			world.addChild(basketballToggle);
+
+			const arcadeLayer = new PIXI.Container();
+			arcadeLayer.eventMode = 'none';
+			arcadeLayer.zIndex = 140;
+			arcadeLayer.visible = false;
+			world.addChild(arcadeLayer);
+			const arcadeBackboard = new PIXI.Graphics();
+			const arcadeHoopTrail = new PIXI.Graphics();
+			const arcadeHoop = new PIXI.Graphics();
+			const arcadeNet = new PIXI.Graphics();
+			const arcadeDivider = new PIXI.Graphics();
+			const arcadeDividerGlow = new PIXI.Graphics();
+			const arcadeHintText = new PIXI.Text('THROW ICONS INTO THE HOOP', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 11,
+				fill: 0xbde9ff,
+				align: 'left',
+				letterSpacing: 1,
+			});
+			arcadeHintText.anchor.set(0, 0);
+			arcadeHintText.alpha = 0.82;
+			const arcadeScoreText = new PIXI.Text('SCORE 0', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 12,
+				fill: 0xe5f6ff,
+				align: 'left',
+				letterSpacing: 1,
+			});
+			arcadeScoreText.anchor.set(0, 0);
+			arcadeScoreText.alpha = 0.92;
+			arcadeLayer.addChild(arcadeDividerGlow, arcadeDivider, arcadeBackboard, arcadeHoopTrail, arcadeHoop, arcadeNet, arcadeHintText, arcadeScoreText);
+
+			const hoopTrailPoints = [];
+			const NET_COLS = 7;
+			const NET_ROWS = 7;
+			const netNodes = [];
+			const netSprings = [];
+			const arcadeState = {
+				hoopWorldX: 0,
+				hoopWorldY: 0,
+				hoopRadius: 0,
+				hoopInnerRadius: 0,
+				dividerWorldX: 0,
+				netRadius: 0,
+			};
+
+			const rebuildNet = (radius) => {
+				netNodes.length = 0;
+				netSprings.length = 0;
+				for (let r = 0; r < NET_ROWS; r++) {
+					for (let c = 0; c < NET_COLS; c++) {
+						const tx = (c / (NET_COLS - 1) - 0.5);
+						const spread = 1 - (r / (NET_ROWS - 1)) * 0.28;
+						netNodes.push({
+							x: tx * radius * 1.3 * spread,
+							y: r * radius * 0.34,
+							px: tx * radius * 1.3 * spread,
+							py: r * radius * 0.34,
+							pin: r === 0,
+						});
+					}
+				}
+				for (let r = 0; r < NET_ROWS; r++) {
+					for (let c = 0; c < NET_COLS; c++) {
+						const idx = r * NET_COLS + c;
+						if (c < NET_COLS - 1) {
+							const b = idx + 1;
+							const dx = netNodes[b].x - netNodes[idx].x;
+							const dy = netNodes[b].y - netNodes[idx].y;
+							netSprings.push([idx, b, Math.hypot(dx, dy)]);
+						}
+						if (r < NET_ROWS - 1) {
+							const b = idx + NET_COLS;
+							const dx = netNodes[b].x - netNodes[idx].x;
+							const dy = netNodes[b].y - netNodes[idx].y;
+							netSprings.push([idx, b, Math.hypot(dx, dy)]);
+						}
+					}
+				}
+				arcadeState.netRadius = radius;
+			};
+
+			const getAllIconBodies = () => {
+				const bodies = [];
+				const appBodies = appLauncher.getBodies?.() || [];
+				for (const body of appBodies) if (body?.container && body?.state) bodies.push(body);
+				const externals = [
+					blogIconGetBody?.(),
+					linkedinIconGetBody?.(),
+					reflexIconGetBody?.(),
+					walklatroIconGetBody?.(),
+				].filter(Boolean);
+				for (const body of externals) if (body?.container && body?.state) bodies.push(body);
+				return bodies;
+			};
 			const applyDragEnabled = (enabled) => {
 				dragEnabled = Boolean(enabled);
 				lockAnimTarget = dragEnabled ? 1 : 0;
+				basketballToggle.visible = dragEnabled;
+				basketballToggle.eventMode = dragEnabled ? 'static' : 'none';
+				if (!dragEnabled) basketballMode = false;
+				arcadeLayer.visible = basketballMode;
 				appLauncher.setDragEnabled?.(dragEnabled, { preserveMomentum: dragEnabled });
 				if (blogIconSetDragEnabled) blogIconSetDragEnabled(dragEnabled, { preserveMomentum: dragEnabled });
 				if (linkedinIconSetDragEnabled) linkedinIconSetDragEnabled(dragEnabled, { preserveMomentum: dragEnabled });
@@ -977,6 +1124,8 @@ async function boot() {
 					ringCandidate.active = false;
 					ringSpinVel = 0;
 					ringSpin = 0;
+					basketballHoverTarget = 0;
+					basketballHover = 0;
 					appLauncher.layout(false);
 					layoutBlogIcon(false);
 					layoutLinkedinIcon(false);
@@ -984,11 +1133,15 @@ async function boot() {
 					layoutWalklatroIcon(false);
 				}
 				lockNeedsRedraw = true;
+				drawBasketballToggle();
 			};
 			const placeLockButton = () => {
 				const x = screenToWorldX(app.renderer.width - lockButtonSize - 16);
 				const y = screenToWorldY(app.renderer.height - lockButtonSize - 16);
 				lockToggle.position.set(x, y);
+				const bx = screenToWorldX(app.renderer.width - lockButtonSize - basketballButtonSize - 26);
+				const by = screenToWorldY(app.renderer.height - basketballButtonSize - 19);
+				basketballToggle.position.set(bx, by);
 			};
 			lockToggle.on('pointerover', () => {
 				lockHoverTarget = 1;
@@ -999,6 +1152,19 @@ async function boot() {
 				lockNeedsRedraw = true;
 			});
 			lockToggle.on('pointertap', () => applyDragEnabled(!dragEnabled));
+			basketballToggle.on('pointerover', () => { basketballHoverTarget = 1; });
+			basketballToggle.on('pointerout', () => { basketballHoverTarget = 0; });
+			basketballToggle.on('pointertap', () => {
+				if (!dragEnabled) return;
+				basketballMode = !basketballMode;
+				arcadeLayer.visible = basketballMode;
+				if (basketballMode) {
+					basketballScore = 0;
+					arcadeScoreText.text = 'SCORE 0';
+					hoopTrailPoints.length = 0;
+					iconScoreState.clear?.();
+				}
+			});
 			placeLockButton();
 			applyDragEnabled(false);
 			let lastMouseWorld = { x: app.renderer.width / 2, y: app.renderer.height / 2 };
@@ -1351,7 +1517,12 @@ async function boot() {
 			const scaledY = y * (h / rect.height);
 			const cursorHalfW = cursor.width * 0.5;
 			const cursorHalfH = cursor.height * 0.5;
-			const nextX = Math.max(cursorHalfW, Math.min(w - cursorHalfW, scaledX));
+			let maxX = w - cursorHalfW;
+			if (basketballMode) {
+				const dividerX = w * 0.5;
+				maxX = Math.min(maxX, dividerX - Math.max(10, cursorHalfW + 4));
+			}
+			const nextX = Math.max(cursorHalfW, Math.min(maxX, scaledX));
 			const nextY = Math.max(cursorHalfH, Math.min(h - cursorHalfH, scaledY));
 			if (Number.isFinite(nextX) && Number.isFinite(nextY)) {
 				mouse.x = nextX;
@@ -1524,6 +1695,11 @@ async function boot() {
 			if (Math.abs(lockHover - prevHover) > 0.001 || Math.abs(lockAnim - prevAnim) > 0.001 || lockNeedsRedraw) {
 				drawLockControl();
 			}
+			const prevBHover = basketballHover;
+			basketballHover += (basketballHoverTarget - basketballHover) * lockEase;
+			if (Math.abs(basketballHover - prevBHover) > 0.001) {
+				drawBasketballToggle();
+			}
 			if (!desktopTwoActive) {
 				const edgeWidth = Math.max(1, leftPortalWidth * 1.9);
 				const edgeFactor = Math.max(0, Math.min(1, 1 - mouse.x / edgeWidth));
@@ -1608,6 +1784,165 @@ async function boot() {
 			const mouseWorld = { x: mouseWorldX, y: mouseWorldY, down: mouse.down };
 			lastMouseWorld = mouseWorld;
 			appLauncher.update(time, seconds, mouseWorld);
+			if (basketballMode && dragEnabled) {
+				arcadeLayer.visible = true;
+				const toWorldFromScreen = (sx, sy) => ({
+					x: (sx - cx - cameraOffset.x) / SCENE_SCALE + cx,
+					y: (sy - cy - cameraOffset.y) / SCENE_SCALE + cy,
+				});
+				const toWorldSizeWithCamera = (s) => s / SCENE_SCALE;
+				const dividerX = app.renderer.width * 0.5;
+				const dividerNear = Math.max(0, Math.min(1, 1 - Math.abs(mouse.x - dividerX) / 170));
+				const dividerTop = app.renderer.height * 0.06;
+				const dividerBottom = app.renderer.height * 0.94;
+				const dividerCenter = toWorldFromScreen(dividerX, app.renderer.height * 0.5);
+				const dividerWidth = toWorldSizeWithCamera(16);
+				const dividerHeight = toWorldSizeWithCamera(dividerBottom - dividerTop);
+				arcadeState.dividerWorldX = dividerCenter.x;
+
+				arcadeDividerGlow.clear();
+				arcadeDividerGlow.beginFill(0x7fd8ff, 0.08 + dividerNear * 0.42);
+				arcadeDividerGlow.drawRoundedRect(
+					dividerCenter.x - dividerWidth * 0.95,
+					dividerCenter.y - dividerHeight * 0.52,
+					dividerWidth * 1.9,
+					dividerHeight * 1.04,
+					dividerWidth * 0.6,
+				);
+				arcadeDividerGlow.endFill();
+
+				arcadeDivider.clear();
+				arcadeDivider.beginFill(0x92ddff, 0.16 + (1 - dividerNear) * 0.28);
+				arcadeDivider.drawRoundedRect(
+					dividerCenter.x - dividerWidth * 0.42,
+					dividerCenter.y - dividerHeight * 0.5,
+					dividerWidth * 0.84,
+					dividerHeight,
+					dividerWidth * 0.45,
+				);
+				arcadeDivider.endFill();
+
+				const hoopScreenX = app.renderer.width * 0.78;
+				const hoopScreenY = app.renderer.height * (0.34 + 0.16 * Math.sin(time * 0.72)) + Math.sin(time * 2.2) * 10;
+				const hoopPos = toWorldFromScreen(hoopScreenX, hoopScreenY);
+				const hoopRadius = toWorldSizeWithCamera(36);
+				const hoopInnerRadius = toWorldSizeWithCamera(22);
+				arcadeState.hoopWorldX = hoopPos.x;
+				arcadeState.hoopWorldY = hoopPos.y;
+				arcadeState.hoopRadius = hoopRadius;
+				arcadeState.hoopInnerRadius = hoopInnerRadius;
+
+				hoopTrailPoints.unshift({ x: hoopPos.x, y: hoopPos.y });
+				if (hoopTrailPoints.length > 18) hoopTrailPoints.length = 18;
+				arcadeHoopTrail.clear();
+				for (let i = 1; i < hoopTrailPoints.length; i++) {
+					const a = hoopTrailPoints[i - 1];
+					const b = hoopTrailPoints[i];
+					const alpha = (1 - i / hoopTrailPoints.length) * 0.42;
+					arcadeHoopTrail.lineStyle(2, 0x3fc8ff, alpha);
+					arcadeHoopTrail.moveTo(a.x, a.y);
+					arcadeHoopTrail.lineTo(b.x, b.y);
+				}
+
+				const boardW = toWorldSizeWithCamera(88);
+				const boardH = toWorldSizeWithCamera(148);
+				const boardX = hoopPos.x + toWorldSizeWithCamera(64);
+				const boardY = hoopPos.y - boardH * 0.48;
+				arcadeBackboard.clear();
+				arcadeBackboard.beginFill(0x0a1a2a, 0.86);
+				arcadeBackboard.lineStyle(2, 0x79d4ff, 0.86);
+				arcadeBackboard.drawRoundedRect(boardX, boardY, boardW, boardH, toWorldSizeWithCamera(8));
+				arcadeBackboard.endFill();
+				arcadeBackboard.lineStyle(1.5, 0xb9ecff, 0.5);
+				arcadeBackboard.drawRoundedRect(boardX + toWorldSizeWithCamera(11), boardY + toWorldSizeWithCamera(14), boardW - toWorldSizeWithCamera(22), boardH - toWorldSizeWithCamera(28), toWorldSizeWithCamera(4));
+
+				arcadeHoop.clear();
+				arcadeHoop.lineStyle(5, 0xff7bb8, 0.95);
+				arcadeHoop.arc(hoopPos.x, hoopPos.y, hoopRadius, Math.PI * 0.06, Math.PI * 0.94);
+				arcadeHoop.lineStyle(2, 0xc6efff, 0.7);
+				arcadeHoop.arc(hoopPos.x, hoopPos.y, hoopRadius + toWorldSizeWithCamera(4), Math.PI * 0.06, Math.PI * 0.94);
+
+				if (!netNodes.length || Math.abs(arcadeState.netRadius - hoopRadius) > toWorldSizeWithCamera(1.5)) {
+					rebuildNet(hoopRadius);
+				}
+				for (let c = 0; c < NET_COLS; c++) {
+					const idx = c;
+					const tCol = c / (NET_COLS - 1);
+					const x = (tCol - 0.5) * hoopRadius * 1.32;
+					const y = hoopRadius * (0.18 + Math.sin(time * 4 + tCol * 2.4) * 0.02);
+					netNodes[idx].x = x;
+					netNodes[idx].y = y;
+					netNodes[idx].px = x;
+					netNodes[idx].py = y;
+				}
+				for (let i = NET_COLS; i < netNodes.length; i++) {
+					const n = netNodes[i];
+					const vx = (n.x - n.px) * 0.985;
+					const vy = (n.y - n.py) * 0.985;
+					n.px = n.x;
+					n.py = n.y;
+					n.x += vx;
+					n.y += vy + toWorldSizeWithCamera(420) * seconds * seconds;
+				}
+				for (let iter = 0; iter < 4; iter++) {
+					for (const s of netSprings) {
+						const a = netNodes[s[0]];
+						const b = netNodes[s[1]];
+						const rest = s[2];
+						const dx = b.x - a.x;
+						const dy = b.y - a.y;
+						const d = Math.max(0.0001, Math.hypot(dx, dy));
+						const diff = (d - rest) / d;
+						const offX = dx * diff * 0.5;
+						const offY = dy * diff * 0.5;
+						if (!a.pin) {
+							a.x += offX;
+							a.y += offY;
+						}
+						if (!b.pin) {
+							b.x -= offX;
+							b.y -= offY;
+						}
+					}
+				}
+
+				arcadeNet.clear();
+				for (const s of netSprings) {
+					const a = netNodes[s[0]];
+					const b = netNodes[s[1]];
+					arcadeNet.lineStyle(1.2, 0xa5e8ff, 0.5);
+					arcadeNet.moveTo(hoopPos.x + a.x, hoopPos.y + a.y);
+					arcadeNet.lineTo(hoopPos.x + b.x, hoopPos.y + b.y);
+				}
+
+				arcadeHintText.position.set(toWorldFromScreen(24, 18).x, toWorldFromScreen(24, 18).y);
+				arcadeScoreText.position.set(toWorldFromScreen(24, 38).x, toWorldFromScreen(24, 38).y);
+
+				const bodies = getAllIconBodies();
+				for (const body of bodies) {
+					const key = body.container;
+					let st = iconScoreState.get(key);
+					if (!st) {
+						st = { lastY: body.container.position.y, cooldown: 0 };
+						iconScoreState.set(key, st);
+					}
+					st.cooldown = Math.max(0, st.cooldown - seconds);
+					const dx = body.container.position.x - arcadeState.hoopWorldX;
+					const prevDy = st.lastY - arcadeState.hoopWorldY;
+					const dy = body.container.position.y - arcadeState.hoopWorldY;
+					const falling = (body.state?.vy ?? 0) > 24;
+					const crossedDown = prevDy < -arcadeState.hoopInnerRadius * 0.25 && dy >= arcadeState.hoopInnerRadius * 0.05;
+					const inRimX = Math.abs(dx) <= arcadeState.hoopInnerRadius * 0.95;
+					if (st.cooldown <= 0 && crossedDown && inRimX && falling) {
+						basketballScore += 1;
+						arcadeScoreText.text = `SCORE ${basketballScore}`;
+						st.cooldown = 0.75;
+					}
+					st.lastY = body.container.position.y;
+				}
+			} else {
+				arcadeLayer.visible = false;
+			}
 			for (const vine of vines) vine.update(time, mouseWorld, seconds);
 			if (ENABLE_VINE_LAMP_LIGHTING && ENABLE_VINE_LAMPS) {
 				for (let i = 0; i < vines.length; i++) {
