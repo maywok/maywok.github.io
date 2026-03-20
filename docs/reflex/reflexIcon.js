@@ -72,7 +72,9 @@ export async function createReflexIcon(app, world, options = {}) {
 	const iconLayer = new PIXI.Container();
 	const idleSprite = new PIXI.AnimatedSprite(playerIdleTextures);
 	const runSprite = new PIXI.AnimatedSprite(playerRunTextures);
-	const ninjaHat = new PIXI.Graphics();
+	const ninjaSword = new PIXI.Graphics();
+	const ninjaStarTrail = new PIXI.Graphics();
+	const ninjaStar = new PIXI.Graphics();
 	idleSprite.anchor.set(0.5);
 	runSprite.anchor.set(0.5);
 	idleSprite.animationSpeed = 0.14;
@@ -101,28 +103,62 @@ export async function createReflexIcon(app, world, options = {}) {
 		labelText.position.set(0, backgroundHeight / 2 + 6);
 	};
 
-	const drawHat = () => {
-		const hatW = backgroundWidth * 0.42;
-		const hatH = backgroundHeight * 0.24;
-		ninjaHat.clear();
-		ninjaHat.beginFill(0x5d1230, 0.98);
-		ninjaHat.lineStyle(2, 0xff9db6, 0.92);
-		ninjaHat.moveTo(-hatW * 0.5, 0);
-		ninjaHat.lineTo(0, -hatH);
-		ninjaHat.lineTo(hatW * 0.5, 0);
-		ninjaHat.closePath();
-		ninjaHat.endFill();
-		ninjaHat.lineStyle(1.5, 0xfed2df, 0.9);
-		ninjaHat.moveTo(-hatW * 0.32, -hatH * 0.45);
-		ninjaHat.lineTo(hatW * 0.32, -hatH * 0.45);
-		ninjaHat.position.set(0, -backgroundHeight * 0.26);
+	const drawSword = () => {
+		const bladeLen = Math.min(backgroundWidth, backgroundHeight) * 0.52;
+		const bladeW = Math.max(3, bladeLen * 0.12);
+		const hiltW = bladeW * 1.7;
+		const hiltH = Math.max(4, bladeW * 0.78);
+		ninjaSword.clear();
+		ninjaSword.lineStyle(1.4, 0xf2f8ff, 0.86);
+		ninjaSword.beginFill(0xc7d8ec, 0.94);
+		ninjaSword.drawRoundedRect(-bladeW * 0.5, -bladeLen, bladeW, bladeLen, 2);
+		ninjaSword.endFill();
+		ninjaSword.beginFill(0xf6fbff, 0.92);
+		ninjaSword.moveTo(0, -bladeLen - bladeW * 0.42);
+		ninjaSword.lineTo(bladeW * 0.46, -bladeLen + bladeW * 0.12);
+		ninjaSword.lineTo(-bladeW * 0.46, -bladeLen + bladeW * 0.12);
+		ninjaSword.closePath();
+		ninjaSword.endFill();
+		ninjaSword.lineStyle(1.5, 0xffb8cd, 0.92);
+		ninjaSword.beginFill(0x611a35, 0.96);
+		ninjaSword.drawRoundedRect(-hiltW * 0.5, -hiltH * 0.5, hiltW, hiltH, 2);
+		ninjaSword.endFill();
+		ninjaSword.lineStyle(1.1, 0x9e2f57, 0.88);
+		ninjaSword.beginFill(0xffd8e7, 0.96);
+		ninjaSword.drawRoundedRect(-bladeW * 0.38, hiltH * 0.2, bladeW * 0.76, hiltH * 0.78, 2);
+		ninjaSword.endFill();
+		ninjaSword.position.set(-backgroundWidth * 0.23, backgroundHeight * 0.26);
+		ninjaSword.rotation = -0.68;
+	};
+
+	const drawStar = () => {
+		const rOuter = Math.min(backgroundWidth, backgroundHeight) * 0.13;
+		const rInner = rOuter * 0.42;
+		ninjaStar.clear();
+		ninjaStar.lineStyle(1.2, 0xffd5e2, 0.9);
+		ninjaStar.beginFill(0xf6f9ff, 0.96);
+		for (let i = 0; i < 8; i++) {
+			const isOuter = i % 2 === 0;
+			const a = -Math.PI * 0.5 + i * (Math.PI / 4);
+			const r = isOuter ? rOuter : rInner;
+			const x = Math.cos(a) * r;
+			const y = Math.sin(a) * r;
+			if (i === 0) ninjaStar.moveTo(x, y);
+			else ninjaStar.lineTo(x, y);
+		}
+		ninjaStar.closePath();
+		ninjaStar.endFill();
+		ninjaStar.beginFill(0x7f8fa8, 0.9);
+		ninjaStar.drawCircle(0, 0, rInner * 0.38);
+		ninjaStar.endFill();
 	};
 
 	drawPanel();
-	drawHat();
+	drawSword();
+	drawStar();
 	sizeToFit(idleSprite);
 	sizeToFit(runSprite);
-	iconLayer.addChild(idleSprite, runSprite, ninjaHat);
+	iconLayer.addChild(idleSprite, runSprite, ninjaSword, ninjaStarTrail, ninjaStar);
 
 	container.addChild(panel, panelBorderGraphic, iconLayer, labelText);
 	container.scale.set(scale);
@@ -155,6 +191,20 @@ export async function createReflexIcon(app, world, options = {}) {
 		mouseProvider: null,
 		lastMouse: null,
 		mouseVel: { x: 0, y: 0 },
+		star: {
+			homeX: backgroundWidth * 0.24,
+			homeY: -backgroundHeight * 0.06,
+			x: backgroundWidth * 0.24,
+			y: -backgroundHeight * 0.06,
+			vx: 0,
+			vy: 0,
+			angle: 0,
+			spin: 0,
+			active: false,
+			age: 0,
+			cooldown: 0.35,
+			trail: [],
+		},
 	};
 	const PHYSICS = {
 		gravity: 1400,
@@ -172,6 +222,12 @@ export async function createReflexIcon(app, world, options = {}) {
 		max: 14,
 		upright: 0,
 		groundRoll: 0.018,
+	};
+	const STAR_PHYSICS = {
+		gravity: Math.max(180, backgroundHeight * 9.5),
+		air: 0.994,
+		spinDamp: 0.992,
+		maxAge: 1.2,
 	};
 	const screenToWorldX = (screenX) => {
 		const cx = app.renderer.width / 2;
@@ -193,6 +249,30 @@ export async function createReflexIcon(app, world, options = {}) {
 			});
 		}
 		return gameOverlay;
+	};
+	const randomBetween = (min, max) => min + Math.random() * (max - min);
+	const resetStarDock = () => {
+		state.star.active = false;
+		state.star.vx = 0;
+		state.star.vy = 0;
+		state.star.age = 0;
+		state.star.x += (state.star.homeX - state.star.x) * 0.22;
+		state.star.y += (state.star.homeY - state.star.y) * 0.22;
+		state.star.spin *= 0.88;
+		if (state.star.trail.length) state.star.trail.length = Math.max(0, state.star.trail.length - 1);
+	};
+	const throwStar = () => {
+		state.star.active = true;
+		state.star.age = 0;
+		state.star.x = state.star.homeX;
+		state.star.y = state.star.homeY;
+		const speed = randomBetween(backgroundWidth * 2.8, backgroundWidth * 4.6);
+		const angle = randomBetween(-1.12, -0.5);
+		state.star.vx = Math.cos(angle) * speed;
+		state.star.vy = Math.sin(angle) * speed;
+		state.star.angle = angle;
+		state.star.spin = randomBetween(0, Math.PI * 2);
+		state.star.cooldown = randomBetween(0.22, 0.7);
 	};
 
 	container.eventMode = 'static';
@@ -291,9 +371,55 @@ export async function createReflexIcon(app, world, options = {}) {
 
 	app.ticker.add((dt) => {
 		cardMotion.update();
-		const hatBob = Math.sin(app.ticker.lastTime * 0.006) * (state.hovered ? 1.8 : 1.0);
-		ninjaHat.position.y = -backgroundHeight * 0.26 + hatBob;
-		ninjaHat.rotation = Math.sin(app.ticker.lastTime * 0.004) * (state.hovered ? 0.12 : 0.05);
+		const dtSeconds = dt / 60;
+		const swordBob = Math.sin(app.ticker.lastTime * 0.0048) * (state.hovered ? 1.4 : 0.8);
+		ninjaSword.position.y = backgroundHeight * 0.26 + swordBob;
+		ninjaSword.rotation = -0.68 + Math.sin(app.ticker.lastTime * 0.0038) * (state.hovered ? 0.11 : 0.05);
+		if (state.hovered) {
+			if (!state.star.active) {
+				state.star.cooldown -= dtSeconds;
+				if (state.star.cooldown <= 0) throwStar();
+			}
+		} else {
+			state.star.cooldown = Math.min(0.45, state.star.cooldown + dtSeconds * 0.8);
+			resetStarDock();
+		}
+		if (state.star.active) {
+			state.star.age += dtSeconds;
+			state.star.vy += STAR_PHYSICS.gravity * dtSeconds;
+			state.star.vx *= Math.pow(STAR_PHYSICS.air, dtSeconds * 60);
+			state.star.vy *= Math.pow(STAR_PHYSICS.air, dtSeconds * 60);
+			state.star.x += state.star.vx * dtSeconds;
+			state.star.y += state.star.vy * dtSeconds;
+			state.star.spin += (state.star.vx > 0 ? 1 : -1) * 9.2 * dtSeconds;
+			state.star.spin *= Math.pow(STAR_PHYSICS.spinDamp, dtSeconds * 60);
+			state.star.trail.unshift({ x: state.star.x, y: state.star.y });
+			if (state.star.trail.length > 7) state.star.trail.length = 7;
+			const outOfBounds = (
+				state.star.x > backgroundWidth * 0.88
+				|| state.star.x < -backgroundWidth * 0.76
+				|| state.star.y > backgroundHeight * 0.65
+				|| state.star.y < -backgroundHeight * 0.86
+			);
+			if (state.star.age >= STAR_PHYSICS.maxAge || outOfBounds) {
+				state.star.active = false;
+				state.star.cooldown = randomBetween(0.18, 0.62);
+			}
+		}
+		ninjaStar.position.set(state.star.x, state.star.y);
+		ninjaStar.rotation = state.star.spin;
+		ninjaStarTrail.clear();
+		for (let i = 1; i < state.star.trail.length; i++) {
+			const a = state.star.trail[i - 1];
+			const b = state.star.trail[i];
+			const alpha = (1 - i / state.star.trail.length) * (state.hovered ? 0.55 : 0.22);
+			ninjaStarTrail.lineStyle(1.5, 0xfecbe0, alpha);
+			ninjaStarTrail.moveTo(a.x, a.y);
+			ninjaStarTrail.lineTo(b.x, b.y);
+		}
+		if (!state.star.active && !state.hovered) {
+			resetStarDock();
+		}
 		const targetScale = state.hovered ? scale * 1.05 : scale;
 		state.currentScale += (targetScale - state.currentScale) * 0.18 * dt;
 		container.scale.set(state.currentScale);
@@ -308,7 +434,6 @@ export async function createReflexIcon(app, world, options = {}) {
 		const minBoundY = minY + state.radiusScaled;
 		const maxBoundY = maxY - state.radiusScaled;
 		const mouse = state.mouseProvider?.();
-		const dtSeconds = dt / 60;
 		if (mouse) {
 			if (state.lastMouse && dtSeconds > 0) {
 				state.mouseVel = {
