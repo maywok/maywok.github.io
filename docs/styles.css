@@ -57,7 +57,7 @@ body {
     transform: translateX(-100%);
     transition: transform 560ms cubic-bezier(.22,1,.36,1), opacity 320ms ease;
     filter: none;
-    background: #d7bf98;
+    background: #090b10;
 }
 
 .desktop-two-overlay::before {
@@ -87,7 +87,7 @@ html.desktop-two-active .desktop-two-overlay {
 }
 
 html.desktop-two-active body {
-    background: #d7bf98;
+    background: #05070c;
 }
 
 html.desktop-two-active body::before {
@@ -97,7 +97,7 @@ html.desktop-two-active body::before {
 .desktop-two-root {
     position: absolute;
     inset: 0;
-    background: #d7bf98;
+    background: #090b10;
     z-index: 1;
 }
 

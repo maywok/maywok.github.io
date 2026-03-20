@@ -57,9 +57,10 @@ async function boot() {
 		const desktopTwoRoot = document.getElementById('desktop-two-root');
 		let desktopTwoApp = null;
 		let desktopTwoActive = false;
+		let onDesktopTwoActivated = null;
 		const ensureDesktopTwoBackground = () => {
 			if (!desktopTwoRoot || desktopTwoApp) return;
-			const DESKTOP_TWO_BG = 0xd7bf98;
+			const DESKTOP_TWO_BG = 0x090b10;
 			desktopTwoApp = new PIXI.Application({
 				resizeTo: desktopTwoRoot,
 				background: DESKTOP_TWO_BG,
@@ -76,11 +77,11 @@ async function boot() {
 				PIXI.settings.ROUND_PIXELS = true;
 			}
 			desktopTwoRoot.appendChild(desktopTwoApp.view);
-			desktopTwoRoot.style.backgroundColor = '#d7bf98';
+			desktopTwoRoot.style.backgroundColor = '#090b10';
 			desktopTwoApp.view.style.width = '100%';
 			desktopTwoApp.view.style.height = '100%';
 			desktopTwoApp.view.style.display = 'block';
-			desktopTwoApp.view.style.backgroundColor = '#d7bf98';
+			desktopTwoApp.view.style.backgroundColor = '#090b10';
 			const desktopTwoBaseFill = new PIXI.Sprite(PIXI.Texture.WHITE);
 			desktopTwoBaseFill.tint = DESKTOP_TWO_BG;
 			desktopTwoBaseFill.position.set(0, 0);
@@ -89,7 +90,12 @@ async function boot() {
 			desktopTwoApp.stage.addChild(desktopTwoBaseFill);
 			const desktopTwoScene = new PIXI.Container();
 			desktopTwoApp.stage.addChild(desktopTwoScene);
-			const { container: desktopTwoFlow, update: updateDesktopTwoFlow, resize: resizeDesktopTwoFlow } = createCrimsonFlowBackground(desktopTwoApp, {
+			const {
+				container: desktopTwoFlow,
+				update: updateDesktopTwoFlow,
+				resize: resizeDesktopTwoFlow,
+				setAmbience: setDesktopTwoFlowAmbience,
+			} = createCrimsonFlowBackground(desktopTwoApp, {
 				lineColor: 0x2a1414,
 				glowColor: 0x8f1b31,
 				bgColor: DESKTOP_TWO_BG,
@@ -117,6 +123,215 @@ async function boot() {
 			desktopTwoScene.filters = [desktopTwoFisheyeFilter, desktopTwoScanlinesFilter];
 			desktopTwoScene.filterArea = new PIXI.Rectangle(0, 0, desktopTwoApp.renderer.width, desktopTwoApp.renderer.height);
 			desktopTwoScene.addChild(desktopTwoFlow);
+
+			const mixDesktopColor = (a, b, t) => {
+				const tt = Math.max(0, Math.min(1, t));
+				const ar = (a >> 16) & 255;
+				const ag = (a >> 8) & 255;
+				const ab = a & 255;
+				const br = (b >> 16) & 255;
+				const bg = (b >> 8) & 255;
+				const bb = b & 255;
+				const rr = Math.round(ar + (br - ar) * tt);
+				const rg = Math.round(ag + (bg - ag) * tt);
+				const rb = Math.round(ab + (bb - ab) * tt);
+				return (rr << 16) | (rg << 8) | rb;
+			};
+			const makeDesktopTwoNoiseTexture = () => {
+				const canvas = document.createElement('canvas');
+				canvas.width = 128;
+				canvas.height = 128;
+				const ctx = canvas.getContext('2d');
+				if (!ctx) return PIXI.Texture.WHITE;
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+				for (let i = 0; i < 650; i++) {
+					const x = Math.floor(Math.random() * canvas.width);
+					const y = Math.floor(Math.random() * canvas.height);
+					const a = 0.025 + Math.random() * 0.045;
+					ctx.fillStyle = `rgba(52, 39, 24, ${a.toFixed(3)})`;
+					ctx.fillRect(x, y, 1, 1);
+				}
+				return PIXI.Texture.from(canvas);
+			};
+			const desktopTwoFlowBase = {
+				lineColor: 0x2a1414,
+				glowColor: 0x8f1b31,
+				mistColorB: 0x6a5643,
+				mistColorC: 0x8a6f51,
+				speed: 0.75,
+				density: 4.6,
+				glowStrength: 0.35,
+			};
+			const portfolioPanel = new PIXI.Container();
+			const portfolioShadow = new PIXI.Graphics();
+			const portfolioBody = new PIXI.Graphics();
+			const portfolioInnerBorder = new PIXI.Graphics();
+			const portfolioAccent = new PIXI.Graphics();
+			const portfolioMask = new PIXI.Graphics();
+			const portfolioNoise = new PIXI.TilingSprite(makeDesktopTwoNoiseTexture(), 64, 64);
+			portfolioNoise.alpha = 0.08;
+			portfolioNoise.blendMode = PIXI.BLEND_MODES.MULTIPLY;
+			portfolioNoise.mask = portfolioMask;
+			const portfolioShelfLayer = new PIXI.Graphics();
+			const portfolioTitle = new PIXI.Text('PROJECT CARTRIDGES', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 16,
+				fill: 0x5a3f2b,
+				align: 'center',
+				letterSpacing: 1,
+			});
+			portfolioTitle.anchor.set(0.5, 0);
+			const portfolioSub = new PIXI.Text('Select a cartridge to load', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 10,
+				fill: 0x7e6549,
+				align: 'center',
+				letterSpacing: 1,
+			});
+			portfolioSub.anchor.set(0.5, 0);
+			const projectCartridgeDefs = [
+				{ label: 'BLOG', tint: 0x5c9d6f, url: '/blog' },
+				{ label: 'REFLEX', tint: 0xcf5f8f, url: '/reflex' },
+				{ label: 'WALKLATRO', tint: 0xd5a063, url: '/walklatro' },
+				{ label: 'RESUME', tint: 0xb58a59, url: './assets/files/mason-walker-resume.pdf' },
+				{ label: 'LINKEDIN', tint: 0x4f80bf, url: 'https://www.linkedin.com/in/mason--walker/' },
+				{ label: 'GITHUB', tint: 0x7a659d, url: 'https://github.com/maywok' },
+			];
+			const portfolioCartridges = projectCartridgeDefs.map((project, index) => {
+				const node = new PIXI.Container();
+				const glow = new PIXI.Graphics();
+				const body = new PIXI.Graphics();
+				const notch = new PIXI.Graphics();
+				const label = new PIXI.Text(project.label, {
+					fontFamily: 'Minecraft, monospace',
+					fontSize: 9,
+					fill: 0xe8dcc7,
+					align: 'center',
+					letterSpacing: 1,
+				});
+				label.anchor.set(0.5, 0.5);
+				node.eventMode = 'static';
+				node.cursor = 'pointer';
+				node.on('pointertap', () => {
+					window.open(project.url, '_blank', 'noopener');
+				});
+				node.addChild(glow, body, notch, label);
+				portfolioPanel.addChild(node);
+				return {
+					index,
+					tint: project.tint,
+					node,
+					glow,
+					body,
+					notch,
+					label,
+					hovered: false,
+				};
+			});
+			portfolioPanel.addChild(portfolioShadow, portfolioBody, portfolioInnerBorder, portfolioAccent, portfolioNoise, portfolioMask, portfolioShelfLayer, portfolioTitle, portfolioSub);
+			desktopTwoScene.addChild(portfolioPanel);
+
+			let desktopTwoPanelBoot = 0;
+			let desktopTwoCartridgeHover = -1;
+			let desktopTwoLastCartridgeHover = -2;
+			const setDesktopTwoCartridgeHover = (index, hovered) => {
+				if (hovered) {
+					desktopTwoCartridgeHover = index;
+					return;
+				}
+				if (desktopTwoCartridgeHover === index) desktopTwoCartridgeHover = -1;
+			};
+			for (const cartridge of portfolioCartridges) {
+				cartridge.node.on('pointerover', () => setDesktopTwoCartridgeHover(cartridge.index, true));
+				cartridge.node.on('pointerout', () => setDesktopTwoCartridgeHover(cartridge.index, false));
+			}
+
+			const layoutPortfolioPanel = () => {
+				const w = desktopTwoApp.renderer.width;
+				const h = desktopTwoApp.renderer.height;
+				const panelW = Math.max(540, Math.min(1120, w * 0.78));
+				const panelH = Math.max(360, Math.min(780, h * 0.76));
+				const r = Math.max(12, Math.round(Math.min(panelW, panelH) * 0.03));
+				portfolioPanel.position.set(w * 0.5, h * 0.52);
+
+				portfolioShadow.clear();
+				portfolioShadow.beginFill(0x000000, 0.34);
+				portfolioShadow.drawRoundedRect(-panelW * 0.5 + 10, -panelH * 0.5 + 12, panelW, panelH, r + 2);
+				portfolioShadow.endFill();
+
+				portfolioBody.clear();
+				portfolioBody.beginFill(0xd6c3a3, 0.97);
+				portfolioBody.drawRoundedRect(-panelW * 0.5, -panelH * 0.5, panelW, panelH, r);
+				portfolioBody.endFill();
+
+				portfolioInnerBorder.clear();
+				portfolioInnerBorder.lineStyle(2, 0xb89a73, 0.86);
+				portfolioInnerBorder.drawRoundedRect(-panelW * 0.5 + 8, -panelH * 0.5 + 8, panelW - 16, panelH - 16, Math.max(8, r - 4));
+
+				portfolioAccent.clear();
+				portfolioAccent.lineStyle(2, 0x8f1b31, 0.22);
+				portfolioAccent.moveTo(-panelW * 0.46, -panelH * 0.33);
+				portfolioAccent.lineTo(panelW * 0.46, -panelH * 0.33);
+
+				portfolioMask.clear();
+				portfolioMask.beginFill(0xffffff, 1);
+				portfolioMask.drawRoundedRect(-panelW * 0.5 + 4, -panelH * 0.5 + 4, panelW - 8, panelH - 8, Math.max(8, r - 3));
+				portfolioMask.endFill();
+				portfolioNoise.width = panelW - 8;
+				portfolioNoise.height = panelH - 8;
+				portfolioNoise.position.set(-panelW * 0.5 + 4, -panelH * 0.5 + 4);
+
+				portfolioTitle.position.set(0, -panelH * 0.42);
+				portfolioSub.position.set(0, -panelH * 0.35);
+
+				portfolioShelfLayer.clear();
+				portfolioShelfLayer.lineStyle(2, 0xae8d63, 0.62);
+				const shelfTop = -panelH * 0.22;
+				const shelfGap = panelH * 0.31;
+				for (let i = 0; i < 2; i++) {
+					const y = shelfTop + shelfGap * i;
+					portfolioShelfLayer.moveTo(-panelW * 0.38, y);
+					portfolioShelfLayer.lineTo(panelW * 0.38, y);
+				}
+
+				const cols = 3;
+				const rows = 2;
+				const cardW = panelW * 0.2;
+				const cardH = panelH * 0.16;
+				const xGap = panelW * 0.26;
+				const yGap = panelH * 0.31;
+				const startX = -xGap;
+				const startY = -panelH * 0.2;
+				portfolioCartridges.forEach((cartridge, idx) => {
+					const col = idx % cols;
+					const row = Math.floor(idx / cols) % rows;
+					const x = startX + xGap * col;
+					const y = startY + yGap * row;
+					const hovered = desktopTwoCartridgeHover === idx;
+					cartridge.node.position.set(x, y);
+					cartridge.node.scale.set(hovered ? 1.04 : 1);
+					cartridge.glow.clear();
+					cartridge.glow.beginFill(cartridge.tint, hovered ? 0.22 : 0.08);
+					cartridge.glow.drawRoundedRect(-cardW * 0.53, -cardH * 0.53, cardW * 1.06, cardH * 1.06, 7);
+					cartridge.glow.endFill();
+
+					cartridge.body.clear();
+					cartridge.body.beginFill(0x2f2418, 0.94);
+					cartridge.body.lineStyle(2, mixDesktopColor(0x7b6550, cartridge.tint, hovered ? 0.4 : 0.2), 0.9);
+					cartridge.body.drawRoundedRect(-cardW * 0.5, -cardH * 0.5, cardW, cardH, 6);
+					cartridge.body.endFill();
+
+					cartridge.notch.clear();
+					cartridge.notch.beginFill(0x1f170f, 0.9);
+					cartridge.notch.drawRoundedRect(-cardW * 0.18, -cardH * 0.5, cardW * 0.36, cardH * 0.2, 4);
+					cartridge.notch.endFill();
+
+					cartridge.label.style.fill = hovered ? 0xfff2da : 0xe8dcc7;
+					cartridge.label.style.fontSize = Math.max(9, Math.round(cardH * 0.23));
+					cartridge.label.position.set(0, cardH * 0.06);
+				});
+			};
+			layoutPortfolioPanel();
 
 			const rightPortal = new PIXI.Container();
 			const rightGlowSoft = new PIXI.Graphics();
@@ -247,6 +462,7 @@ async function boot() {
 			const desktopTwoCameraOffset = { x: 0, y: 0 };
 			desktopTwoApp.ticker.add((dt) => {
 				desktopTwoTime += dt / 60;
+				const dtSeconds = dt / 60;
 				updateCRTFisheyeFilter({ uniforms: desktopTwoFisheyeUniforms }, desktopTwoApp, dt / 60);
 				updateCRTScanlinesFilter({ uniforms: desktopTwoScanlinesUniforms }, desktopTwoApp, dt / 60);
 				const nx = (desktopTwoMouse.x / Math.max(1, desktopTwoApp.renderer.width)) * 2 - 1;
@@ -255,11 +471,33 @@ async function boot() {
 				const targetY = -ny * DESKTOP_TWO_PARALLAX;
 				desktopTwoCameraOffset.x += (targetX - desktopTwoCameraOffset.x) * DESKTOP_TWO_SMOOTHING;
 				desktopTwoCameraOffset.y += (targetY - desktopTwoCameraOffset.y) * DESKTOP_TWO_SMOOTHING;
+				desktopTwoPanelBoot += ((desktopTwoActive ? 1 : 0) - desktopTwoPanelBoot) * Math.min(1, dtSeconds * 9);
+				portfolioPanel.visible = desktopTwoPanelBoot > 0.01;
+				portfolioPanel.alpha = desktopTwoPanelBoot;
+				portfolioPanel.scale.set(0.98 + desktopTwoPanelBoot * 0.02);
+				if (desktopTwoCartridgeHover !== desktopTwoLastCartridgeHover) {
+					desktopTwoLastCartridgeHover = desktopTwoCartridgeHover;
+					layoutPortfolioPanel();
+				}
+				const cartridgeTint = desktopTwoCartridgeHover >= 0
+					? projectCartridgeDefs[desktopTwoCartridgeHover]?.tint ?? desktopTwoFlowBase.glowColor
+					: desktopTwoFlowBase.glowColor;
+				const cartridgeMix = desktopTwoCartridgeHover >= 0 ? 0.26 : 0.08;
+				setDesktopTwoFlowAmbience?.({
+					lineColor: mixDesktopColor(desktopTwoFlowBase.lineColor, cartridgeTint, cartridgeMix),
+					glowColor: mixDesktopColor(desktopTwoFlowBase.glowColor, cartridgeTint, cartridgeMix + 0.08),
+					mistColorB: mixDesktopColor(desktopTwoFlowBase.mistColorB, cartridgeTint, cartridgeMix * 0.44),
+					mistColorC: mixDesktopColor(desktopTwoFlowBase.mistColorC, cartridgeTint, cartridgeMix * 0.5),
+					speed: desktopTwoFlowBase.speed * (desktopTwoCartridgeHover >= 0 ? 1.08 : 1.0),
+					density: desktopTwoFlowBase.density * (desktopTwoCartridgeHover >= 0 ? 1.05 : 1.0),
+					glowStrength: desktopTwoFlowBase.glowStrength + (desktopTwoCartridgeHover >= 0 ? 0.14 : 0.03),
+				});
 				updateDesktopTwoFlow(desktopTwoTime, desktopTwoCameraOffset);
 				updateDesktopTwoCursorPixelate();
 				desktopTwoCursor.position.set(desktopTwoMouse.x, desktopTwoMouse.y);
 
 				if (!desktopTwoActive) {
+					desktopTwoCartridgeHover = -1;
 					rightPortalProgress += (0 - rightPortalProgress) * 0.2;
 					rightGlowSoft.alpha = 0;
 					rightGlow.alpha = 0;
@@ -286,6 +524,7 @@ async function boot() {
 				desktopTwoBaseFill.height = desktopTwoApp.renderer.height;
 				desktopTwoScene.filterArea = new PIXI.Rectangle(0, 0, desktopTwoApp.renderer.width, desktopTwoApp.renderer.height);
 				resizeDesktopTwoFlow();
+				layoutPortfolioPanel();
 				layoutRightPortal();
 			};
 			desktopTwoApp.renderer?.on?.('resize', handleDesktopTwoResize);
@@ -297,7 +536,10 @@ async function boot() {
 			if (desktopTwoOverlay) {
 				desktopTwoOverlay.setAttribute('aria-hidden', next ? 'false' : 'true');
 			}
-			if (next) ensureDesktopTwoBackground();
+			if (next) {
+				ensureDesktopTwoBackground();
+				onDesktopTwoActivated?.();
+			}
 		};
 		window.addEventListener('keydown', (event) => {
 			if (event.key === 'Escape' && desktopTwoActive) setDesktopTwoActive(false);
@@ -1765,19 +2007,126 @@ async function boot() {
 		cursorContainer.filters = [cursorPixelateFilter];
 		world.addChild(cursorContainer);
 
+		const transitionWipe = new PIXI.Graphics();
+		transitionWipe.eventMode = 'none';
+		transitionWipe.visible = false;
+		app.stage.addChild(transitionWipe);
+
+		const PORTFOLIO_SEEN_KEY = 'mw_portfolio_seen';
+		let showFirstPortfolioHint = (() => {
+			try {
+				return localStorage.getItem(PORTFOLIO_SEEN_KEY) !== '1';
+			} catch (_) {
+				return true;
+			}
+		})();
+		onDesktopTwoActivated = () => {
+			showFirstPortfolioHint = false;
+			try {
+				localStorage.setItem(PORTFOLIO_SEEN_KEY, '1');
+			} catch (_) {
+			}
+		};
+
+		const desktopTwoEntryTransition = {
+			active: false,
+			phase: 0,
+			duration: 0.36,
+			surge: 0,
+		};
+		const drawTransitionWipe = (phase) => {
+			const t = Math.max(0, Math.min(1, phase));
+			const cols = 22;
+			const rows = 14;
+			const w = app.renderer.width;
+			const h = app.renderer.height;
+			const cw = w / cols;
+			const rh = h / rows;
+			const revealCols = Math.ceil(cols * t);
+			transitionWipe.clear();
+			if (revealCols <= 0) {
+				transitionWipe.visible = false;
+				return;
+			}
+			transitionWipe.visible = true;
+			for (let c = 0; c < revealCols; c++) {
+				for (let r = 0; r < rows; r++) {
+					const stagger = ((c * 7 + r * 3) % 9) / 9;
+					if (t < stagger * 0.12) continue;
+					const color = ((c + r) % 2 === 0) ? 0x8f1b31 : 0xd6c3a3;
+					const alpha = 0.6 + 0.3 * (1 - c / cols);
+					transitionWipe.beginFill(color, alpha);
+					transitionWipe.drawRect(c * cw, r * rh, Math.ceil(cw) + 1, Math.ceil(rh) + 1);
+					transitionWipe.endFill();
+				}
+			}
+		};
+		const startDesktopTwoEntryTransition = () => {
+			if (desktopTwoActive || desktopTwoEntryTransition.active) return;
+			desktopTwoEntryTransition.active = true;
+			desktopTwoEntryTransition.phase = 0;
+			desktopTwoEntryTransition.surge = 1;
+			drawTransitionWipe(0);
+		};
+
 		const leftPortal = new PIXI.Container();
 		const leftGlowSoft = new PIXI.Graphics();
 		const leftGlow = new PIXI.Graphics();
 		const leftArrow = new PIXI.Graphics();
 		const leftPortalHitZone = new PIXI.Graphics();
-		leftPortal.addChild(leftGlowSoft, leftGlow, leftArrow, leftPortalHitZone);
+		const leftPortalLabel = new PIXI.Text('PORTFOLIO ->', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 12,
+			fill: 0xf3e0c0,
+			align: 'left',
+			letterSpacing: 1,
+		});
+		leftPortalLabel.anchor.set(0, 0.5);
+		leftPortalLabel.alpha = 0;
+		leftPortalLabel.zIndex = 205;
+		const leftPortalHint = new PIXI.Text('Where does it go?', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 10,
+			fill: 0xc9b6a0,
+			align: 'left',
+			letterSpacing: 1,
+		});
+		leftPortalHint.anchor.set(0, 0.5);
+		leftPortalHint.alpha = 0;
+		leftPortalHint.zIndex = 205;
+		leftPortal.addChild(leftGlowSoft, leftGlow, leftArrow, leftPortalHitZone, leftPortalLabel, leftPortalHint);
 		world.addChild(leftPortal);
+		let leftPortalHoverTarget = 0;
+		let leftPortalHover = 0;
+		let leftPortalEdgePrompt = 0;
+		let leftPortalHintPrompt = 0;
+		let lastPortalInteractionAtMs = nowMs();
+		const markPortalInteraction = () => {
+			lastPortalInteractionAtMs = nowMs();
+		};
+		const onPortalHoverIn = () => {
+			leftPortalHoverTarget = 1;
+			markPortalInteraction();
+		};
+		const onPortalHoverOut = () => {
+			leftPortalHoverTarget = 0;
+		};
 		leftArrow.eventMode = 'static';
 		leftArrow.cursor = 'pointer';
-		leftArrow.on('pointertap', () => setDesktopTwoActive(true));
+		leftArrow.on('pointerover', onPortalHoverIn);
+		leftArrow.on('pointerout', onPortalHoverOut);
+		leftArrow.on('pointertap', () => {
+			markPortalInteraction();
+			startDesktopTwoEntryTransition();
+		});
 		leftPortalHitZone.eventMode = 'static';
 		leftPortalHitZone.cursor = 'pointer';
-		leftPortalHitZone.on('pointertap', () => setDesktopTwoActive(true));
+		leftPortalHitZone.on('pointerover', onPortalHoverIn);
+		leftPortalHitZone.on('pointerout', onPortalHoverOut);
+		leftPortalHitZone.on('pointertap', () => {
+			markPortalInteraction();
+			startDesktopTwoEntryTransition();
+		});
 		let leftPortalWidth = 84;
 		let leftPortalProgress = 0;
 		let leftPortalShownX = 0;
@@ -1846,6 +2195,11 @@ async function boot() {
 				leftPortalHitZone.beginFill(0xffffff, 0.001);
 				leftPortalHitZone.drawRect(0, 0, portalW * 0.88, portalH);
 				leftPortalHitZone.endFill();
+
+				leftPortalLabel.style.fontSize = Math.max(10, Math.round(screenToWorldSize(12)));
+				leftPortalLabel.position.set(portalW * 0.98, portalH * 0.34);
+				leftPortalHint.style.fontSize = Math.max(9, Math.round(screenToWorldSize(10)));
+				leftPortalHint.position.set(portalW * 1.02, portalH * 0.48);
 		}
 		layoutLeftPortal();
 
@@ -1903,6 +2257,7 @@ async function boot() {
 			if (Number.isFinite(nextX) && Number.isFinite(nextY)) {
 				mouse.x = nextX;
 				mouse.y = nextY;
+				markPortalInteraction();
 			}
 		}
 		function toRendererPoint(e) {
@@ -2076,10 +2431,29 @@ async function boot() {
 			if (Math.abs(basketballHover - prevBHover) > 0.001) {
 				drawBasketballToggle();
 			}
+			desktopTwoEntryTransition.surge = Math.max(0, desktopTwoEntryTransition.surge - seconds / 0.32);
+			if (desktopTwoEntryTransition.active) {
+				desktopTwoEntryTransition.phase += seconds / desktopTwoEntryTransition.duration;
+				drawTransitionWipe(desktopTwoEntryTransition.phase);
+				if (desktopTwoEntryTransition.phase >= 1) {
+					desktopTwoEntryTransition.active = false;
+					drawTransitionWipe(0);
+					setDesktopTwoActive(true);
+				}
+			} else if (transitionWipe.visible) {
+				drawTransitionWipe(0);
+			}
 			if (!desktopTwoActive) {
 				const edgeWidth = Math.max(1, leftPortalWidth * 1.9);
 				const edgeFactor = Math.max(0, Math.min(1, 1 - mouse.x / edgeWidth));
 				leftPortalProgress += (edgeFactor - leftPortalProgress) * 0.18;
+				leftPortalHover += (leftPortalHoverTarget - leftPortalHover) * Math.min(1, seconds * 12);
+				const edgePromptTarget = edgeFactor > 0.12 ? Math.min(1, (edgeFactor - 0.12) / 0.52) : 0;
+				leftPortalEdgePrompt += (edgePromptTarget - leftPortalEdgePrompt) * Math.min(1, seconds * 9);
+				const idleMs = nowMs() - lastPortalInteractionAtMs;
+				const hintTarget = (showFirstPortfolioHint && idleMs >= 6000 && !desktopTwoEntryTransition.active) ? 1 : 0;
+				leftPortalHintPrompt += (hintTarget - leftPortalHintPrompt) * Math.min(1, seconds * 4.5);
+				const labelStrength = Math.max(leftPortalHover, leftPortalEdgePrompt);
 				leftPortal.position.x = leftPortalHiddenX + (leftPortalShownX - leftPortalHiddenX) * leftPortalProgress;
 				leftPortal.position.y = leftPortalY;
 					leftGlowSoft.alpha = 0.08 + 0.18 * leftPortalProgress;
@@ -2087,14 +2461,22 @@ async function boot() {
 					leftArrow.alpha = 0.22 + 0.74 * leftPortalProgress;
 					const scale = 0.8 + 0.28 * leftPortalProgress;
 				leftArrow.scale.set(scale);
+				leftPortalLabel.text = leftPortalHover > 0.28 ? 'PORTFOLIO ->' : '<- PORTFOLIO';
+				leftPortalLabel.alpha = labelStrength * (0.25 + leftPortalProgress * 0.75);
+				leftPortalHint.alpha = leftPortalHintPrompt * (0.3 + leftPortalProgress * 0.7);
 				leftPortal.visible = true;
 			} else {
 				leftPortalProgress += (0 - leftPortalProgress) * 0.2;
+				leftPortalHover += (0 - leftPortalHover) * Math.min(1, seconds * 9);
+				leftPortalEdgePrompt += (0 - leftPortalEdgePrompt) * Math.min(1, seconds * 8);
+				leftPortalHintPrompt += (0 - leftPortalHintPrompt) * Math.min(1, seconds * 6);
 				leftPortal.position.x = leftPortalHiddenX;
 				leftPortal.position.y = leftPortalY;
 				leftGlowSoft.alpha = 0;
 				leftGlow.alpha = 0;
 				leftArrow.alpha = 0;
+				leftPortalLabel.alpha = 0;
+				leftPortalHint.alpha = 0;
 				leftPortal.visible = false;
 			}
 			time += seconds;
@@ -2116,21 +2498,24 @@ async function boot() {
 			moodCurrent.vignette += (moodTarget.vignette - moodCurrent.vignette) * moodLerp;
 			moodCurrent.waveMotion += (moodTarget.waveMotion - moodCurrent.waveMotion) * moodLerp;
 			moodCurrent.lampBoost += (moodTarget.lampBoost - moodCurrent.lampBoost) * moodLerp;
+			const transitionSurge = desktopTwoEntryTransition.surge;
 			const blendedLineColor = mixColors(FLOW_BASE.lineColor, moodCurrent.waveTint, clamp01(moodCurrent.waveMix));
 			const blendedGlowColor = mixColors(FLOW_BASE.glowColor, moodCurrent.waveTint, clamp01(moodCurrent.waveMix + 0.1));
 			const blendedMistB = mixColors(FLOW_BASE.mistColorB, moodCurrent.waveTint, clamp01(moodCurrent.waveMix * 0.38));
 			const blendedMistC = mixColors(FLOW_BASE.mistColorC, moodCurrent.particleColor, 0.5);
+			const surgedLineColor = mixColors(blendedLineColor, 0xff5fa8, transitionSurge * 0.24);
+			const surgedGlowColor = mixColors(blendedGlowColor, 0xff7fa8, transitionSurge * 0.3);
 			setFlowAmbience?.({
-				lineColor: blendedLineColor,
-				glowColor: blendedGlowColor,
+				lineColor: surgedLineColor,
+				glowColor: surgedGlowColor,
 				mistColorA: FLOW_BASE.mistColorA,
 				mistColorB: blendedMistB,
 				mistColorC: blendedMistC,
-				sparkStrength: FLOW_BASE.sparkStrength + moodCurrent.glowStrength * 0.1,
-				glowStrength: FLOW_BASE.glowStrength + moodCurrent.glowStrength * 0.32,
-				speed: FLOW_BASE.speed * (1 + (moodCurrent.waveMotion - 1) * 0.9),
-				density: FLOW_BASE.density * (1 + (moodCurrent.waveMotion - 1) * 0.45),
-				glowAlpha: clamp01(FLOW_BASE.glowAlpha + moodCurrent.glowStrength * 0.16),
+				sparkStrength: FLOW_BASE.sparkStrength + moodCurrent.glowStrength * 0.1 + transitionSurge * 0.08,
+				glowStrength: FLOW_BASE.glowStrength + moodCurrent.glowStrength * 0.32 + transitionSurge * 0.42,
+				speed: FLOW_BASE.speed * (1 + (moodCurrent.waveMotion - 1) * 0.9 + transitionSurge * 0.25),
+				density: FLOW_BASE.density * (1 + (moodCurrent.waveMotion - 1) * 0.45 + transitionSurge * 0.14),
+				glowAlpha: clamp01(FLOW_BASE.glowAlpha + moodCurrent.glowStrength * 0.16 + transitionSurge * 0.2),
 			});
 			crtFisheyeUniforms.u_vignette = clamp01(moodCurrent.vignette);
 			crtFisheyeUniforms.u_brightness = 0.06 + moodCurrent.contrast;
@@ -2446,12 +2831,17 @@ async function boot() {
 			}
 			for (let i = 0; i < vines.length; i++) {
 				const vine = vines[i];
-				const localBoost = lampBoostByIndex[i] * (0.58 + moodCurrent.lampBoost * 1.25);
+				const lampPos = vine.getLampPosition();
+				const surgeLeftInfluence = transitionSurge > 0
+					? clamp01(1 - lampPos.x / Math.max(1, screenToWorldX(app.renderer.width * 0.34)))
+					: 0;
+				const localBoost = lampBoostByIndex[i] * (0.58 + moodCurrent.lampBoost * 1.25)
+					+ surgeLeftInfluence * transitionSurge * 0.95;
 				const vineHue = mixColors(theme.vines.hue, moodCurrent.lampTint, clamp01(0.12 + moodCurrent.waveMix * 0.45));
 				vine.setColor(vineHue);
 				if (vine?.lamp?.enabled) {
-					vine.lamp.color = mixColors(LAMP_BASE.color, moodCurrent.lampTint, 0.28 + moodCurrent.glowStrength * 0.34);
-					vine.lamp.glowColor = mixColors(LAMP_BASE.glowColor, moodCurrent.lampTint, 0.44 + moodCurrent.glowStrength * 0.36);
+					vine.lamp.color = mixColors(LAMP_BASE.color, moodCurrent.lampTint, 0.28 + moodCurrent.glowStrength * 0.34 + transitionSurge * 0.26);
+					vine.lamp.glowColor = mixColors(LAMP_BASE.glowColor, 0xff7fa8, transitionSurge * 0.34 + moodCurrent.glowStrength * 0.1);
 					vine.lamp.glowAlpha = clamp01(0.32 + moodCurrent.glowStrength * 0.2 + localBoost * 0.22);
 					vine.lamp.coreAlpha = clamp01(0.92 + localBoost * 0.08);
 				}
@@ -2463,10 +2853,14 @@ async function boot() {
 					const s = vineLightSprites[i];
 					if (!s || !v?.lamp?.enabled) continue;
 					const p = v.getLampPosition();
-					const localBoost = lampBoostByIndex[i] * (0.55 + moodCurrent.lampBoost * 1.25);
+					const surgeLeftInfluence = transitionSurge > 0
+						? clamp01(1 - p.x / Math.max(1, screenToWorldX(app.renderer.width * 0.34)))
+						: 0;
+					const localBoost = lampBoostByIndex[i] * (0.55 + moodCurrent.lampBoost * 1.25)
+						+ surgeLeftInfluence * transitionSurge * 0.95;
 					const pulse = 0.42 + 0.1 * Math.sin(time * 2.0 + i * 0.5);
 					s.position.set(p.x, p.y);
-					s.tint = mixColors(LAMP_BASE.glowColor, moodCurrent.lampTint, 0.46 + moodCurrent.glowStrength * 0.3);
+					s.tint = mixColors(LAMP_BASE.glowColor, 0xff7fa8, transitionSurge * 0.35 + moodCurrent.glowStrength * 0.14);
 					s.alpha = clamp01(pulse + moodCurrent.glowStrength * 0.18 + localBoost * 0.45);
 					const baseScale = lampLightRadius / (lampLightTexture.width * 0.5);
 					s.scale.set(baseScale * (1 + localBoost * 0.16));
@@ -2622,6 +3016,8 @@ async function boot() {
 			// Keep shader uniforms in sync with new renderer size
 			layoutScene();
 			layoutLeftPortal();
+			if (desktopTwoEntryTransition.active) drawTransitionWipe(desktopTwoEntryTransition.phase);
+			else drawTransitionWipe(0);
 			resizeFlowBackground();
 			placeAmbientDebris();
 			drawSystemCore(time);
