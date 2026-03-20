@@ -1015,6 +1015,27 @@ async function boot() {
 			let basketballMode = false;
 			let basketballScore = 0;
 			const iconScoreState = new Map();
+			const arcadeFeedback = {
+				combo: 0,
+				lastScoreTime: -999,
+				popupTimer: 999,
+				popupDuration: 1.05,
+				popupBaseScale: 1,
+				popupColor: 0xffffff,
+				lastPopupColor: null,
+				noGoVoided: false,
+				cursorWasRight: false,
+			};
+			const arcadePopupPalette = [0xff5f9c, 0x5fffd2, 0x6bd3ff, 0xffc14b, 0xb37aff, 0x7aff6d, 0xff7a5c];
+			const pickArcadePopupColor = () => {
+				if (!arcadePopupPalette.length) return 0xffffff;
+				let color = arcadePopupPalette[Math.floor(Math.random() * arcadePopupPalette.length)];
+				if (arcadePopupPalette.length > 1 && color === arcadeFeedback.lastPopupColor) {
+					color = arcadePopupPalette[(arcadePopupPalette.indexOf(color) + 1 + Math.floor(Math.random() * (arcadePopupPalette.length - 1))) % arcadePopupPalette.length];
+				}
+				arcadeFeedback.lastPopupColor = color;
+				return color;
+			};
 			basketballToggle.eventMode = 'none';
 			basketballToggle.cursor = 'pointer';
 			const drawBasketballToggle = () => {
@@ -1075,14 +1096,27 @@ async function boot() {
 			arcadeHintText.alpha = 0.82;
 			const arcadeScoreText = new PIXI.Text('SCORE 0', {
 				fontFamily: 'Minecraft, monospace',
-				fontSize: 12,
-				fill: 0xe5f6ff,
+				fontSize: 20,
+				fill: 0xffffff,
+				stroke: 0x0b1e2b,
+				strokeThickness: 5,
 				align: 'left',
 				letterSpacing: 1,
 			});
-			arcadeScoreText.anchor.set(0, 0);
+			arcadeScoreText.anchor.set(0.5, 0);
 			arcadeScoreText.alpha = 0.92;
-			arcadeLayer.addChild(arcadeDividerGlow, arcadeDivider, arcadeBackboard, arcadeHoopTrail, arcadeHoop, arcadeNet, arcadeHintText, arcadeScoreText);
+			const arcadePopupText = new PIXI.Text('', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 22,
+				fill: 0xffffff,
+				stroke: 0x061017,
+				strokeThickness: 5,
+				align: 'center',
+				letterSpacing: 1,
+			});
+			arcadePopupText.anchor.set(0.5, 0.5);
+			arcadePopupText.visible = false;
+			arcadeLayer.addChild(arcadeDividerGlow, arcadeDivider, arcadeBackboard, arcadeHoopTrail, arcadeHoop, arcadeNet, arcadeHintText, arcadeScoreText, arcadePopupText);
 
 			const hoopTrailPoints = [];
 			const NET_COLS = 7;
@@ -1147,6 +1181,30 @@ async function boot() {
 				for (const body of externals) if (body?.container && body?.state) bodies.push(body);
 				return bodies;
 			};
+			const updateArcadeScoreLabel = () => {
+				const comboSuffix = arcadeFeedback.combo > 1 ? `  x${arcadeFeedback.combo}` : '';
+				arcadeScoreText.text = `SCORE ${basketballScore}${comboSuffix}`;
+			};
+			const resetArcadeRound = () => {
+				basketballScore = 0;
+				arcadeFeedback.combo = 0;
+				arcadeFeedback.lastScoreTime = -999;
+				arcadeFeedback.popupTimer = 999;
+				arcadeFeedback.noGoVoided = false;
+				arcadeFeedback.cursorWasRight = false;
+				arcadePopupText.visible = false;
+				iconScoreState.clear();
+				hoopTrailPoints.length = 0;
+				updateArcadeScoreLabel();
+			};
+			const triggerArcadePopup = (message, baseScale = 1, color = null) => {
+				arcadePopupText.text = message;
+				arcadeFeedback.popupBaseScale = baseScale;
+				arcadeFeedback.popupColor = color ?? pickArcadePopupColor();
+				arcadePopupText.tint = arcadeFeedback.popupColor;
+				arcadeFeedback.popupTimer = 0;
+				arcadePopupText.visible = true;
+			};
 			const applyDragEnabled = (enabled) => {
 				dragEnabled = Boolean(enabled);
 				lockAnimTarget = dragEnabled ? 1 : 0;
@@ -1185,6 +1243,7 @@ async function boot() {
 					ringCandidate.active = false;
 					ringSpinVel = 0;
 					ringSpin = 0;
+					resetArcadeRound();
 					basketballHoverTarget = 0;
 					basketballHover = 0;
 					appLauncher.layout(false);
@@ -1220,10 +1279,10 @@ async function boot() {
 				basketballMode = !basketballMode;
 				arcadeLayer.visible = basketballMode;
 				if (basketballMode) {
-					basketballScore = 0;
-					arcadeScoreText.text = 'SCORE 0';
-					hoopTrailPoints.length = 0;
-					iconScoreState.clear();
+					resetArcadeRound();
+					arcadeFeedback.cursorWasRight = mouse.x >= app.renderer.width * 0.5;
+				} else {
+					arcadePopupText.visible = false;
 				}
 			});
 			placeLockButton();
@@ -1578,12 +1637,7 @@ async function boot() {
 			const scaledY = y * (h / rect.height);
 			const cursorHalfW = cursor.width * 0.5;
 			const cursorHalfH = cursor.height * 0.5;
-			let maxX = w - cursorHalfW;
-			if (basketballMode) {
-				const dividerX = w * 0.5;
-				maxX = Math.min(maxX, dividerX - Math.max(10, cursorHalfW + 4));
-			}
-			const nextX = Math.max(cursorHalfW, Math.min(maxX, scaledX));
+			const nextX = Math.max(cursorHalfW, Math.min(w - cursorHalfW, scaledX));
 			const nextY = Math.max(cursorHalfH, Math.min(h - cursorHalfH, scaledY));
 			if (Number.isFinite(nextX) && Number.isFinite(nextY)) {
 				mouse.x = nextX;
@@ -1853,6 +1907,14 @@ async function boot() {
 				});
 				const toWorldSizeWithCamera = (s) => s / SCENE_SCALE;
 				const dividerX = app.renderer.width * 0.5;
+				const cursorIsRight = mouse.x >= dividerX;
+				if (!arcadeFeedback.noGoVoided && !arcadeFeedback.cursorWasRight && cursorIsRight) {
+					arcadeFeedback.noGoVoided = true;
+					arcadeFeedback.combo = 0;
+					updateArcadeScoreLabel();
+					triggerArcadePopup('VOID ZONE', 1.04, 0xff5f88);
+				}
+				arcadeFeedback.cursorWasRight = cursorIsRight;
 				const dividerNear = Math.max(0, Math.min(1, 1 - Math.abs(mouse.x - dividerX) / 170));
 				const dividerTop = app.renderer.height * 0.06;
 				const dividerBottom = app.renderer.height * 0.94;
@@ -1862,7 +1924,7 @@ async function boot() {
 				arcadeState.dividerWorldX = dividerCenter.x;
 
 				arcadeDividerGlow.clear();
-				arcadeDividerGlow.beginFill(0x7fd8ff, 0.08 + dividerNear * 0.42);
+				arcadeDividerGlow.beginFill(arcadeFeedback.noGoVoided ? 0xff5f88 : 0x7fd8ff, (0.08 + dividerNear * 0.42) * (arcadeFeedback.noGoVoided ? 1.2 : 1));
 				arcadeDividerGlow.drawRoundedRect(
 					dividerCenter.x - dividerWidth * 0.95,
 					dividerCenter.y - dividerHeight * 0.52,
@@ -1873,7 +1935,7 @@ async function boot() {
 				arcadeDividerGlow.endFill();
 
 				arcadeDivider.clear();
-				arcadeDivider.beginFill(0x92ddff, 0.16 + (1 - dividerNear) * 0.28);
+				arcadeDivider.beginFill(arcadeFeedback.noGoVoided ? 0xff8fab : 0x92ddff, 0.16 + (1 - dividerNear) * (arcadeFeedback.noGoVoided ? 0.36 : 0.28));
 				arcadeDivider.drawRoundedRect(
 					dividerCenter.x - dividerWidth * 0.42,
 					dividerCenter.y - dividerHeight * 0.5,
@@ -1976,8 +2038,14 @@ async function boot() {
 					arcadeNet.lineTo(hoopPos.x + b.x, hoopPos.y + b.y);
 				}
 
+				arcadeHintText.text = arcadeFeedback.noGoVoided
+					? 'VOID ACTIVE: CURSOR CROSSED DIVIDER'
+					: 'DON\'T CROSS THE BLUE DIVIDER';
 				arcadeHintText.position.set(toWorldFromScreen(24, 18).x, toWorldFromScreen(24, 18).y);
-				arcadeScoreText.position.set(toWorldFromScreen(24, 38).x, toWorldFromScreen(24, 38).y);
+				const scorePulse = 1 + Math.min(0.24, arcadeFeedback.combo * 0.035) + Math.sin(time * 5.2) * 0.02;
+				arcadeScoreText.position.set(hoopPos.x, hoopPos.y + hoopRadius + toWorldSizeWithCamera(24));
+				arcadeScoreText.scale.set(scorePulse);
+				arcadeScoreText.tint = arcadeFeedback.noGoVoided ? 0xff8fab : 0xffffff;
 
 				const bodies = getAllIconBodies();
 				for (const body of bodies) {
@@ -1996,16 +2064,47 @@ async function boot() {
 					const crossedDown = prevDy < -arcadeState.hoopInnerRadius * 0.45 && dy >= -arcadeState.hoopInnerRadius * 0.04;
 					const entersFromSide = Math.abs(prevDx) > arcadeState.hoopInnerRadius * 1.05 && Math.abs(dx) <= arcadeState.hoopInnerRadius * 0.9 && dy > -arcadeState.hoopInnerRadius * 0.42;
 					const inRimX = Math.abs(dx) <= arcadeState.hoopInnerRadius * 0.95;
-					if (st.cooldown <= 0 && falling && ((crossedDown && inRimX) || entersFromSide)) {
+					if (st.cooldown <= 0 && falling && !arcadeFeedback.noGoVoided && ((crossedDown && inRimX) || entersFromSide)) {
 						basketballScore += 1;
-						arcadeScoreText.text = `SCORE ${basketballScore}`;
+						const chainWindow = 2.2;
+						if (time - arcadeFeedback.lastScoreTime <= chainWindow) arcadeFeedback.combo += 1;
+						else arcadeFeedback.combo = 1;
+						arcadeFeedback.lastScoreTime = time;
+						updateArcadeScoreLabel();
+						const phrase = arcadeFeedback.combo <= 1
+							? 'Nice shot!'
+							: (arcadeFeedback.combo === 2 ? 'Sick!' : (arcadeFeedback.combo === 3 ? 'Clean!' : (arcadeFeedback.combo === 4 ? 'Nasty!' : 'Unreal!')));
+						const popupMsg = arcadeFeedback.combo > 1 ? `${phrase}  x${arcadeFeedback.combo}` : phrase;
+						const popupScale = 1.0 + Math.min(0.7, arcadeFeedback.combo * 0.1);
+						triggerArcadePopup(popupMsg, popupScale);
 						st.cooldown = 0.75;
 					}
 					st.lastY = body.container.position.y;
 					st.lastX = body.container.position.x;
 				}
+
+				if (arcadeFeedback.combo > 0 && time - arcadeFeedback.lastScoreTime > 2.5) {
+					arcadeFeedback.combo = 0;
+					updateArcadeScoreLabel();
+				}
+
+				if (arcadeFeedback.popupTimer < arcadeFeedback.popupDuration) {
+					arcadeFeedback.popupTimer += seconds;
+					const tPopup = Math.max(0, Math.min(1, arcadeFeedback.popupTimer / arcadeFeedback.popupDuration));
+					const out = 1 - tPopup;
+					const shake = toWorldSizeWithCamera((3 + Math.min(10, arcadeFeedback.combo * 1.2)) * out);
+					const shakeX = Math.sin(time * 54) * shake;
+					const shakeY = Math.cos(time * 47) * shake * 0.5;
+					arcadePopupText.visible = true;
+					arcadePopupText.alpha = 0.22 + out * 0.78;
+					arcadePopupText.scale.set(arcadeFeedback.popupBaseScale * (1 + out * 0.14));
+					arcadePopupText.position.set(hoopPos.x + shakeX, hoopPos.y + hoopRadius + toWorldSizeWithCamera(70) + shakeY);
+				} else {
+					arcadePopupText.visible = false;
+				}
 			} else {
 				arcadeLayer.visible = false;
+				arcadePopupText.visible = false;
 			}
 			for (const vine of vines) vine.update(time, mouseWorld, seconds);
 			if (ENABLE_VINE_LAMP_LIGHTING && ENABLE_VINE_LAMPS) {
