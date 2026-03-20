@@ -13,6 +13,20 @@ export function createAppLauncher(app, world, options = {}) {
 	const container = new PIXI.Container();
 	container.sortableChildren = true;
 	world.addChild(container);
+	const fxLayer = new PIXI.Container();
+	fxLayer.eventMode = 'none';
+	fxLayer.zIndex = 0;
+	container.addChild(fxLayer);
+	const paperBits = [];
+	const PAPER_FX = {
+		gravity: 1100,
+		airDamp: 0.992,
+		bounce: 0.28,
+		friction: 0.9,
+		spawnIntervalMin: 0.08,
+		spawnIntervalMax: 0.17,
+		lifetime: 5.2,
+	};
 	const dragState = {
 		enabled: false,
 		active: null,
@@ -74,15 +88,43 @@ export function createAppLauncher(app, world, options = {}) {
 	const icons = items.map((item, index) => createAppIcon(item, index));
 	for (const icon of icons) container.addChild(icon.container);
 
+	function spawnPaperBit(icon) {
+		const width = 8 + Math.random() * 6;
+		const height = 10 + Math.random() * 7;
+		const page = new PIXI.Graphics();
+		page.beginFill(0xf6efd8, 0.95);
+		page.lineStyle(1, 0xb38c5e, 0.72);
+		page.drawRoundedRect(-width / 2, -height / 2, width, height, 2);
+		page.endFill();
+		page.position.set(
+			icon.container.position.x + (Math.random() - 0.5) * 10,
+			icon.container.position.y - icon.state.radius * 0.95,
+		);
+		page.rotation = (Math.random() - 0.5) * 0.35;
+		page.zIndex = 0;
+		fxLayer.addChild(page);
+		paperBits.push({
+			node: page,
+			w: width,
+			h: height,
+			vx: (Math.random() - 0.5) * 90,
+			vy: -120 - Math.random() * 80,
+			vr: (Math.random() - 0.5) * 5.4,
+			age: 0,
+			life: PAPER_FX.lifetime + Math.random() * 1.8,
+		});
+	}
+
 	function createAppIcon(item, index) {
 		const iconContainer = new PIXI.Container();
 		const bg = new PIXI.Graphics();
 		const border = new PIXI.Graphics();
 		const glow = new PIXI.Graphics();
+		const ornament = new PIXI.Graphics();
 		const label = new PIXI.Text(item.label, {
 			fontFamily: pixelFont,
 			fontSize: 12,
-			fill: 0xeafbff,
+			fill: item.labelColor ?? 0xeafbff,
 			align: 'center',
 			letterSpacing: 1,
 		});
@@ -91,7 +133,7 @@ export function createAppLauncher(app, world, options = {}) {
 		const glyph = new PIXI.Text(item.glyph || item.label?.[0] || '', {
 			fontFamily: pixelFont,
 			fontSize: 22,
-			fill: 0x0b1714,
+			fill: item.glyphColor ?? 0x0b1714,
 			align: 'center',
 			letterSpacing: 1,
 		});
@@ -128,7 +170,7 @@ export function createAppLauncher(app, world, options = {}) {
 		tooltip.addChild(tooltipBg, tooltipText);
 		tooltip.visible = false;
 
-		iconContainer.addChild(glow, bg, border);
+		iconContainer.addChild(glow, bg, border, ornament);
 		if (iconSprite) iconContainer.addChild(iconSprite);
 		if (hoverSprite) iconContainer.addChild(hoverSprite);
 		iconContainer.addChild(glyph, label, tooltip);
@@ -150,6 +192,7 @@ export function createAppLauncher(app, world, options = {}) {
 			angle: 0,
 			angVel: 0,
 			lastDragTime: 0,
+			paperCooldown: Math.random() * 0.2,
 		};
 
 		const motionLayers = [
@@ -175,6 +218,7 @@ export function createAppLauncher(app, world, options = {}) {
 			const panelBorder = item.panelBorder ?? 0x0b3a33;
 			const panelBorderAlpha = item.panelBorderAlpha ?? 0.85;
 			const glowAlpha = item.glowAlpha ?? 0.08;
+			const ornamentColor = item.ornamentColor ?? panelBorder;
 
 			glow.clear();
 			glow.beginFill(0xe4ff5a, glowAlpha);
@@ -189,6 +233,39 @@ export function createAppLauncher(app, world, options = {}) {
 			border.clear();
 			border.lineStyle(2, panelBorder, panelBorderAlpha);
 			border.drawRoundedRect(-size / 2 + 1, -size / 2 + 1, inner, inner, radius - 2);
+
+			ornament.clear();
+			if (item.ornament === 'cat') {
+				ornament.lineStyle(2, ornamentColor, 0.95);
+				ornament.beginFill(ornamentColor, 0.22);
+				ornament.moveTo(-size * 0.34, -size * 0.5);
+				ornament.lineTo(-size * 0.19, -size * 0.74);
+				ornament.lineTo(-size * 0.02, -size * 0.5);
+				ornament.closePath();
+				ornament.moveTo(size * 0.34, -size * 0.5);
+				ornament.lineTo(size * 0.19, -size * 0.74);
+				ornament.lineTo(size * 0.02, -size * 0.5);
+				ornament.closePath();
+				ornament.endFill();
+				ornament.lineStyle(2, ornamentColor, 0.9);
+				ornament.moveTo(-size * 0.54, -size * 0.03);
+				ornament.lineTo(-size * 0.27, -size * 0.06);
+				ornament.moveTo(-size * 0.54, size * 0.07);
+				ornament.lineTo(-size * 0.27, size * 0.03);
+				ornament.moveTo(size * 0.54, -size * 0.03);
+				ornament.lineTo(size * 0.27, -size * 0.06);
+				ornament.moveTo(size * 0.54, size * 0.07);
+				ornament.lineTo(size * 0.27, size * 0.03);
+			}
+			if (item.ornament === 'resume') {
+				ornament.lineStyle(2, ornamentColor, 0.9);
+				ornament.beginFill(0xf6efd8, 0.9);
+				ornament.drawRoundedRect(-size * 0.2, -size * 0.67, size * 0.4, size * 0.18, 3);
+				ornament.endFill();
+				ornament.lineStyle(1, ornamentColor, 0.75);
+				ornament.moveTo(-size * 0.12, -size * 0.58);
+				ornament.lineTo(size * 0.12, -size * 0.58);
+			}
 
 			glyph.style.fontSize = Math.max(18, Math.round(size * 0.44));
 			label.style.fontSize = Math.max(10, Math.round(size * 0.18));
@@ -281,7 +358,7 @@ export function createAppLauncher(app, world, options = {}) {
 		};
 		iconContainer._updatePlatformRect();
 
-		return { container: iconContainer, state, drawIcon, glow, border, cardMotion, iconSprite, hoverSprite };
+		return { container: iconContainer, state, drawIcon, glow, border, ornament, cardMotion, iconSprite, hoverSprite, item };
 	}
 
 	function layout(snap = true) {
@@ -478,13 +555,62 @@ export function createAppLauncher(app, world, options = {}) {
 			}
 			icon.container.scale.set(scale);
 			icon.container.zIndex = (icon.state.dragging || icon.state.grabbed) ? 3 : (icon.state.hovered ? 2 : 1);
-			if (icon.glow) icon.glow.alpha = icon.state.hovered ? 0.24 : 0.08;
-			if (icon.border) icon.border.tint = icon.state.hovered ? 0xa00026 : 0xffffff;
+			if (icon.glow) {
+				const hoverGlow = icon.item?.glowHoverAlpha ?? 0.24;
+				const idleGlow = icon.item?.glowAlpha ?? 0.08;
+				icon.glow.alpha = icon.state.hovered ? hoverGlow : idleGlow;
+			}
+			if (icon.border) icon.border.alpha = icon.state.hovered ? 1 : 0.9;
+			if (icon.ornament && icon.item?.ornament === 'cat') {
+				icon.ornament.rotation = Math.sin(time * 3 + icon.state.phase) * (icon.state.hovered ? 0.05 : 0.02);
+			}
+			if (icon.item?.paperEmitter) {
+				icon.state.paperCooldown -= dtSeconds;
+				if (icon.state.hovered && icon.state.paperCooldown <= 0) {
+					spawnPaperBit(icon);
+					icon.state.paperCooldown = PAPER_FX.spawnIntervalMin + Math.random() * (PAPER_FX.spawnIntervalMax - PAPER_FX.spawnIntervalMin);
+				}
+			}
 			icon.cardMotion?.update();
 			if (icon.iconSprite?.playing) icon.iconSprite.update(dtSeconds * 60);
 			if (icon.hoverSprite?.playing && icon.hoverSprite.visible) icon.hoverSprite.update(dtSeconds * 60);
 			icon.container._updatePlatformRect?.();
 		});
+
+		for (let i = paperBits.length - 1; i >= 0; i--) {
+			const p = paperBits[i];
+			p.age += dtSeconds;
+			p.vy += PAPER_FX.gravity * dtSeconds;
+			p.vx *= PAPER_FX.airDamp;
+			p.vy *= PAPER_FX.airDamp;
+			p.node.position.x += p.vx * dtSeconds;
+			p.node.position.y += p.vy * dtSeconds;
+			p.node.rotation += p.vr * dtSeconds;
+			const floorY = maxY - p.h * 0.5;
+			if (p.node.position.y > floorY) {
+				p.node.position.y = floorY;
+				if (p.vy > 0) p.vy *= -PAPER_FX.bounce;
+				p.vx *= PAPER_FX.friction;
+				if (Math.abs(p.vy) < 20) p.vy = 0;
+				if (Math.abs(p.vx) < 10) p.vx = 0;
+			}
+			const minPX = minX + p.w * 0.5;
+			const maxPX = maxX - p.w * 0.5;
+			if (p.node.position.x < minPX) {
+				p.node.position.x = minPX;
+				p.vx *= -0.35;
+			}
+			if (p.node.position.x > maxPX) {
+				p.node.position.x = maxPX;
+				p.vx *= -0.35;
+			}
+			const lifeT = Math.max(0, Math.min(1, p.age / p.life));
+			p.node.alpha = 1 - lifeT * 0.9;
+			if (p.age >= p.life) {
+				p.node.destroy();
+				paperBits.splice(i, 1);
+			}
+		}
 		if (dragState.enabled) {
 			const bodies = icons.map((icon) => ({
 				container: icon.container,

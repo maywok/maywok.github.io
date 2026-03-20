@@ -18,10 +18,10 @@ export async function createLinkedinIcon(app, world, options = {}) {
 		screenScale = 1,
 		label = 'LinkedIn',
 		pixelFont = 'Minecraft, monospace',
-		panelFill = 0x0b1b1a,
-		panelFillAlpha = 0.22,
-		panelBorder = 0x22f3c8,
-		panelBorderAlpha = 0.55,
+		panelFill = 0x0c1c3a,
+		panelFillAlpha = 0.92,
+		panelBorder = 0x62bbff,
+		panelBorderAlpha = 0.94,
 		dockScreenX = null,
 		dockScreenY = null,
 	} = options;
@@ -71,6 +71,7 @@ export async function createLinkedinIcon(app, world, options = {}) {
 	const container = new PIXI.Container();
 	const panel = new PIXI.Graphics();
 	const panelBorderGraphic = new PIXI.Graphics();
+	const linkOrnament = new PIXI.Graphics();
 	const labelText = new PIXI.Text(label, {
 		fontFamily: pixelFont,
 		fontSize: 12,
@@ -91,9 +92,26 @@ export async function createLinkedinIcon(app, world, options = {}) {
 		labelText.style.fontSize = Math.max(10, Math.round(backgroundWidth * 0.18));
 		labelText.position.set(0, backgroundHeight / 2 + 6);
 	}
-	drawPanel();
 
-	container.addChild(panel, panelBorderGraphic, frozenSprite, hoverSprite, labelText);
+	function drawLinkOrnament(time = 0, intensity = 0.5) {
+		const pulse = 0.7 + 0.3 * Math.sin(time * 3.2);
+		const color = 0x9ad8ff;
+		const leftX = -backgroundWidth * 0.28;
+		const rightX = backgroundWidth * 0.28;
+		const y = -backgroundHeight * 0.26;
+		linkOrnament.clear();
+		linkOrnament.lineStyle(1.6, color, 0.72 + 0.2 * intensity);
+		linkOrnament.moveTo(leftX + 3, y + 2);
+		linkOrnament.lineTo(rightX - 3, y - 2);
+		linkOrnament.beginFill(color, 0.8 + 0.18 * pulse);
+		linkOrnament.drawCircle(leftX, y, 3 + intensity * 1.2);
+		linkOrnament.drawCircle(rightX, y, 3 + intensity * 1.2);
+		linkOrnament.endFill();
+	}
+	drawPanel();
+	drawLinkOrnament(0, 0.5);
+
+	container.addChild(panel, panelBorderGraphic, linkOrnament, frozenSprite, hoverSprite, labelText);
 	container.scale.set(scale);
 	const motionLayers = [
 		{ target: hoverSprite, strength: parallaxOffset },
@@ -251,6 +269,7 @@ export async function createLinkedinIcon(app, world, options = {}) {
 	}
 	app.ticker.add((dt) => {
 		cardMotion.update();
+		drawLinkOrnament(app.ticker.lastTime * 0.001, state.hovered ? 1 : 0.45);
 		const targetScale = state.hovered ? scale * 1.05 : scale;
 		state.currentScale += (targetScale - state.currentScale) * 0.18 * dt;
 		container.scale.set(state.currentScale);

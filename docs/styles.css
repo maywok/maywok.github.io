@@ -86,6 +86,14 @@ html.desktop-two-active .desktop-two-overlay {
     transform: translateX(0);
 }
 
+html.desktop-two-active body {
+    background: #d7bf98;
+}
+
+html.desktop-two-active body::before {
+    opacity: 0;
+}
+
 .desktop-two-root {
     position: absolute;
     inset: 0;

@@ -115,6 +115,7 @@ async function boot() {
 			});
 			desktopTwoFisheyeFilter.padding = 16;
 			desktopTwoScene.filters = [desktopTwoFisheyeFilter, desktopTwoScanlinesFilter];
+			desktopTwoScene.filterArea = new PIXI.Rectangle(0, 0, desktopTwoApp.renderer.width, desktopTwoApp.renderer.height);
 			desktopTwoScene.addChild(desktopTwoFlow);
 
 			const rightPortal = new PIXI.Container();
@@ -283,6 +284,7 @@ async function boot() {
 			const handleDesktopTwoResize = () => {
 				desktopTwoBaseFill.width = desktopTwoApp.renderer.width;
 				desktopTwoBaseFill.height = desktopTwoApp.renderer.height;
+				desktopTwoScene.filterArea = new PIXI.Rectangle(0, 0, desktopTwoApp.renderer.width, desktopTwoApp.renderer.height);
 				resizeDesktopTwoFlow();
 				layoutRightPortal();
 			};
@@ -734,8 +736,39 @@ async function boot() {
 
 			const appLauncher = createAppLauncher(app, world, {
 				items: [
-					{ label: 'Resume', glyph: 'R', tooltip: 'Open Resume', url: './assets/files/mason-walker-resume.pdf' },
-					{ label: 'GitHub', glyph: 'G', tooltip: 'View GitHub', url: 'https://github.com/maywok' },
+					{
+						label: 'Resume',
+						glyph: 'R',
+						tooltip: 'Open Resume',
+						url: './assets/files/mason-walker-resume.pdf',
+						panelFill: 0xf6e7c9,
+						panelFillAlpha: 0.96,
+						panelBorder: 0x9a6f3f,
+						panelBorderAlpha: 0.92,
+						glyphColor: 0x5a3b22,
+						labelColor: 0xfff5dd,
+						glowAlpha: 0.1,
+						glowHoverAlpha: 0.28,
+						ornament: 'resume',
+						ornamentColor: 0x9a6f3f,
+						paperEmitter: true,
+					},
+					{
+						label: 'GitHub',
+						glyph: 'G',
+						tooltip: 'View GitHub',
+						url: 'https://github.com/maywok',
+						panelFill: 0x16141f,
+						panelFillAlpha: 0.96,
+						panelBorder: 0xff7dad,
+						panelBorderAlpha: 0.95,
+						glyphColor: 0xffd8e7,
+						labelColor: 0xffd8e7,
+						glowAlpha: 0.1,
+						glowHoverAlpha: 0.26,
+						ornament: 'cat',
+						ornamentColor: 0xff93ba,
+					},
 				],
 				screenToWorldX,
 				screenToWorldY,
@@ -892,6 +925,10 @@ async function boot() {
 					screenScale: SCENE_SCALE,
 					dockScreenX: () => getSlotX(2),
 					dockScreenY: () => getSlotY(2),
+					panelFill: 0x2a1b12,
+					panelFillAlpha: 0.94,
+					panelBorder: 0xffb66d,
+					panelBorderAlpha: 0.95,
 					backgroundWidth: screenToWorldSize(getRingIconSize()),
 					backgroundHeight: screenToWorldSize(getRingIconSize()),
 				}), 6000, 'Blog icon');
@@ -911,6 +948,10 @@ async function boot() {
 					screenScale: SCENE_SCALE,
 					dockScreenX: () => getSlotX(0),
 					dockScreenY: () => getSlotY(0),
+					panelFill: 0x0c1c3a,
+					panelFillAlpha: 0.96,
+					panelBorder: 0x62bbff,
+					panelBorderAlpha: 0.95,
 					backgroundWidth: screenToWorldSize(getRingIconSize()),
 					backgroundHeight: screenToWorldSize(getRingIconSize()),
 				}), 6000, 'LinkedIn icon');
@@ -929,6 +970,10 @@ async function boot() {
 					screenScale: SCENE_SCALE,
 					dockScreenX: () => getSlotX(3),
 					dockScreenY: () => getSlotY(3),
+					panelFill: 0x2a1119,
+					panelFillAlpha: 0.95,
+					panelBorder: 0xff7f9d,
+					panelBorderAlpha: 0.96,
 					backgroundWidth: screenToWorldSize(getRingIconSize()),
 					backgroundHeight: screenToWorldSize(getRingIconSize()),
 				}), 6000, 'Reflex icon');
@@ -947,6 +992,10 @@ async function boot() {
 					screenScale: SCENE_SCALE,
 					dockScreenX: () => getSlotX(4),
 					dockScreenY: () => getSlotY(4),
+					panelFill: 0x1c1208,
+					panelFillAlpha: 0.96,
+					panelBorder: 0xf2c46f,
+					panelBorderAlpha: 0.95,
 					backgroundWidth: screenToWorldSize(getRingIconSize()),
 					backgroundHeight: screenToWorldSize(getRingIconSize()),
 				}), 6000, 'Walklatro icon');

@@ -13,10 +13,10 @@ export async function createWalklatroIcon(app, world, options = {}) {
 		screenScale = 1,
 		label = 'Walklatro',
 		pixelFont = 'Minecraft, monospace',
-		panelFill = 0x06090d,
-		panelFillAlpha = 0.75,
-		panelBorder = 0x22f3c8,
-		panelBorderAlpha = 0.7,
+		panelFill = 0x1c1208,
+		panelFillAlpha = 0.92,
+		panelBorder = 0xf2c46f,
+		panelBorderAlpha = 0.94,
 		dockScreenX = null,
 		dockScreenY = null,
 	} = options;
@@ -32,6 +32,7 @@ export async function createWalklatroIcon(app, world, options = {}) {
 	const container = new PIXI.Container();
 	const panel = new PIXI.Graphics();
 	const panelBorderGraphic = new PIXI.Graphics();
+	const panelOrnament = new PIXI.Graphics();
 	const labelText = new PIXI.Text(label, {
 		fontFamily: pixelFont,
 		fontSize: 12,
@@ -88,12 +89,22 @@ export async function createWalklatroIcon(app, world, options = {}) {
 		panelBorderGraphic.clear();
 		panelBorderGraphic.lineStyle(1.5, panelBorder, panelBorderAlpha);
 		panelBorderGraphic.drawRoundedRect(-backgroundWidth / 2 + 1, -backgroundHeight / 2 + 1, backgroundWidth - 2, backgroundHeight - 2, Math.max(4, backgroundCornerRadius - 2));
+		panelOrnament.clear();
+		panelOrnament.beginFill(0xf6dfad, 0.85);
+		const pipOffsetX = backgroundWidth * 0.34;
+		const pipOffsetY = backgroundHeight * 0.34;
+		const pipSize = Math.max(2.5, backgroundWidth * 0.04);
+		panelOrnament.drawCircle(-pipOffsetX, -pipOffsetY, pipSize);
+		panelOrnament.drawCircle(pipOffsetX, -pipOffsetY, pipSize);
+		panelOrnament.drawCircle(-pipOffsetX, pipOffsetY, pipSize);
+		panelOrnament.drawCircle(pipOffsetX, pipOffsetY, pipSize);
+		panelOrnament.endFill();
 		labelText.style.fontSize = Math.max(9, Math.round(backgroundWidth * 0.18));
 		labelText.position.set(0, backgroundHeight / 2 + 6);
 	};
 
 	drawPanel();
-	container.addChild(panel, panelBorderGraphic, iconLayer, labelText);
+	container.addChild(panel, panelBorderGraphic, panelOrnament, iconLayer, labelText);
 	container.scale.set(scale);
 
 	const cardMotion = createCardMotion(container, {

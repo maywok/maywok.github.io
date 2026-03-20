@@ -13,10 +13,10 @@ export async function createReflexIcon(app, world, options = {}) {
 		screenScale = 1,
 		label = 'Reflex',
 		pixelFont = 'Minecraft, monospace',
-		panelFill = 0x0b1b1a,
-		panelFillAlpha = 0.22,
-		panelBorder = 0x22f3c8,
-		panelBorderAlpha = 0.55,
+		panelFill = 0x2a1119,
+		panelFillAlpha = 0.92,
+		panelBorder = 0xff7f9d,
+		panelBorderAlpha = 0.94,
 		dockScreenX = null,
 		dockScreenY = null,
 	} = options;
@@ -72,6 +72,7 @@ export async function createReflexIcon(app, world, options = {}) {
 	const iconLayer = new PIXI.Container();
 	const idleSprite = new PIXI.AnimatedSprite(playerIdleTextures);
 	const runSprite = new PIXI.AnimatedSprite(playerRunTextures);
+	const ninjaHat = new PIXI.Graphics();
 	idleSprite.anchor.set(0.5);
 	runSprite.anchor.set(0.5);
 	idleSprite.animationSpeed = 0.14;
@@ -100,10 +101,28 @@ export async function createReflexIcon(app, world, options = {}) {
 		labelText.position.set(0, backgroundHeight / 2 + 6);
 	};
 
+	const drawHat = () => {
+		const hatW = backgroundWidth * 0.42;
+		const hatH = backgroundHeight * 0.24;
+		ninjaHat.clear();
+		ninjaHat.beginFill(0x5d1230, 0.98);
+		ninjaHat.lineStyle(2, 0xff9db6, 0.92);
+		ninjaHat.moveTo(-hatW * 0.5, 0);
+		ninjaHat.lineTo(0, -hatH);
+		ninjaHat.lineTo(hatW * 0.5, 0);
+		ninjaHat.closePath();
+		ninjaHat.endFill();
+		ninjaHat.lineStyle(1.5, 0xfed2df, 0.9);
+		ninjaHat.moveTo(-hatW * 0.32, -hatH * 0.45);
+		ninjaHat.lineTo(hatW * 0.32, -hatH * 0.45);
+		ninjaHat.position.set(0, -backgroundHeight * 0.26);
+	};
+
 	drawPanel();
+	drawHat();
 	sizeToFit(idleSprite);
 	sizeToFit(runSprite);
-	iconLayer.addChild(idleSprite, runSprite);
+	iconLayer.addChild(idleSprite, runSprite, ninjaHat);
 
 	container.addChild(panel, panelBorderGraphic, iconLayer, labelText);
 	container.scale.set(scale);
@@ -271,6 +290,9 @@ export async function createReflexIcon(app, world, options = {}) {
 
 	app.ticker.add((dt) => {
 		cardMotion.update();
+		const hatBob = Math.sin(app.ticker.lastTime * 0.006) * (state.hovered ? 1.8 : 1.0);
+		ninjaHat.position.y = -backgroundHeight * 0.26 + hatBob;
+		ninjaHat.rotation = Math.sin(app.ticker.lastTime * 0.004) * (state.hovered ? 0.12 : 0.05);
 		const targetScale = state.hovered ? scale * 1.05 : scale;
 		state.currentScale += (targetScale - state.currentScale) * 0.18 * dt;
 		container.scale.set(state.currentScale);

@@ -21,10 +21,10 @@ export async function createBlogIcon(app, world, options = {}) {
 		screenScale = 1,
 		label = 'Blog',
 		pixelFont = 'Minecraft, monospace',
-		panelFill = 0x0b1b1a,
-		panelFillAlpha = 0.22,
-		panelBorder = 0x22f3c8,
-		panelBorderAlpha = 0.55,
+		panelFill = 0x24170f,
+		panelFillAlpha = 0.92,
+		panelBorder = 0xffb66d,
+		panelBorderAlpha = 0.94,
 		previewWidth = 240,
 		previewHeight = 150,
 		previewCornerRadius = 0,
@@ -97,6 +97,7 @@ export async function createBlogIcon(app, world, options = {}) {
 	const container = new PIXI.Container();
 	const panel = new PIXI.Graphics();
 	const panelBorderGraphic = new PIXI.Graphics();
+	const steamOrnament = new PIXI.Graphics();
 	const labelText = new PIXI.Text(label, {
 		fontFamily: pixelFont,
 		fontSize: 12,
@@ -117,9 +118,29 @@ export async function createBlogIcon(app, world, options = {}) {
 		labelText.style.fontSize = Math.max(10, Math.round(backgroundWidth * 0.18));
 		labelText.position.set(0, backgroundHeight / 2 + 6);
 	}
-	drawPanel();
 
-	container.addChild(panel, panelBorderGraphic, frozenSprite, hoverSprite, labelText);
+	function drawSteam(time = 0, intensity = 1) {
+		const rise = Math.sin(time * 1.7) * (backgroundHeight * 0.03) * intensity;
+		const sway = Math.sin(time * 2.1) * (backgroundWidth * 0.02) * intensity;
+		const topY = -backgroundHeight * 0.62 + rise;
+		const color = 0xffd7b2;
+		steamOrnament.clear();
+		steamOrnament.lineStyle(1.6, color, 0.78 + 0.14 * intensity);
+		for (let i = 0; i < 3; i++) {
+			const x = (-1 + i) * backgroundWidth * 0.18;
+			steamOrnament.moveTo(x, -backgroundHeight * 0.28);
+			steamOrnament.quadraticCurveTo(
+				x - backgroundWidth * 0.06 + sway * (0.4 + i * 0.22),
+				-backgroundHeight * 0.42,
+				x + sway,
+				topY,
+			);
+		}
+	}
+	drawPanel();
+	drawSteam(0, 0.5);
+
+	container.addChild(panel, panelBorderGraphic, steamOrnament, frozenSprite, hoverSprite, labelText);
 	container.scale.set(scale);
 	const motionLayers = [
 		{ target: hoverSprite, strength: parallaxOffset },
@@ -436,6 +457,8 @@ export async function createBlogIcon(app, world, options = {}) {
 	}
 	app.ticker.add((dt) => {
 		cardMotion.update();
+		const time = app.ticker.lastTime * 0.001;
+		drawSteam(time, state.hovered ? 1 : 0.55);
 		const targetScale = state.hovered ? scale * 1.05 : scale;
 		state.currentScale += (targetScale - state.currentScale) * 0.18 * dt;
 		container.scale.set(state.currentScale);
