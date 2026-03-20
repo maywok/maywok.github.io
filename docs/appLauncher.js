@@ -121,6 +121,7 @@ export function createAppLauncher(app, world, options = {}) {
 		const border = new PIXI.Graphics();
 		const glow = new PIXI.Graphics();
 		const ornament = new PIXI.Graphics();
+		const statusLight = new PIXI.Graphics();
 		const label = new PIXI.Text(item.label, {
 			fontFamily: pixelFont,
 			fontSize: 12,
@@ -170,7 +171,7 @@ export function createAppLauncher(app, world, options = {}) {
 		tooltip.addChild(tooltipBg, tooltipText);
 		tooltip.visible = false;
 
-		iconContainer.addChild(glow, bg, border, ornament);
+		iconContainer.addChild(glow, bg, border, ornament, statusLight);
 		if (iconSprite) iconContainer.addChild(iconSprite);
 		if (hoverSprite) iconContainer.addChild(hoverSprite);
 		iconContainer.addChild(glyph, label, tooltip);
@@ -235,6 +236,8 @@ export function createAppLauncher(app, world, options = {}) {
 			border.drawRoundedRect(-size / 2 + 1, -size / 2 + 1, inner, inner, radius - 2);
 
 			ornament.clear();
+			statusLight.clear();
+			statusLight.alpha = 0;
 			if (item.ornament === 'cat') {
 				ornament.lineStyle(2, ornamentColor, 0.95);
 				ornament.beginFill(ornamentColor, 0.22);
@@ -258,13 +261,44 @@ export function createAppLauncher(app, world, options = {}) {
 				ornament.lineTo(size * 0.27, size * 0.03);
 			}
 			if (item.ornament === 'resume') {
-				ornament.lineStyle(2, ornamentColor, 0.9);
-				ornament.beginFill(0xf6efd8, 0.9);
-				ornament.drawRoundedRect(-size * 0.2, -size * 0.67, size * 0.4, size * 0.18, 3);
+				const printerBodyW = size * 0.62;
+				const printerBodyH = size * 0.28;
+				const printerBodyY = size * 0.16;
+				const lidW = printerBodyW * 0.82;
+				const lidH = printerBodyH * 0.34;
+				const paperW = size * 0.38;
+				const paperH = size * 0.2;
+				const ledX = printerBodyW * 0.33;
+				const ledY = printerBodyY - printerBodyH * 0.14;
+
+				ornament.lineStyle(2, ornamentColor, 0.92);
+				ornament.beginFill(0xe7d8bd, 0.96);
+				ornament.drawRoundedRect(-printerBodyW / 2, printerBodyY - printerBodyH / 2, printerBodyW, printerBodyH, 4);
 				ornament.endFill();
-				ornament.lineStyle(1, ornamentColor, 0.75);
-				ornament.moveTo(-size * 0.12, -size * 0.58);
-				ornament.lineTo(size * 0.12, -size * 0.58);
+
+				ornament.lineStyle(1.6, ornamentColor, 0.86);
+				ornament.beginFill(0xf2e8d2, 0.96);
+				ornament.drawRoundedRect(-lidW / 2, printerBodyY - printerBodyH * 0.82, lidW, lidH, 3);
+				ornament.endFill();
+
+				ornament.lineStyle(1.3, ornamentColor, 0.8);
+				ornament.beginFill(0xfaf3e4, 0.98);
+				ornament.drawRoundedRect(-paperW / 2, -size * 0.67, paperW, paperH, 3);
+				ornament.endFill();
+				ornament.lineStyle(1, ornamentColor, 0.7);
+				ornament.moveTo(-paperW * 0.32, -size * 0.59);
+				ornament.lineTo(paperW * 0.32, -size * 0.59);
+				ornament.moveTo(-paperW * 0.32, -size * 0.55);
+				ornament.lineTo(paperW * 0.2, -size * 0.55);
+
+				ornament.lineStyle(1.5, ornamentColor, 0.65);
+				ornament.moveTo(-printerBodyW * 0.31, printerBodyY + printerBodyH * 0.05);
+				ornament.lineTo(printerBodyW * 0.2, printerBodyY + printerBodyH * 0.05);
+
+				statusLight.beginFill(0xff2d2d, 1);
+				statusLight.drawCircle(ledX, ledY, Math.max(2.2, size * 0.045));
+				statusLight.endFill();
+				statusLight.alpha = 0.24;
 			}
 
 			glyph.style.fontSize = Math.max(18, Math.round(size * 0.44));
@@ -358,7 +392,7 @@ export function createAppLauncher(app, world, options = {}) {
 		};
 		iconContainer._updatePlatformRect();
 
-		return { container: iconContainer, state, drawIcon, glow, border, ornament, cardMotion, iconSprite, hoverSprite, item };
+		return { container: iconContainer, state, drawIcon, glow, border, ornament, statusLight, cardMotion, iconSprite, hoverSprite, item };
 	}
 
 	function layout(snap = true) {
@@ -563,6 +597,17 @@ export function createAppLauncher(app, world, options = {}) {
 			if (icon.border) icon.border.alpha = icon.state.hovered ? 1 : 0.9;
 			if (icon.ornament && icon.item?.ornament === 'cat') {
 				icon.ornament.rotation = Math.sin(time * 3 + icon.state.phase) * (icon.state.hovered ? 0.05 : 0.02);
+			}
+			if (icon.statusLight && icon.item?.ornament === 'resume') {
+				if (icon.state.hovered) {
+					const blinkOn = Math.sin(time * 18 + icon.state.phase) > 0;
+					icon.statusLight.alpha = blinkOn ? 1 : 0.12;
+					const blinkScale = blinkOn ? 1.2 : 0.92;
+					icon.statusLight.scale.set(blinkScale);
+				} else {
+					icon.statusLight.alpha = 0.24;
+					icon.statusLight.scale.set(1);
+				}
 			}
 			if (icon.item?.paperEmitter) {
 				icon.state.paperCooldown -= dtSeconds;
