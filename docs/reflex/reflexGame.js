@@ -448,8 +448,13 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		expected: null,
 		selectedDirection: null,
 		difficulty: config.defaultDifficulty,
+		winStreak: 0,
 		timers: new Set(),
 	};
+	const playerIdleTextures = Array.isArray(options.playerTextures) ? options.playerTextures : [];
+	const playerRunTextures = (Array.isArray(options.playerRunTextures) && options.playerRunTextures.length)
+		? options.playerRunTextures
+		: playerIdleTextures;
 
 	const screenToWorldX = (screenX) => {
 		const cx = app.renderer.width / 2;
@@ -601,11 +606,11 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	stageMat.mask = stageMask;
 
 	const actorSize = 34;
-	const createActor = (textures) => {
+	const createActor = (textures, animationSpeed = 0.14) => {
 		if (textures && textures.length) {
 			const sprite = new PIXI.AnimatedSprite(textures);
 			sprite.anchor.set(0.5);
-			sprite.animationSpeed = 0.14;
+			sprite.animationSpeed = animationSpeed;
 			sprite.play();
 			const baseW = textures[0]?.width || 1;
 			const baseH = textures[0]?.height || 1;
@@ -623,11 +628,154 @@ export function createReflexGameOverlay(app, world, options = {}) {
 
 	const playerActor = createActor(options.playerTextures);
 	const cpuActor = createActor(options.cpuTextures);
-	playerActor.position.set(stageX + 42, stageY + 38);
+	const playerBase = { x: stageX + 42, y: stageY + 38 };
+	playerActor.position.set(playerBase.x, playerBase.y);
 	cpuActor.position.set(stageX + stageW - 46, stageY + 38);
 	if (cpuActor?.scale) {
 		cpuActor.scale.x *= -1;
 	}
+
+	const petContainer = new PIXI.Container();
+	const petIdleSprite = createActor(playerIdleTextures, 0.14);
+	const petRunSprite = createActor(playerRunTextures, 0.16);
+	petRunSprite.visible = false;
+	petContainer.addChild(petIdleSprite, petRunSprite);
+	petContainer.visible = false;
+	petContainer.eventMode = 'static';
+	petContainer.cursor = 'grab';
+	petContainer.zIndex = 60;
+
+	const petState = {
+		active: false,
+		dragging: false,
+		offsetX: 0,
+		offsetY: 0,
+		direction: -1,
+		speed: 0,
+		moveTime: 0,
+		pauseTime: 0,
+		lastDragX: 0,
+	};
+	const playerDrag = {
+		active: false,
+		offsetX: 0,
+		offsetY: 0,
+	};
+
+	const getDesktopPetBounds = () => {
+		const marginPx = 20;
+		return {
+			minX: screenToWorldX(marginPx),
+			maxX: screenToWorldX(app.renderer.width - marginPx),
+			floorY: screenToWorldY(app.renderer.height - 18),
+		};
+	};
+
+	const setPetFacing = (direction) => {
+		const facing = direction >= 0 ? 1 : -1;
+		const idleScale = Math.abs(petIdleSprite.scale.x || 1);
+		const runScale = Math.abs(petRunSprite.scale.x || 1);
+		petIdleSprite.scale.x = idleScale * facing;
+		petRunSprite.scale.x = runScale * facing;
+	};
+
+	const setPetAnimation = (running) => {
+		petRunSprite.visible = running;
+		petIdleSprite.visible = !running;
+	};
+
+	const wakePet = (direction = petState.direction) => {
+		petState.direction = direction >= 0 ? 1 : -1;
+		petState.speed = randomBetween(42, 84);
+		petState.moveTime = randomBetween(1.2, 3.1);
+		petState.pauseTime = 0;
+		setPetFacing(petState.direction);
+		setPetAnimation(true);
+	};
+
+	const activateDesktopPet = (x, y) => {
+		const bounds = getDesktopPetBounds();
+		petState.active = true;
+		petContainer.visible = true;
+		petContainer.position.set(clamp(x, bounds.minX, bounds.maxX), bounds.floorY);
+		petState.direction = Math.random() < 0.5 ? -1 : 1;
+		petState.speed = 0;
+		petState.moveTime = 0;
+		petState.pauseTime = randomBetween(0.15, 0.45);
+		setPetFacing(petState.direction);
+		setPetAnimation(false);
+		if (petContainer.parent) {
+			petContainer.parent.addChild(petContainer);
+		} else {
+			world.addChild(petContainer);
+		}
+	};
+
+	const releasePetDrag = () => {
+		if (!petState.dragging) return;
+		const bounds = getDesktopPetBounds();
+		petState.dragging = false;
+		petContainer.cursor = 'grab';
+		petContainer.position.x = clamp(petContainer.position.x, bounds.minX, bounds.maxX);
+		petContainer.position.y = bounds.floorY;
+		wakePet(petState.direction || (Math.random() < 0.5 ? -1 : 1));
+	};
+
+	const updateDesktopPet = (dtSeconds) => {
+		if (!petState.active) return;
+		const bounds = getDesktopPetBounds();
+		if (petState.dragging) {
+			petContainer.position.x = clamp(petContainer.position.x, bounds.minX, bounds.maxX);
+			petContainer.position.y = clamp(petContainer.position.y, screenToWorldY(24), bounds.floorY);
+			return;
+		}
+		petContainer.position.x = clamp(petContainer.position.x, bounds.minX, bounds.maxX);
+		petContainer.position.y = bounds.floorY;
+		if (petState.pauseTime > 0) {
+			petState.pauseTime -= dtSeconds;
+			setPetAnimation(false);
+			if (petState.pauseTime <= 0) {
+				wakePet(Math.random() < 0.5 ? -1 : 1);
+			}
+			return;
+		}
+		setPetAnimation(true);
+		petContainer.position.x += petState.direction * petState.speed * dtSeconds;
+		petState.moveTime -= dtSeconds;
+		if (petContainer.position.x <= bounds.minX || petContainer.position.x >= bounds.maxX) {
+			petContainer.position.x = clamp(petContainer.position.x, bounds.minX, bounds.maxX);
+			petState.direction *= -1;
+			setPetFacing(petState.direction);
+			petState.moveTime = randomBetween(0.8, 2.2);
+		}
+		if (petState.moveTime <= 0) {
+			petState.pauseTime = randomBetween(0.35, 1.1);
+			setPetAnimation(false);
+		}
+	};
+
+	playerActor.eventMode = 'static';
+	playerActor.cursor = 'grab';
+	playerActor.on('pointerdown', (event) => {
+		if (!state.open) return;
+		event.stopPropagation();
+		const pos = event.getLocalPosition(world);
+		playerDrag.active = true;
+		playerDrag.offsetX = playerActor.position.x - pos.x;
+		playerDrag.offsetY = playerActor.position.y - pos.y;
+	});
+
+	petContainer.on('pointerdown', (event) => {
+		if (!petState.active) return;
+		event.stopPropagation();
+		const pos = event.getLocalPosition(world);
+		petState.dragging = true;
+		petState.offsetX = petContainer.position.x - pos.x;
+		petState.offsetY = petContainer.position.y - pos.y;
+		petState.lastDragX = pos.x;
+		petContainer.cursor = 'grabbing';
+		setPetAnimation(false);
+	});
 
 	const playerLabel = new PIXI.Text('Player', {
 		fontFamily: 'Minecraft, monospace',
@@ -822,6 +970,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const beginRound = () => {
 		for (const id of state.timers) window.clearTimeout(id);
 		state.timers.clear();
+		playerDrag.active = false;
+		playerActor.position.set(playerBase.x, playerBase.y);
 		resetCubes();
 		updateMetrics(null, null);
 		result.text = '...';
@@ -1024,12 +1174,59 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		dragState.offsetY = pos.y - container.position.y;
 	});
 	app.stage.on('pointermove', (event) => {
-		if (!dragState.active) return;
 		const pos = event.getLocalPosition(world);
+		if (petState.dragging) {
+			const bounds = getDesktopPetBounds();
+			petState.direction = (pos.x >= petState.lastDragX) ? 1 : -1;
+			setPetFacing(petState.direction);
+			petState.lastDragX = pos.x;
+			petContainer.position.set(
+				clamp(pos.x + petState.offsetX, bounds.minX, bounds.maxX),
+				clamp(pos.y + petState.offsetY, screenToWorldY(24), bounds.floorY),
+			);
+			return;
+		}
+		if (playerDrag.active) {
+			const nextX = pos.x + playerDrag.offsetX;
+			const nextY = pos.y + playerDrag.offsetY;
+			playerActor.position.set(nextX, nextY);
+			const outsideOverlay = (
+				pos.x < container.position.x - 8
+				|| pos.x > container.position.x + windowWidth + 8
+				|| pos.y < container.position.y - 8
+				|| pos.y > container.position.y + windowHeight + 8
+			);
+			if (outsideOverlay) {
+				activateDesktopPet(nextX, nextY);
+				petState.dragging = true;
+				petState.offsetX = playerDrag.offsetX;
+				petState.offsetY = playerDrag.offsetY;
+				petState.lastDragX = pos.x;
+				petContainer.cursor = 'grabbing';
+				playerDrag.active = false;
+				playerActor.position.set(playerBase.x, playerBase.y);
+			}
+			return;
+		}
+		if (!dragState.active) return;
 		container.position.set(pos.x - dragState.offsetX, pos.y - dragState.offsetY);
 	});
-	app.stage.on('pointerup', () => { dragState.active = false; });
-	app.stage.on('pointerupoutside', () => { dragState.active = false; });
+	app.stage.on('pointerup', () => {
+		releasePetDrag();
+		if (playerDrag.active) {
+			playerDrag.active = false;
+			playerActor.position.set(playerBase.x, playerBase.y);
+		}
+		dragState.active = false;
+	});
+	app.stage.on('pointerupoutside', () => {
+		releasePetDrag();
+		if (playerDrag.active) {
+			playerDrag.active = false;
+			playerActor.position.set(playerBase.x, playerBase.y);
+		}
+		dragState.active = false;
+	});
 	app.stage.on('pointerdown', (event) => {
 		if (!difficultyMenu.visible) return;
 		const target = event.target;
@@ -1062,6 +1259,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	updateDifficultyText();
 	world.addChild(container);
 	app.ticker.add((dt) => {
+		const dtSeconds = dt / 60;
+		updateDesktopPet(dtSeconds);
 		if (!state.open) return;
 		flowTime += dt / 60;
 		flow.update?.(flowTime, { x: 0, y: 0 });

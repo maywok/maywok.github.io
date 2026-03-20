@@ -96,19 +96,23 @@ export function createAppLauncher(app, world, options = {}) {
 		page.lineStyle(1, 0xb38c5e, 0.72);
 		page.drawRoundedRect(-width / 2, -height / 2, width, height, 2);
 		page.endFill();
+		const spawnOffset = icon.state.paperSpawnOffset || { x: 0, y: -icon.state.radius * 0.95 };
+		const isResume = icon.item?.ornament === 'resume';
 		page.position.set(
-			icon.container.position.x + (Math.random() - 0.5) * 10,
-			icon.container.position.y - icon.state.radius * 0.95,
+			icon.container.position.x + spawnOffset.x + (Math.random() - 0.5) * (isResume ? 5 : 10),
+			icon.container.position.y + spawnOffset.y + (Math.random() - 0.5) * (isResume ? 2 : 6),
 		);
 		page.rotation = (Math.random() - 0.5) * 0.35;
 		page.zIndex = 0;
 		fxLayer.addChild(page);
+		const baseVx = (Math.random() - 0.5) * 90;
+		const baseVy = isResume ? (35 + Math.random() * 55) : (-120 - Math.random() * 80);
 		paperBits.push({
 			node: page,
 			w: width,
 			h: height,
-			vx: (Math.random() - 0.5) * 90,
-			vy: -120 - Math.random() * 80,
+			vx: baseVx,
+			vy: baseVy,
 			vr: (Math.random() - 0.5) * 5.4,
 			age: 0,
 			life: PAPER_FX.lifetime + Math.random() * 1.8,
@@ -194,6 +198,7 @@ export function createAppLauncher(app, world, options = {}) {
 			angVel: 0,
 			lastDragTime: 0,
 			paperCooldown: Math.random() * 0.2,
+			paperSpawnOffset: { x: 0, y: -28 },
 		};
 
 		const motionLayers = [
@@ -261,15 +266,18 @@ export function createAppLauncher(app, world, options = {}) {
 				ornament.lineTo(size * 0.27, size * 0.03);
 			}
 			if (item.ornament === 'resume') {
-				const printerBodyW = size * 0.62;
-				const printerBodyH = size * 0.28;
-				const printerBodyY = size * 0.16;
-				const lidW = printerBodyW * 0.82;
-				const lidH = printerBodyH * 0.34;
-				const paperW = size * 0.38;
-				const paperH = size * 0.2;
-				const ledX = printerBodyW * 0.33;
-				const ledY = printerBodyY - printerBodyH * 0.14;
+				const printerBodyW = size * 0.56;
+				const printerBodyH = size * 0.2;
+				const printerBodyY = size * 0.27;
+				const topCapW = printerBodyW * 0.86;
+				const topCapH = printerBodyH * 0.26;
+				const slotW = printerBodyW * 0.34;
+				const slotH = Math.max(2, size * 0.035);
+				const chuteW = printerBodyW * 0.2;
+				const chuteH = size * 0.1;
+				const chuteY = printerBodyY + printerBodyH * 0.52;
+				const ledX = printerBodyW * 0.32;
+				const ledY = printerBodyY - printerBodyH * 0.16;
 
 				ornament.lineStyle(2, ornamentColor, 0.92);
 				ornament.beginFill(0xe7d8bd, 0.96);
@@ -278,27 +286,33 @@ export function createAppLauncher(app, world, options = {}) {
 
 				ornament.lineStyle(1.6, ornamentColor, 0.86);
 				ornament.beginFill(0xf2e8d2, 0.96);
-				ornament.drawRoundedRect(-lidW / 2, printerBodyY - printerBodyH * 0.82, lidW, lidH, 3);
+				ornament.drawRoundedRect(-topCapW / 2, printerBodyY - printerBodyH * 0.62, topCapW, topCapH, 3);
 				ornament.endFill();
 
-				ornament.lineStyle(1.3, ornamentColor, 0.8);
-				ornament.beginFill(0xfaf3e4, 0.98);
-				ornament.drawRoundedRect(-paperW / 2, -size * 0.67, paperW, paperH, 3);
+				ornament.lineStyle(1.2, ornamentColor, 0.74);
+				ornament.beginFill(0x8b6f45, 0.5);
+				ornament.drawRoundedRect(-slotW / 2, printerBodyY + printerBodyH * 0.04, slotW, slotH, 2);
 				ornament.endFill();
-				ornament.lineStyle(1, ornamentColor, 0.7);
-				ornament.moveTo(-paperW * 0.32, -size * 0.59);
-				ornament.lineTo(paperW * 0.32, -size * 0.59);
-				ornament.moveTo(-paperW * 0.32, -size * 0.55);
-				ornament.lineTo(paperW * 0.2, -size * 0.55);
+
+				ornament.lineStyle(1.2, ornamentColor, 0.72);
+				ornament.beginFill(0x2e2015, 0.95);
+				ornament.drawRoundedRect(-chuteW / 2, chuteY, chuteW, chuteH, 2);
+				ornament.endFill();
 
 				ornament.lineStyle(1.5, ornamentColor, 0.65);
-				ornament.moveTo(-printerBodyW * 0.31, printerBodyY + printerBodyH * 0.05);
-				ornament.lineTo(printerBodyW * 0.2, printerBodyY + printerBodyH * 0.05);
+				ornament.moveTo(-printerBodyW * 0.3, printerBodyY + printerBodyH * 0.02);
+				ornament.lineTo(printerBodyW * 0.22, printerBodyY + printerBodyH * 0.02);
+
+				state.paperSpawnOffset.x = 0;
+				state.paperSpawnOffset.y = chuteY + chuteH * 0.55;
 
 				statusLight.beginFill(0xff2d2d, 1);
 				statusLight.drawCircle(ledX, ledY, Math.max(2.2, size * 0.045));
 				statusLight.endFill();
 				statusLight.alpha = 0.24;
+			} else {
+				state.paperSpawnOffset.x = 0;
+				state.paperSpawnOffset.y = -state.radius * 0.95;
 			}
 
 			glyph.style.fontSize = Math.max(18, Math.round(size * 0.44));

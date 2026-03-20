@@ -188,6 +188,7 @@ export async function createReflexIcon(app, world, options = {}) {
 			gameOverlay = createReflexGameOverlay(app, world, {
 				screenScale,
 				playerTextures: playerIdleTextures,
+				playerRunTextures: playerRunTextures,
 				cpuTextures: cpuIdleTextures,
 			});
 		}
