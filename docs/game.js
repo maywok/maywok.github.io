@@ -1502,18 +1502,20 @@ async function boot() {
 
 				const cx = basketballButtonSize * 0.5;
 				const cy = basketballButtonSize * 0.5;
-				const r = basketballButtonSize * 0.27;
+				const r = basketballButtonSize * 0.29;
 				basketballGlyph.clear();
-				basketballGlyph.beginFill(0xf6a351, 0.95);
+				basketballGlyph.beginFill(0x1a2538, 0.96);
 				basketballGlyph.drawCircle(cx, cy, r);
 				basketballGlyph.endFill();
-				basketballGlyph.lineStyle(1.3, 0x5e2c17, 0.95);
-				basketballGlyph.moveTo(cx - r, cy);
-				basketballGlyph.lineTo(cx + r, cy);
-				basketballGlyph.moveTo(cx, cy - r);
-				basketballGlyph.lineTo(cx, cy + r);
-				basketballGlyph.arc(cx, cy, r * 0.7, -1.12, 1.12);
-				basketballGlyph.arc(cx, cy, r * 0.7, Math.PI - 1.12, Math.PI + 1.12);
+				basketballGlyph.lineStyle(1.5, 0x98ddff, 0.95);
+				basketballGlyph.drawCircle(cx, cy, r * 0.72);
+				basketballGlyph.lineStyle(1.5, 0xffd36f, 0.98);
+				basketballGlyph.drawCircle(cx, cy, r * 0.36);
+				basketballGlyph.lineStyle(1.3, 0x98ddff, 0.92);
+				basketballGlyph.moveTo(cx - r * 1.05, cy);
+				basketballGlyph.lineTo(cx + r * 1.05, cy);
+				basketballGlyph.moveTo(cx, cy - r * 1.05);
+				basketballGlyph.lineTo(cx, cy + r * 1.05);
 
 				basketballToggle.scale.set(1 + hover * 0.04);
 				basketballToggle.pivot.set((basketballButtonSize * basketballToggle.scale.x - basketballButtonSize) * 0.5, (basketballButtonSize * basketballToggle.scale.y - basketballButtonSize) * 0.5);
@@ -1528,17 +1530,15 @@ async function boot() {
 			arcadeLayer.zIndex = 140;
 			arcadeLayer.visible = false;
 			world.addChild(arcadeLayer);
-			const arcadeBackboard = new PIXI.Graphics();
-			const arcadeHoopTrail = new PIXI.Graphics();
-			const arcadeHoop = new PIXI.Graphics();
-			const arcadeNet = new PIXI.Graphics();
+			const arcadeTargetLayer = new PIXI.Graphics();
+			const arcadeShardLayer = new PIXI.Graphics();
 			const arcadeDividerGlow = new PIXI.Graphics();
 			const arcadeSweepControl = new PIXI.Graphics();
 			let arcadeSweepHoverTarget = 0;
 			let arcadeSweepHover = 0;
 			arcadeSweepControl.eventMode = 'none';
 			arcadeSweepControl.cursor = 'pointer';
-			const arcadeHintText = new PIXI.Text('THROW ICONS INTO THE HOOP', {
+			const arcadeHintText = new PIXI.Text('THROW MODE: HIT TARGETS (1 / 3 / 5)', {
 				fontFamily: 'Minecraft, monospace',
 				fontSize: 11,
 				fill: 0xbde9ff,
@@ -1569,56 +1569,65 @@ async function boot() {
 			});
 			arcadePopupText.anchor.set(0.5, 0.5);
 			arcadePopupText.visible = false;
-			arcadeLayer.addChild(arcadeDividerGlow, arcadeBackboard, arcadeHoopTrail, arcadeHoop, arcadeNet, arcadeHintText, arcadeScoreText, arcadePopupText, arcadeSweepControl);
+			arcadeLayer.addChild(arcadeDividerGlow, arcadeTargetLayer, arcadeShardLayer, arcadeHintText, arcadeScoreText, arcadePopupText, arcadeSweepControl);
 
-			const hoopTrailPoints = [];
-			const NET_COLS = 7;
-			const NET_ROWS = 7;
-			const netNodes = [];
-			const netSprings = [];
+			const arcadeTargetTypes = [
+				{ points: 1, radiusPx: 33, ringColor: 0xff86bb, coreColor: 0x2a1223, shardColor: 0xffa6d0, respawnMin: 0.65, respawnMax: 1.25 },
+				{ points: 3, radiusPx: 24, ringColor: 0x68ffd9, coreColor: 0x0f2a22, shardColor: 0x90ffe7, respawnMin: 0.85, respawnMax: 1.55 },
+				{ points: 5, radiusPx: 15, ringColor: 0xffd56b, coreColor: 0x312206, shardColor: 0xffe7a7, respawnMin: 1.2, respawnMax: 2.1 },
+			];
+			const arcadeTargets = [];
+			const arcadeShards = [];
+			let arcadeTargetSeed = 0;
 			const arcadeState = {
-				hoopWorldX: 0,
-				hoopWorldY: 0,
-				hoopRadius: 0,
-				hoopInnerRadius: 0,
 				dividerWorldX: 0,
-				netRadius: 0,
 			};
-
-			const rebuildNet = (radius) => {
-				netNodes.length = 0;
-				netSprings.length = 0;
-				for (let r = 0; r < NET_ROWS; r++) {
-					for (let c = 0; c < NET_COLS; c++) {
-						const tx = (c / (NET_COLS - 1) - 0.5);
-						const spread = 1 - (r / (NET_ROWS - 1)) * 0.28;
-						netNodes.push({
-							x: tx * radius * 1.3 * spread,
-							y: r * radius * 0.34,
-							px: tx * radius * 1.3 * spread,
-							py: r * radius * 0.34,
-							pin: r === 0,
-						});
-					}
+			const arcadeRand = (min, max) => min + Math.random() * (max - min);
+			const getArcadeTargetTypeIndex = () => {
+				const roll = Math.random();
+				if (roll < 0.54) return 0;
+				if (roll < 0.86) return 1;
+				return 2;
+			};
+			const respawnArcadeTarget = (target, forceTypeIndex = null) => {
+				target.typeIndex = Number.isInteger(forceTypeIndex) ? forceTypeIndex : getArcadeTargetTypeIndex();
+				target.screenX = arcadeRand(app.renderer.width * 0.1, app.renderer.width * 0.44);
+				target.screenY = arcadeRand(app.renderer.height * 0.2, app.renderer.height * 0.63);
+				target.phase = Math.random() * Math.PI * 2;
+				target.phaseVel = arcadeRand(1.3, 2.6);
+				target.drawScreenX = target.screenX;
+				target.drawScreenY = target.screenY;
+				target.alive = true;
+				target.respawnTimer = 0;
+			};
+			const seedArcadeTargets = () => {
+				arcadeTargets.length = 0;
+				const seedTypes = [0, 0, 1, 1, 2];
+				for (let i = 0; i < seedTypes.length; i++) {
+					const target = { id: ++arcadeTargetSeed, typeIndex: 0, screenX: 0, screenY: 0, phase: 0, phaseVel: 0, drawScreenX: 0, drawScreenY: 0, alive: true, respawnTimer: 0 };
+					respawnArcadeTarget(target, seedTypes[i]);
+					arcadeTargets.push(target);
 				}
-				for (let r = 0; r < NET_ROWS; r++) {
-					for (let c = 0; c < NET_COLS; c++) {
-						const idx = r * NET_COLS + c;
-						if (c < NET_COLS - 1) {
-							const b = idx + 1;
-							const dx = netNodes[b].x - netNodes[idx].x;
-							const dy = netNodes[b].y - netNodes[idx].y;
-							netSprings.push([idx, b, Math.hypot(dx, dy)]);
-						}
-						if (r < NET_ROWS - 1) {
-							const b = idx + NET_COLS;
-							const dx = netNodes[b].x - netNodes[idx].x;
-							const dy = netNodes[b].y - netNodes[idx].y;
-							netSprings.push([idx, b, Math.hypot(dx, dy)]);
-						}
-					}
+			};
+			const spawnArcadeShards = (screenX, screenY, tint, radiusPx) => {
+				const shardCount = 8 + Math.floor(Math.random() * 7);
+				for (let i = 0; i < shardCount; i++) {
+					const angle = arcadeRand(-Math.PI, Math.PI);
+					const speed = arcadeRand(140, 360) + radiusPx * 2.6;
+					arcadeShards.push({
+						x: screenX,
+						y: screenY,
+						vx: Math.cos(angle) * speed,
+						vy: Math.sin(angle) * speed - arcadeRand(40, 130),
+						size: arcadeRand(3.2, 7.2),
+						rot: Math.random() * Math.PI * 2,
+						rotV: arcadeRand(-8.5, 8.5),
+						life: arcadeRand(0.4, 0.95),
+						age: 0,
+						bounces: 0,
+						tint,
+					});
 				}
-				arcadeState.netRadius = radius;
 			};
 
 			const getAllIconBodies = () => {
@@ -1647,7 +1656,8 @@ async function boot() {
 				arcadeFeedback.cursorWasRight = false;
 				arcadePopupText.visible = false;
 				iconScoreState.clear();
-				hoopTrailPoints.length = 0;
+				arcadeShards.length = 0;
+				seedArcadeTargets();
 				updateArcadeScoreLabel();
 			};
 			const triggerArcadePopup = (message, baseScale = 1, color = null) => {
@@ -2647,142 +2657,153 @@ async function boot() {
 				arcadeSweepControl.drawPolygon([p0x, p0y, p1x, p1y, p2x, p2y]);
 				arcadeSweepControl.hitArea = new PIXI.Polygon([p0x, p0y, p1x, p1y, p2x, p2y]);
 
-				const hoopScreenX = app.renderer.width * 0.78;
-				const hoopScreenY = app.renderer.height * (0.34 + 0.16 * Math.sin(time * 0.72)) + Math.sin(time * 2.2) * 10;
-				const hoopPos = toWorldFromScreen(hoopScreenX, hoopScreenY);
-				const hoopRadius = toWorldSizeWithCamera(36);
-				const hoopInnerRadius = toWorldSizeWithCamera(22);
-				arcadeState.hoopWorldX = hoopPos.x;
-				arcadeState.hoopWorldY = hoopPos.y;
-				arcadeState.hoopRadius = hoopRadius;
-				arcadeState.hoopInnerRadius = hoopInnerRadius;
-
-				hoopTrailPoints.unshift({ x: hoopPos.x, y: hoopPos.y });
-				if (hoopTrailPoints.length > 18) hoopTrailPoints.length = 18;
-				arcadeHoopTrail.clear();
-				for (let i = 1; i < hoopTrailPoints.length; i++) {
-					const a = hoopTrailPoints[i - 1];
-					const b = hoopTrailPoints[i];
-					const alpha = (1 - i / hoopTrailPoints.length) * 0.42;
-					arcadeHoopTrail.lineStyle(2, 0x3fc8ff, alpha);
-					arcadeHoopTrail.moveTo(a.x, a.y);
-					arcadeHoopTrail.lineTo(b.x, b.y);
-				}
-
-				const boardW = toWorldSizeWithCamera(88);
-				const boardH = toWorldSizeWithCamera(148);
-				const boardX = hoopPos.x + toWorldSizeWithCamera(64);
-				const boardY = hoopPos.y - boardH * 0.48;
-				arcadeBackboard.clear();
-				arcadeBackboard.beginFill(0x0a1a2a, 0.86);
-				arcadeBackboard.lineStyle(2, 0x79d4ff, 0.86);
-				arcadeBackboard.drawRoundedRect(boardX, boardY, boardW, boardH, toWorldSizeWithCamera(8));
-				arcadeBackboard.endFill();
-				arcadeBackboard.lineStyle(1.5, 0xb9ecff, 0.5);
-				arcadeBackboard.drawRoundedRect(boardX + toWorldSizeWithCamera(11), boardY + toWorldSizeWithCamera(14), boardW - toWorldSizeWithCamera(22), boardH - toWorldSizeWithCamera(28), toWorldSizeWithCamera(4));
-
-				arcadeHoop.clear();
-				arcadeHoop.lineStyle(5, 0xff7bb8, 0.95);
-				arcadeHoop.arc(hoopPos.x, hoopPos.y, hoopRadius, Math.PI * 0.06, Math.PI * 0.94);
-				arcadeHoop.lineStyle(2, 0xc6efff, 0.7);
-				arcadeHoop.arc(hoopPos.x, hoopPos.y, hoopRadius + toWorldSizeWithCamera(4), Math.PI * 0.06, Math.PI * 0.94);
-
-				if (!netNodes.length || Math.abs(arcadeState.netRadius - hoopRadius) > toWorldSizeWithCamera(1.5)) {
-					rebuildNet(hoopRadius);
-				}
-				for (let c = 0; c < NET_COLS; c++) {
-					const idx = c;
-					const tCol = c / (NET_COLS - 1);
-					const x = (tCol - 0.5) * hoopRadius * 1.32;
-					const y = hoopRadius * (0.18 + Math.sin(time * 4 + tCol * 2.4) * 0.02);
-					netNodes[idx].x = x;
-					netNodes[idx].y = y;
-					netNodes[idx].px = x;
-					netNodes[idx].py = y;
-				}
-				for (let i = NET_COLS; i < netNodes.length; i++) {
-					const n = netNodes[i];
-					const vx = (n.x - n.px) * 0.985;
-					const vy = (n.y - n.py) * 0.985;
-					n.px = n.x;
-					n.py = n.y;
-					n.x += vx;
-					n.y += vy + toWorldSizeWithCamera(420) * seconds * seconds;
-				}
-				for (let iter = 0; iter < 4; iter++) {
-					for (const s of netSprings) {
-						const a = netNodes[s[0]];
-						const b = netNodes[s[1]];
-						const rest = s[2];
-						const dx = b.x - a.x;
-						const dy = b.y - a.y;
-						const d = Math.max(0.0001, Math.hypot(dx, dy));
-						const diff = (d - rest) / d;
-						const offX = dx * diff * 0.5;
-						const offY = dy * diff * 0.5;
-						if (!a.pin) {
-							a.x += offX;
-							a.y += offY;
+				arcadeTargetLayer.clear();
+				for (const target of arcadeTargets) {
+					const type = arcadeTargetTypes[target.typeIndex] ?? arcadeTargetTypes[0];
+					if (!target.alive) {
+						target.respawnTimer -= seconds;
+						if (target.respawnTimer <= 0) {
+							respawnArcadeTarget(target);
 						}
-						if (!b.pin) {
-							b.x -= offX;
-							b.y -= offY;
-						}
+						continue;
 					}
-				}
-
-				arcadeNet.clear();
-				for (const s of netSprings) {
-					const a = netNodes[s[0]];
-					const b = netNodes[s[1]];
-					arcadeNet.lineStyle(1.2, 0xa5e8ff, 0.5);
-					arcadeNet.moveTo(hoopPos.x + a.x, hoopPos.y + a.y);
-					arcadeNet.lineTo(hoopPos.x + b.x, hoopPos.y + b.y);
+					target.phase += seconds * target.phaseVel;
+					const wobbleX = Math.cos(target.phase * 0.64 + target.id) * type.radiusPx * 0.13;
+					const wobbleY = Math.sin(target.phase) * type.radiusPx * 0.16;
+					target.drawScreenX = target.screenX + wobbleX;
+					target.drawScreenY = target.screenY + wobbleY;
+					const center = toWorldFromScreen(target.drawScreenX, target.drawScreenY);
+					const radius = toWorldSizeWithCamera(type.radiusPx);
+					arcadeTargetLayer.beginFill(type.coreColor, 0.9);
+					arcadeTargetLayer.drawCircle(center.x, center.y, radius);
+					arcadeTargetLayer.endFill();
+					arcadeTargetLayer.lineStyle(toWorldSizeWithCamera(2.6), type.ringColor, 0.95);
+					arcadeTargetLayer.drawCircle(center.x, center.y, radius * 0.98);
+					arcadeTargetLayer.lineStyle(toWorldSizeWithCamera(2.1), 0xffffff, 0.58);
+					arcadeTargetLayer.drawCircle(center.x, center.y, radius * 0.63);
+					arcadeTargetLayer.lineStyle(toWorldSizeWithCamera(1.65), type.ringColor, 0.84);
+					arcadeTargetLayer.drawCircle(center.x, center.y, radius * 0.34);
 				}
 
 				arcadeHintText.text = arcadeFeedback.noGoVoided
-					? 'RIGHT SIDE BLOCKED: MOVE LEFT TO SCORE'
-					: 'LEFT SIDE ACTIVE: SCORE IS LIVE';
+					? 'RIGHT SIDE BLOCKED: CURSOR LEFT TO SCORE'
+					: 'THROW MODE: HIT TARGETS (1 / 3 / 5)';
 				arcadeHintText.position.set(toWorldFromScreen(24, 18).x, toWorldFromScreen(24, 18).y);
 				const scorePulse = 1 + Math.min(0.24, arcadeFeedback.combo * 0.035) + Math.sin(time * 5.2) * 0.02;
-				arcadeScoreText.position.set(hoopPos.x, hoopPos.y + hoopRadius + toWorldSizeWithCamera(24));
+				const scorePos = toWorldFromScreen(app.renderer.width * 0.5, app.renderer.height - 58);
+				arcadeScoreText.position.set(scorePos.x, scorePos.y);
 				arcadeScoreText.scale.set(scorePulse);
 				arcadeScoreText.tint = arcadeFeedback.noGoVoided ? 0xff8fab : 0xffffff;
 
 				const bodies = getAllIconBodies();
+				const rightFloorY = toWorldFromScreen(0, app.renderer.height - 18).y;
 				for (const body of bodies) {
 					const key = body.container;
 					let st = iconScoreState.get(key);
 					if (!st) {
-						st = { lastY: body.container.position.y, lastX: body.container.position.x, cooldown: 0 };
+						st = { cooldown: 0, returnCooldown: 0 };
 						iconScoreState.set(key, st);
 					}
 					st.cooldown = Math.max(0, st.cooldown - seconds);
-					const dx = body.container.position.x - arcadeState.hoopWorldX;
-					const prevDx = st.lastX - arcadeState.hoopWorldX;
-					const prevDy = st.lastY - arcadeState.hoopWorldY;
-					const dy = body.container.position.y - arcadeState.hoopWorldY;
-					const falling = (body.state?.vy ?? 0) > 24;
-					const crossedDown = prevDy < -arcadeState.hoopInnerRadius * 0.45 && dy >= -arcadeState.hoopInnerRadius * 0.04;
-					const entersFromSide = Math.abs(prevDx) > arcadeState.hoopInnerRadius * 1.05 && Math.abs(dx) <= arcadeState.hoopInnerRadius * 0.9 && dy > -arcadeState.hoopInnerRadius * 0.42;
-					const inRimX = Math.abs(dx) <= arcadeState.hoopInnerRadius * 0.95;
-					if (st.cooldown <= 0 && falling && !arcadeFeedback.noGoVoided && ((crossedDown && inRimX) || entersFromSide)) {
-						basketballScore += 1;
+					st.returnCooldown = Math.max(0, st.returnCooldown - seconds);
+
+					const c = body.container;
+					const bodyState = body.state;
+					if (!c || !bodyState) continue;
+
+					if (c.position.x > arcadeState.dividerWorldX + toWorldSizeWithCamera(18)
+						&& c.position.y >= rightFloorY
+						&& st.returnCooldown <= 0
+						&& !bodyState.dragging
+						&& !bodyState.grabbed) {
+						c.position.x -= toWorldSizeWithCamera(8);
+						bodyState.vx = Math.min(bodyState.vx ?? 0, -420 / SCENE_SCALE);
+						bodyState.vy = Math.min(bodyState.vy ?? 0, -140 / SCENE_SCALE);
+						if (bodyState.free) {
+							bodyState.free.x = c.position.x;
+							bodyState.free.y = c.position.y;
+						}
+						st.returnCooldown = 0.45;
+					}
+
+					if (arcadeFeedback.noGoVoided || st.cooldown > 0) continue;
+					const bodyRadius = (bodyState.radiusScaled ?? bodyState.radius ?? (24 / SCENE_SCALE)) * (c.scale?.x || 1);
+					const speed = Math.hypot(bodyState.vx ?? 0, bodyState.vy ?? 0);
+					if (speed < 56 / SCENE_SCALE) continue;
+
+					for (const target of arcadeTargets) {
+						if (!target.alive) continue;
+						const type = arcadeTargetTypes[target.typeIndex] ?? arcadeTargetTypes[0];
+						const targetPos = toWorldFromScreen(target.drawScreenX, target.drawScreenY);
+						const targetRadius = toWorldSizeWithCamera(type.radiusPx * 0.82);
+						const dx = c.position.x - targetPos.x;
+						const dy = c.position.y - targetPos.y;
+						if (dx * dx + dy * dy > (bodyRadius + targetRadius) * (bodyRadius + targetRadius)) continue;
+
+						basketballScore += type.points;
 						const chainWindow = 2.2;
 						if (time - arcadeFeedback.lastScoreTime <= chainWindow) arcadeFeedback.combo += 1;
 						else arcadeFeedback.combo = 1;
 						arcadeFeedback.lastScoreTime = time;
 						updateArcadeScoreLabel();
-						const phrase = arcadeFeedback.combo <= 1
-							? 'Nice shot!'
-							: (arcadeFeedback.combo === 2 ? 'Sick!' : (arcadeFeedback.combo === 3 ? 'Clean!' : (arcadeFeedback.combo === 4 ? 'Nasty!' : 'Unreal!')));
-						const popupMsg = arcadeFeedback.combo > 1 ? `${phrase}  x${arcadeFeedback.combo}` : phrase;
+						const phrase = type.points >= 5
+							? 'Bullseye!'
+							: (arcadeFeedback.combo <= 1
+								? 'Nice throw!'
+								: (arcadeFeedback.combo === 2 ? 'Great toss!' : (arcadeFeedback.combo === 3 ? 'Long throw!' : 'Heat check!')));
+						const popupMsg = arcadeFeedback.combo > 1
+							? `${phrase}  x${arcadeFeedback.combo}`
+							: `${phrase} +${type.points}`;
 						const popupScale = 1.0 + Math.min(0.7, arcadeFeedback.combo * 0.1);
 						triggerArcadePopup(popupMsg, popupScale);
-						st.cooldown = 0.75;
+						spawnArcadeShards(target.drawScreenX, target.drawScreenY, type.shardColor, type.radiusPx);
+						target.alive = false;
+						target.respawnTimer = arcadeRand(type.respawnMin, type.respawnMax);
+						st.cooldown = 0.28;
+						break;
 					}
-					st.lastY = body.container.position.y;
-					st.lastX = body.container.position.x;
+				}
+
+				arcadeShardLayer.clear();
+				const shardFloorY = app.renderer.height - 16;
+				for (let i = arcadeShards.length - 1; i >= 0; i--) {
+					const shard = arcadeShards[i];
+					shard.age += seconds;
+					if (shard.age >= shard.life) {
+						arcadeShards.splice(i, 1);
+						continue;
+					}
+					shard.vy += 1180 * seconds;
+					shard.x += shard.vx * seconds;
+					shard.y += shard.vy * seconds;
+					shard.rot += shard.rotV * seconds;
+					if (shard.y >= shardFloorY && shard.bounces < 1) {
+						shard.y = shardFloorY;
+						shard.vy *= -0.36;
+						shard.vx *= 0.82;
+						shard.bounces += 1;
+					}
+					if (shard.y > app.renderer.height + 80) {
+						arcadeShards.splice(i, 1);
+						continue;
+					}
+					const lifeT = 1 - shard.age / shard.life;
+					const alpha = Math.max(0, Math.min(1, lifeT * 0.94));
+					if (alpha <= 0.01) continue;
+					const p = toWorldFromScreen(shard.x, shard.y);
+					const halfW = toWorldSizeWithCamera(shard.size * (0.46 + lifeT * 0.35));
+					const halfH = toWorldSizeWithCamera(shard.size * (0.25 + lifeT * 0.22));
+					const cR = Math.cos(shard.rot);
+					const sR = Math.sin(shard.rot);
+					const ax = p.x + (-halfW) * cR - (-halfH) * sR;
+					const ay = p.y + (-halfW) * sR + (-halfH) * cR;
+					const bx = p.x + halfW * cR - 0 * sR;
+					const by = p.y + halfW * sR + 0 * cR;
+					const cx = p.x + (-halfW) * cR - halfH * sR;
+					const cy = p.y + (-halfW) * sR + halfH * cR;
+					arcadeShardLayer.beginFill(shard.tint, alpha);
+					arcadeShardLayer.drawPolygon([ax, ay, bx, by, cx, cy]);
+					arcadeShardLayer.endFill();
 				}
 
 				if (arcadeFeedback.combo > 0 && time - arcadeFeedback.lastScoreTime > 2.5) {
@@ -2800,13 +2821,16 @@ async function boot() {
 					arcadePopupText.visible = true;
 					arcadePopupText.alpha = 0.22 + out * 0.78;
 					arcadePopupText.scale.set(arcadeFeedback.popupBaseScale * (1 + out * 0.14));
-					arcadePopupText.position.set(hoopPos.x + shakeX, hoopPos.y + hoopRadius + toWorldSizeWithCamera(70) + shakeY);
+					const popupBase = toWorldFromScreen(app.renderer.width * 0.5, app.renderer.height * 0.74);
+					arcadePopupText.position.set(popupBase.x + shakeX, popupBase.y + shakeY);
 				} else {
 					arcadePopupText.visible = false;
 				}
 			} else {
 				arcadeLayer.visible = false;
 				arcadePopupText.visible = false;
+				arcadeTargetLayer.clear();
+				arcadeShardLayer.clear();
 				arcadeSweepControl.eventMode = 'none';
 				arcadeSweepControl.visible = false;
 				arcadeSweepHoverTarget = 0;
