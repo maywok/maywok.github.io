@@ -104,29 +104,28 @@ export async function createReflexIcon(app, world, options = {}) {
 	};
 
 	const drawSword = () => {
-		const bladeLen = Math.min(backgroundWidth, backgroundHeight) * 0.52;
-		const bladeW = Math.max(3, bladeLen * 0.12);
-		const hiltW = bladeW * 1.7;
-		const hiltH = Math.max(4, bladeW * 0.78);
+		const bladeLen = Math.min(backgroundWidth, backgroundHeight) * 0.56;
+		const bladeW = Math.max(3, bladeLen * 0.13);
+		const guardW = bladeW * 2.9;
+		const handleLen = bladeLen * 0.34;
+		const outline = panelBorder;
 		ninjaSword.clear();
-		ninjaSword.lineStyle(1.4, 0xf2f8ff, 0.86);
-		ninjaSword.beginFill(0xc7d8ec, 0.94);
-		ninjaSword.drawRoundedRect(-bladeW * 0.5, -bladeLen, bladeW, bladeLen, 2);
-		ninjaSword.endFill();
-		ninjaSword.beginFill(0xf6fbff, 0.92);
-		ninjaSword.moveTo(0, -bladeLen - bladeW * 0.42);
-		ninjaSword.lineTo(bladeW * 0.46, -bladeLen + bladeW * 0.12);
-		ninjaSword.lineTo(-bladeW * 0.46, -bladeLen + bladeW * 0.12);
-		ninjaSword.closePath();
-		ninjaSword.endFill();
-		ninjaSword.lineStyle(1.5, 0xffb8cd, 0.92);
-		ninjaSword.beginFill(0x611a35, 0.96);
-		ninjaSword.drawRoundedRect(-hiltW * 0.5, -hiltH * 0.5, hiltW, hiltH, 2);
-		ninjaSword.endFill();
-		ninjaSword.lineStyle(1.1, 0x9e2f57, 0.88);
-		ninjaSword.beginFill(0xffd8e7, 0.96);
-		ninjaSword.drawRoundedRect(-bladeW * 0.38, hiltH * 0.2, bladeW * 0.76, hiltH * 0.78, 2);
-		ninjaSword.endFill();
+		ninjaSword.lineStyle({ width: 2.7, color: outline, alpha: 0.96, cap: PIXI.LINE_CAP.ROUND, join: PIXI.LINE_JOIN.ROUND });
+		ninjaSword.moveTo(-bladeW * 0.24, 0);
+		ninjaSword.quadraticCurveTo(-bladeW * 0.72, -bladeLen * 0.46, -bladeW * 0.34, -bladeLen);
+		ninjaSword.quadraticCurveTo(bladeW * 0.36, -bladeLen * 1.02, bladeW * 0.64, -bladeLen * 0.3);
+		ninjaSword.quadraticCurveTo(bladeW * 0.46, -bladeLen * 0.06, bladeW * 0.16, 0);
+		ninjaSword.moveTo(-guardW * 0.5, bladeW * 0.08);
+		ninjaSword.lineTo(guardW * 0.5, bladeW * 0.08);
+		ninjaSword.drawRoundedRect(-bladeW * 0.44, bladeW * 0.08, bladeW * 0.88, handleLen, 2.2);
+		ninjaSword.drawCircle(0, bladeW * 0.08 + handleLen + bladeW * 0.26, bladeW * 0.26);
+		ninjaSword.lineStyle({ width: 1.4, color: outline, alpha: 0.72, cap: PIXI.LINE_CAP.ROUND, join: PIXI.LINE_JOIN.ROUND });
+		for (let i = 0; i < 4; i++) {
+			const t = i / 3;
+			const y = bladeW * 0.22 + t * (handleLen - bladeW * 0.22);
+			ninjaSword.moveTo(-bladeW * 0.36, y);
+			ninjaSword.lineTo(bladeW * 0.36, y + bladeW * 0.22);
+		}
 		ninjaSword.position.set(-backgroundWidth * 0.23, backgroundHeight * 0.26);
 		ninjaSword.rotation = -0.68;
 	};
@@ -134,9 +133,9 @@ export async function createReflexIcon(app, world, options = {}) {
 	const drawStar = () => {
 		const rOuter = Math.min(backgroundWidth, backgroundHeight) * 0.13;
 		const rInner = rOuter * 0.42;
+		const outline = panelBorder;
 		ninjaStar.clear();
-		ninjaStar.lineStyle(1.2, 0xffd5e2, 0.9);
-		ninjaStar.beginFill(0xf6f9ff, 0.96);
+		ninjaStar.lineStyle({ width: 2.6, color: outline, alpha: 0.96, cap: PIXI.LINE_CAP.ROUND, join: PIXI.LINE_JOIN.ROUND });
 		for (let i = 0; i < 8; i++) {
 			const isOuter = i % 2 === 0;
 			const a = -Math.PI * 0.5 + i * (Math.PI / 4);
@@ -147,10 +146,8 @@ export async function createReflexIcon(app, world, options = {}) {
 			else ninjaStar.lineTo(x, y);
 		}
 		ninjaStar.closePath();
-		ninjaStar.endFill();
-		ninjaStar.beginFill(0x7f8fa8, 0.9);
-		ninjaStar.drawCircle(0, 0, rInner * 0.38);
-		ninjaStar.endFill();
+		ninjaStar.lineStyle({ width: 1.9, color: outline, alpha: 0.8, cap: PIXI.LINE_CAP.ROUND, join: PIXI.LINE_JOIN.ROUND });
+		ninjaStar.drawCircle(0, 0, rInner * 0.52);
 	};
 
 	drawPanel();
@@ -413,7 +410,7 @@ export async function createReflexIcon(app, world, options = {}) {
 			const a = state.star.trail[i - 1];
 			const b = state.star.trail[i];
 			const alpha = (1 - i / state.star.trail.length) * (state.hovered ? 0.55 : 0.22);
-			ninjaStarTrail.lineStyle(1.5, 0xfecbe0, alpha);
+			ninjaStarTrail.lineStyle(1.5, panelBorder, alpha);
 			ninjaStarTrail.moveTo(a.x, a.y);
 			ninjaStarTrail.lineTo(b.x, b.y);
 		}
@@ -464,7 +461,7 @@ export async function createReflexIcon(app, world, options = {}) {
 			const dy = container.position.y - mouse.y;
 			const dist = Math.hypot(dx, dy) || 1;
 			const grabR = screenToWorldX(PHYSICS.mouseGrabRadius) - screenToWorldX(0);
-			if (dist < grabR) {
+			if (state.grabbed || dist < grabR) {
 				if (!state.grabbed) {
 					state.grabbed = true;
 					state.grabOffset.x = container.position.x - mouse.x;
@@ -476,8 +473,6 @@ export async function createReflexIcon(app, world, options = {}) {
 				state.angVel += torque * SPIN.grabTorque;
 				container.position.x = mouse.x + state.grabOffset.x;
 				container.position.y = mouse.y + state.grabOffset.y;
-			} else {
-				state.grabbed = false;
 			}
 		}
 		if (state.dragEnabled && (state.dragging || state.grabbed)) {

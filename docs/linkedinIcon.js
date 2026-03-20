@@ -315,7 +315,7 @@ export async function createLinkedinIcon(app, world, options = {}) {
 			const dy = container.position.y - mouse.y;
 			const dist = Math.hypot(dx, dy) || 1;
 			const grabR = screenToWorldX(PHYSICS.mouseGrabRadius) - screenToWorldX(0);
-			if (dist < grabR) {
+			if (state.grabbed || dist < grabR) {
 				if (!state.grabbed) {
 					state.grabbed = true;
 					state.grabOffset.x = container.position.x - mouse.x;
@@ -327,8 +327,6 @@ export async function createLinkedinIcon(app, world, options = {}) {
 				state.angVel += torque * SPIN.grabTorque;
 				container.position.x = mouse.x + state.grabOffset.x;
 				container.position.y = mouse.y + state.grabOffset.y;
-			} else {
-				state.grabbed = false;
 			}
 		}
 		if (state.dragEnabled && (state.dragging || state.grabbed)) {

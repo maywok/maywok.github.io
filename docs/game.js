@@ -904,16 +904,16 @@ async function boot() {
 						glyph: 'G',
 						tooltip: 'View GitHub',
 						url: 'https://github.com/maywok',
-						panelFill: 0x16141f,
+						panelFill: 0xf3e3cf,
 						panelFillAlpha: 0.96,
-						panelBorder: 0xff7dad,
+						panelBorder: 0x8f5b3b,
 						panelBorderAlpha: 0.95,
-						glyphColor: 0xffd8e7,
-						labelColor: 0xffd8e7,
+						glyphColor: 0x362117,
+						labelColor: 0x543527,
 						glowAlpha: 0.1,
 						glowHoverAlpha: 0.26,
 						ornament: 'cat',
-						ornamentColor: 0xff93ba,
+						ornamentColor: 0x3a2a1f,
 					},
 				],
 				screenToWorldX,
@@ -1081,8 +1081,12 @@ async function boot() {
 			const arcadeHoopTrail = new PIXI.Graphics();
 			const arcadeHoop = new PIXI.Graphics();
 			const arcadeNet = new PIXI.Graphics();
-			const arcadeDivider = new PIXI.Graphics();
 			const arcadeDividerGlow = new PIXI.Graphics();
+			const arcadeSweepControl = new PIXI.Graphics();
+			let arcadeSweepHoverTarget = 0;
+			let arcadeSweepHover = 0;
+			arcadeSweepControl.eventMode = 'none';
+			arcadeSweepControl.cursor = 'pointer';
 			const arcadeHintText = new PIXI.Text('THROW ICONS INTO THE HOOP', {
 				fontFamily: 'Minecraft, monospace',
 				fontSize: 11,
@@ -1114,7 +1118,7 @@ async function boot() {
 			});
 			arcadePopupText.anchor.set(0.5, 0.5);
 			arcadePopupText.visible = false;
-			arcadeLayer.addChild(arcadeDividerGlow, arcadeDivider, arcadeBackboard, arcadeHoopTrail, arcadeHoop, arcadeNet, arcadeHintText, arcadeScoreText, arcadePopupText);
+			arcadeLayer.addChild(arcadeDividerGlow, arcadeBackboard, arcadeHoopTrail, arcadeHoop, arcadeNet, arcadeHintText, arcadeScoreText, arcadePopupText, arcadeSweepControl);
 
 			const hoopTrailPoints = [];
 			const NET_COLS = 7;
@@ -1279,8 +1283,36 @@ async function boot() {
 				if (basketballMode) {
 					resetArcadeRound();
 					arcadeFeedback.cursorWasRight = mouse.x >= app.renderer.width * 0.5;
+					arcadeFeedback.noGoVoided = arcadeFeedback.cursorWasRight;
 				} else {
 					arcadePopupText.visible = false;
+				}
+			});
+			arcadeSweepControl.on('pointerover', () => { arcadeSweepHoverTarget = 1; });
+			arcadeSweepControl.on('pointerout', () => { arcadeSweepHoverTarget = 0; });
+			arcadeSweepControl.on('pointertap', () => {
+				if (!basketballMode || !dragEnabled) return;
+				const bodies = getAllIconBodies();
+				const shove = 260 / SCENE_SCALE;
+				const step = 34 / SCENE_SCALE;
+				let moved = 0;
+				for (const body of bodies) {
+					const c = body?.container;
+					const st = body?.state;
+					if (!c || !st) continue;
+					if (st.dragging || st.grabbed) continue;
+					if (c.position.x <= arcadeState.dividerWorldX + screenToWorldSize(8)) continue;
+					c.position.x -= step;
+					st.vx = Math.min(st.vx ?? 0, -shove);
+					st.vy = (st.vy ?? 0) * 0.9;
+					if (st.free) {
+						st.free.x = c.position.x;
+						st.free.y = c.position.y;
+					}
+					moved += 1;
+				}
+				if (moved > 0) {
+					triggerArcadePopup('SWEEP LEFT', 0.86, 0x90dcff);
 				}
 			});
 			placeLockButton();
@@ -1902,6 +1934,8 @@ async function boot() {
 			appLauncher.update(time, seconds, mouseWorld);
 			if (basketballMode && dragEnabled) {
 				arcadeLayer.visible = true;
+				arcadeSweepControl.visible = true;
+				arcadeSweepControl.eventMode = 'static';
 				const toWorldFromScreen = (sx, sy) => ({
 					x: (sx - cx - cameraOffset.x) / SCENE_SCALE + cx,
 					y: (sy - cy - cameraOffset.y) / SCENE_SCALE + cy,
@@ -1909,13 +1943,15 @@ async function boot() {
 				const toWorldSizeWithCamera = (s) => s / SCENE_SCALE;
 				const dividerX = app.renderer.width * 0.5;
 				const cursorIsRight = mouse.x >= dividerX;
-				if (!arcadeFeedback.noGoVoided && !arcadeFeedback.cursorWasRight && cursorIsRight) {
-					arcadeFeedback.noGoVoided = true;
+				if (!arcadeFeedback.cursorWasRight && cursorIsRight) {
 					arcadeFeedback.combo = 0;
 					updateArcadeScoreLabel();
-					triggerArcadePopup('VOID ZONE', 1.04, 0xff5f88);
+					triggerArcadePopup('RIGHT SIDE BLOCKED', 1.02, 0xff5f88);
+				} else if (arcadeFeedback.cursorWasRight && !cursorIsRight) {
+					triggerArcadePopup('LEFT SIDE ACTIVE', 0.92, 0x8fffb9);
 				}
 				arcadeFeedback.cursorWasRight = cursorIsRight;
+				arcadeFeedback.noGoVoided = cursorIsRight;
 				const dividerNear = Math.max(0, Math.min(1, 1 - Math.abs(mouse.x - dividerX) / 170));
 				const dividerTop = app.renderer.height * 0.06;
 				const dividerBottom = app.renderer.height * 0.94;
@@ -1925,7 +1961,7 @@ async function boot() {
 				arcadeState.dividerWorldX = dividerCenter.x;
 
 				arcadeDividerGlow.clear();
-				arcadeDividerGlow.beginFill(arcadeFeedback.noGoVoided ? 0xff5f88 : 0x7fd8ff, (0.08 + dividerNear * 0.42) * (arcadeFeedback.noGoVoided ? 1.2 : 1));
+				arcadeDividerGlow.beginFill(arcadeFeedback.noGoVoided ? 0xff5f88 : 0x7fd8ff, dividerNear * (arcadeFeedback.noGoVoided ? 0.62 : 0.48));
 				arcadeDividerGlow.drawRoundedRect(
 					dividerCenter.x - dividerWidth * 0.95,
 					dividerCenter.y - dividerHeight * 0.52,
@@ -1935,16 +1971,26 @@ async function boot() {
 				);
 				arcadeDividerGlow.endFill();
 
-				arcadeDivider.clear();
-				arcadeDivider.beginFill(arcadeFeedback.noGoVoided ? 0xff8fab : 0x92ddff, 0.16 + (1 - dividerNear) * (arcadeFeedback.noGoVoided ? 0.36 : 0.28));
-				arcadeDivider.drawRoundedRect(
-					dividerCenter.x - dividerWidth * 0.42,
-					dividerCenter.y - dividerHeight * 0.5,
-					dividerWidth * 0.84,
-					dividerHeight,
-					dividerWidth * 0.45,
-				);
-				arcadeDivider.endFill();
+				arcadeSweepHover += (arcadeSweepHoverTarget - arcadeSweepHover) * Math.min(1, seconds * 14);
+				const sweepNear = Math.max(0, Math.min(1, 1 - (app.renderer.width - mouse.x) / 150));
+				const sweepBoost = Math.max(arcadeSweepHover, sweepNear * 0.75);
+				const sweepPos = toWorldFromScreen(app.renderer.width * 0.974, app.renderer.height * 0.5);
+				const sweepW = toWorldSizeWithCamera(17);
+				const sweepH = toWorldSizeWithCamera(30);
+				const sway = Math.sin(time * 4.2) * toWorldSizeWithCamera(2.4) * (0.35 + sweepBoost);
+				const p0x = sweepPos.x + sweepW * 0.58 + sway;
+				const p0y = sweepPos.y - sweepH * 0.72;
+				const p1x = sweepPos.x - sweepW * 0.62 + sway;
+				const p1y = sweepPos.y;
+				const p2x = sweepPos.x + sweepW * 0.58 + sway;
+				const p2y = sweepPos.y + sweepH * 0.72;
+				arcadeSweepControl.clear();
+				arcadeSweepControl.beginFill(0x8fdcff, 0.14 + sweepBoost * 0.24);
+				arcadeSweepControl.drawPolygon([p0x, p0y, p1x, p1y, p2x, p2y]);
+				arcadeSweepControl.endFill();
+				arcadeSweepControl.lineStyle(1.5, 0xd8f5ff, 0.45 + sweepBoost * 0.45);
+				arcadeSweepControl.drawPolygon([p0x, p0y, p1x, p1y, p2x, p2y]);
+				arcadeSweepControl.hitArea = new PIXI.Polygon([p0x, p0y, p1x, p1y, p2x, p2y]);
 
 				const hoopScreenX = app.renderer.width * 0.78;
 				const hoopScreenY = app.renderer.height * (0.34 + 0.16 * Math.sin(time * 0.72)) + Math.sin(time * 2.2) * 10;
@@ -2040,8 +2086,8 @@ async function boot() {
 				}
 
 				arcadeHintText.text = arcadeFeedback.noGoVoided
-					? 'VOID ACTIVE: CURSOR CROSSED DIVIDER'
-					: 'DON\'T CROSS THE BLUE DIVIDER';
+					? 'RIGHT SIDE BLOCKED: MOVE LEFT TO SCORE'
+					: 'LEFT SIDE ACTIVE: SCORE IS LIVE';
 				arcadeHintText.position.set(toWorldFromScreen(24, 18).x, toWorldFromScreen(24, 18).y);
 				const scorePulse = 1 + Math.min(0.24, arcadeFeedback.combo * 0.035) + Math.sin(time * 5.2) * 0.02;
 				arcadeScoreText.position.set(hoopPos.x, hoopPos.y + hoopRadius + toWorldSizeWithCamera(24));
@@ -2106,6 +2152,10 @@ async function boot() {
 			} else {
 				arcadeLayer.visible = false;
 				arcadePopupText.visible = false;
+				arcadeSweepControl.eventMode = 'none';
+				arcadeSweepControl.visible = false;
+				arcadeSweepHoverTarget = 0;
+				arcadeSweepHover = 0;
 			}
 			for (const vine of vines) vine.update(time, mouseWorld, seconds);
 			if (ENABLE_VINE_LAMP_LIGHTING && ENABLE_VINE_LAMPS) {

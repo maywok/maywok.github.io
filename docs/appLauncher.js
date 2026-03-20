@@ -125,6 +125,7 @@ export function createAppLauncher(app, world, options = {}) {
 		const border = new PIXI.Graphics();
 		const glow = new PIXI.Graphics();
 		const ornament = new PIXI.Graphics();
+		const catWhiskers = new PIXI.Graphics();
 		const statusLight = new PIXI.Graphics();
 		const label = new PIXI.Text(item.label, {
 			fontFamily: pixelFont,
@@ -175,7 +176,7 @@ export function createAppLauncher(app, world, options = {}) {
 		tooltip.addChild(tooltipBg, tooltipText);
 		tooltip.visible = false;
 
-		iconContainer.addChild(glow, bg, border, ornament, statusLight);
+		iconContainer.addChild(glow, bg, border, ornament, catWhiskers, statusLight);
 		if (iconSprite) iconContainer.addChild(iconSprite);
 		if (hoverSprite) iconContainer.addChild(hoverSprite);
 		iconContainer.addChild(glyph, label, tooltip);
@@ -241,29 +242,58 @@ export function createAppLauncher(app, world, options = {}) {
 			border.drawRoundedRect(-size / 2 + 1, -size / 2 + 1, inner, inner, radius - 2);
 
 			ornament.clear();
+			catWhiskers.clear();
+			catWhiskers.visible = false;
 			statusLight.clear();
 			statusLight.alpha = 0;
 			if (item.ornament === 'cat') {
+				const faceR = size * 0.27;
+				const earY = -size * 0.49;
+				const cream = 0xf4e5d1;
+				const orange = 0xd67f35;
+				const dark = 0x2a201a;
 				ornament.lineStyle(2, ornamentColor, 0.95);
-				ornament.beginFill(ornamentColor, 0.22);
-				ornament.moveTo(-size * 0.34, -size * 0.5);
+				ornament.beginFill(orange, 0.95);
+				ornament.moveTo(-size * 0.34, earY);
 				ornament.lineTo(-size * 0.19, -size * 0.74);
-				ornament.lineTo(-size * 0.02, -size * 0.5);
-				ornament.closePath();
-				ornament.moveTo(size * 0.34, -size * 0.5);
-				ornament.lineTo(size * 0.19, -size * 0.74);
-				ornament.lineTo(size * 0.02, -size * 0.5);
+				ornament.lineTo(-size * 0.02, earY);
 				ornament.closePath();
 				ornament.endFill();
-				ornament.lineStyle(2, ornamentColor, 0.9);
-				ornament.moveTo(-size * 0.54, -size * 0.03);
-				ornament.lineTo(-size * 0.27, -size * 0.06);
-				ornament.moveTo(-size * 0.54, size * 0.07);
-				ornament.lineTo(-size * 0.27, size * 0.03);
-				ornament.moveTo(size * 0.54, -size * 0.03);
-				ornament.lineTo(size * 0.27, -size * 0.06);
-				ornament.moveTo(size * 0.54, size * 0.07);
-				ornament.lineTo(size * 0.27, size * 0.03);
+				ornament.beginFill(dark, 0.96);
+				ornament.moveTo(size * 0.34, earY);
+				ornament.lineTo(size * 0.19, -size * 0.74);
+				ornament.lineTo(size * 0.02, earY);
+				ornament.closePath();
+				ornament.endFill();
+				ornament.beginFill(cream, 0.97);
+				ornament.drawCircle(0, -size * 0.01, faceR);
+				ornament.endFill();
+				ornament.beginFill(orange, 0.95);
+				ornament.drawEllipse(-size * 0.12, -size * 0.08, size * 0.09, size * 0.07);
+				ornament.endFill();
+				ornament.beginFill(dark, 0.96);
+				ornament.drawEllipse(size * 0.11, size * 0.03, size * 0.1, size * 0.08);
+				ornament.endFill();
+				ornament.beginFill(0x0e0a08, 0.92);
+				ornament.drawCircle(-size * 0.08, -size * 0.05, Math.max(1.4, size * 0.03));
+				ornament.drawCircle(size * 0.08, -size * 0.05, Math.max(1.4, size * 0.03));
+				ornament.endFill();
+				ornament.lineStyle(1.6, 0xe88fb0, 0.86);
+				ornament.moveTo(0, size * 0.02);
+				ornament.lineTo(-size * 0.03, size * 0.05);
+				ornament.lineTo(size * 0.03, size * 0.05);
+				ornament.lineTo(0, size * 0.02);
+
+				catWhiskers.visible = true;
+				catWhiskers.lineStyle(1.7, ornamentColor, 0.9);
+				catWhiskers.moveTo(-size * 0.06, size * 0.02);
+				catWhiskers.lineTo(-size * 0.5, -size * 0.05);
+				catWhiskers.moveTo(-size * 0.05, size * 0.07);
+				catWhiskers.lineTo(-size * 0.48, size * 0.12);
+				catWhiskers.moveTo(size * 0.06, size * 0.02);
+				catWhiskers.lineTo(size * 0.5, -size * 0.05);
+				catWhiskers.moveTo(size * 0.05, size * 0.07);
+				catWhiskers.lineTo(size * 0.48, size * 0.12);
 			}
 			if (item.ornament === 'resume') {
 				const printerBodyW = size * 0.56;
@@ -406,7 +436,7 @@ export function createAppLauncher(app, world, options = {}) {
 		};
 		iconContainer._updatePlatformRect();
 
-		return { container: iconContainer, state, drawIcon, glow, border, ornament, statusLight, cardMotion, iconSprite, hoverSprite, item };
+		return { container: iconContainer, state, drawIcon, glow, border, ornament, catWhiskers, statusLight, cardMotion, iconSprite, hoverSprite, item };
 	}
 
 	function layout(snap = true) {
@@ -611,6 +641,10 @@ export function createAppLauncher(app, world, options = {}) {
 			if (icon.border) icon.border.alpha = icon.state.hovered ? 1 : 0.9;
 			if (icon.ornament && icon.item?.ornament === 'cat') {
 				icon.ornament.rotation = Math.sin(time * 3 + icon.state.phase) * (icon.state.hovered ? 0.05 : 0.02);
+				if (icon.catWhiskers) {
+					icon.catWhiskers.rotation = Math.sin(time * 22 + icon.state.phase * 1.2) * (icon.state.hovered ? 0.085 : 0.02);
+					icon.catWhiskers.position.x = Math.sin(time * 15 + icon.state.phase) * (icon.state.hovered ? 0.9 : 0.25);
+				}
 			}
 			if (icon.statusLight && icon.item?.ornament === 'resume') {
 				if (icon.state.hovered) {
