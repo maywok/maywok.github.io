@@ -56,10 +56,6 @@ async function boot() {
 		const desktopTwoOverlay = document.getElementById('desktop-two-overlay');
 		const desktopTwoRoot = document.getElementById('desktop-two-root');
 		const portfolioUi = document.getElementById('portfolio-ui');
-		const cartridgeSlots = portfolioUi ? Array.from(portfolioUi.querySelectorAll('.cartridge-slot')) : [];
-		const projectWindow = document.getElementById('project-window');
-		const projectWindowClose = document.getElementById('project-window-close');
-		const projectEmptyLine = document.getElementById('project-empty-line');
 		const BRO_PLACEHOLDER_WORDS = [
 			'brochacho',
 			'broteinshake',
@@ -75,43 +71,12 @@ async function boot() {
 			if (!BRO_PLACEHOLDER_WORDS.length) return 'brochacho';
 			return BRO_PLACEHOLDER_WORDS[Math.floor(Math.random() * BRO_PLACEHOLDER_WORDS.length)];
 		};
-		const isProjectWindowOpen = () => Boolean(projectWindow && !projectWindow.hidden);
-		const closeProjectWindow = ({ immediate = false } = {}) => {
-			if (!projectWindow) return;
-			projectWindow.classList.remove('is-booting', 'is-open');
-			if (immediate) {
-				projectWindow.hidden = true;
-				return;
-			}
-			window.setTimeout(() => {
-				if (!projectWindow.classList.contains('is-open')) {
-					projectWindow.hidden = true;
-				}
-			}, 120);
-		};
-		const openProjectWindow = () => {
-			if (!projectWindow) return;
-			if (projectEmptyLine) {
-				projectEmptyLine.textContent = `Nothing here yet, ${pickBroPlaceholderWord()}.`;
-			}
-			projectWindow.hidden = false;
-			projectWindow.classList.remove('is-booting', 'is-open');
-			void projectWindow.offsetWidth;
-			projectWindow.classList.add('is-open', 'is-booting');
-			window.setTimeout(() => {
-				projectWindow.classList.remove('is-booting');
-			}, 240);
-		};
-		for (const slot of cartridgeSlots) {
-			slot.addEventListener('click', openProjectWindow);
-		}
-		projectWindowClose?.addEventListener('click', () => closeProjectWindow());
 		const setPortfolioUiActive = (active) => {
 			if (!portfolioUi) return;
 			portfolioUi.setAttribute('aria-hidden', active ? 'false' : 'true');
-			if (!active) closeProjectWindow({ immediate: true });
 		};
 		setPortfolioUiActive(false);
+		let tryCloseDesktopTwoPortfolioWindow = () => false;
 		let desktopTwoApp = null;
 		let desktopTwoActive = false;
 		let onDesktopTwoActivated = null;
@@ -221,9 +186,14 @@ async function boot() {
 			};
 			const portfolioPanel = new PIXI.Container();
 			const portfolioShadow = new PIXI.Graphics();
+			const portfolioOuterGlowMagenta = new PIXI.Graphics();
+			const portfolioOuterGlowTeal = new PIXI.Graphics();
 			const portfolioBody = new PIXI.Graphics();
 			const portfolioInnerBorder = new PIXI.Graphics();
 			const portfolioAccent = new PIXI.Graphics();
+			const portfolioCornerPixels = new PIXI.Graphics();
+			const portfolioRigging = new PIXI.Graphics();
+			const portfolioPlatform = new PIXI.Graphics();
 			const portfolioMask = new PIXI.Graphics();
 			const portfolioNoise = new PIXI.TilingSprite(makeDesktopTwoNoiseTexture(), 64, 64);
 			portfolioNoise.alpha = 0.08;
@@ -246,51 +216,205 @@ async function boot() {
 				letterSpacing: 1,
 			});
 			portfolioSub.anchor.set(0.5, 0);
+
+			const portfolioWindow = new PIXI.Container();
+			const portfolioWindowGlow = new PIXI.Graphics();
+			const portfolioWindowFrame = new PIXI.Graphics();
+			const portfolioWindowInner = new PIXI.Graphics();
+			const portfolioWindowTitlebar = new PIXI.Graphics();
+			const portfolioWindowBody = new PIXI.Graphics();
+			const portfolioWindowGallery = new PIXI.Graphics();
+			const portfolioWindowInfo = new PIXI.Graphics();
+			const portfolioWindowScanlines = new PIXI.Graphics();
+			const portfolioWindowSweep = new PIXI.Graphics();
+			const portfolioWindowClose = new PIXI.Container();
+			const portfolioWindowCloseBg = new PIXI.Graphics();
+			const portfolioWindowCloseX = new PIXI.Text('X', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 11,
+				fill: 0xffe1d3,
+				align: 'center',
+			});
+			portfolioWindowCloseX.anchor.set(0.5, 0.5);
+			portfolioWindowClose.addChild(portfolioWindowCloseBg, portfolioWindowCloseX);
+			portfolioWindowClose.eventMode = 'static';
+			portfolioWindowClose.cursor = 'pointer';
+			let portfolioWindowCloseHover = 0;
+
+			const portfolioWindowTitle = new PIXI.Text('PROJECT VIEWER', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 13,
+				fill: 0xf4e5cc,
+				letterSpacing: 1,
+			});
+			portfolioWindowTitle.anchor.set(0, 0.5);
+			const portfolioWindowHint = new PIXI.Text('Nothing here yet.', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 10,
+				fill: 0xe6cda9,
+				letterSpacing: 1,
+			});
+			portfolioWindowHint.anchor.set(0, 0);
+			const portfolioTypingPrefix = new PIXI.Text('', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 13,
+				fill: 0xf2e4cf,
+				letterSpacing: 0.8,
+			});
+			const portfolioTypingWord = new PIXI.Text('', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 13,
+				fill: 0xffd56b,
+				letterSpacing: 0.8,
+			});
+			const portfolioTypingSuffix = new PIXI.Text('', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 13,
+				fill: 0xf2e4cf,
+				letterSpacing: 0.8,
+			});
+			const portfolioTypingCursor = new PIXI.Graphics();
+			const portfolioPreview = new PIXI.Sprite(PIXI.Texture.from('./assets/images/Uh-Oh.png'));
+			portfolioPreview.anchor.set(0.5, 0.5);
+			portfolioPreview.alpha = 0.9;
+
+			portfolioWindow.addChild(
+				portfolioWindowGlow,
+				portfolioWindowFrame,
+				portfolioWindowInner,
+				portfolioWindowTitlebar,
+				portfolioWindowBody,
+				portfolioWindowGallery,
+				portfolioWindowInfo,
+				portfolioWindowScanlines,
+				portfolioWindowSweep,
+				portfolioPreview,
+				portfolioWindowTitle,
+				portfolioWindowClose,
+				portfolioTypingPrefix,
+				portfolioTypingWord,
+				portfolioTypingSuffix,
+				portfolioTypingCursor,
+				portfolioWindowHint,
+			);
 			const projectCartridgeDefs = [
-				{ label: 'BLOG', tint: 0x5c9d6f, url: '/blog' },
-				{ label: 'REFLEX', tint: 0xcf5f8f, url: '/reflex' },
-				{ label: 'WALKLATRO', tint: 0xd5a063, url: '/walklatro' },
-				{ label: 'RESUME', tint: 0xb58a59, url: './assets/files/mason-walker-resume.pdf' },
-				{ label: 'LINKEDIN', tint: 0x4f80bf, url: 'https://www.linkedin.com/in/mason--walker/' },
-				{ label: 'GITHUB', tint: 0x7a659d, url: 'https://github.com/maywok' },
+				{ label: 'BLOG', tint: 0x5c9d6f, rare: false },
+				{ label: 'REFLEX', tint: 0xcf5f8f, rare: false },
+				{ label: 'WALKLATRO', tint: 0xd5a063, rare: true },
+				{ label: 'RESUME', tint: 0xb58a59, rare: false },
+				{ label: 'LINKEDIN', tint: 0x4f80bf, rare: false },
+				{ label: 'GITHUB', tint: 0x7a659d, rare: true },
 			];
+			const slotLabelStyle = {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 9,
+				fill: 0xe8dcc7,
+				align: 'center',
+				letterSpacing: 1,
+			};
 			const portfolioCartridges = projectCartridgeDefs.map((project, index) => {
 				const node = new PIXI.Container();
 				const glow = new PIXI.Graphics();
 				const body = new PIXI.Graphics();
 				const notch = new PIXI.Graphics();
-				const label = new PIXI.Text(project.label, {
-					fontFamily: 'Minecraft, monospace',
-					fontSize: 9,
-					fill: 0xe8dcc7,
-					align: 'center',
-					letterSpacing: 1,
-				});
+				const labelStrip = new PIXI.Graphics();
+				const details = new PIXI.Graphics();
+				const led = new PIXI.Graphics();
+				const label = new PIXI.Text(project.label, slotLabelStyle);
 				label.anchor.set(0.5, 0.5);
 				node.eventMode = 'static';
 				node.cursor = 'pointer';
-				node.on('pointertap', () => {
-					window.open(project.url, '_blank', 'noopener');
-				});
-				node.addChild(glow, body, notch, label);
-				portfolioPanel.addChild(node);
+				node.addChild(glow, body, notch, labelStrip, details, led, label);
 				return {
 					index,
 					tint: project.tint,
+					rare: project.rare,
 					node,
 					glow,
 					body,
 					notch,
+					labelStrip,
+					details,
+					led,
 					label,
 					hovered: false,
 				};
 			});
-			portfolioPanel.addChild(portfolioShadow, portfolioBody, portfolioInnerBorder, portfolioAccent, portfolioNoise, portfolioMask, portfolioShelfLayer, portfolioTitle, portfolioSub);
-			desktopTwoScene.addChild(portfolioPanel);
+			portfolioPanel.addChild(
+				portfolioShadow,
+				portfolioOuterGlowMagenta,
+				portfolioOuterGlowTeal,
+				portfolioBody,
+				portfolioInnerBorder,
+				portfolioAccent,
+				portfolioCornerPixels,
+				portfolioMask,
+				portfolioNoise,
+				portfolioRigging,
+				portfolioPlatform,
+				portfolioShelfLayer,
+			);
+			for (const cartridge of portfolioCartridges) portfolioPanel.addChild(cartridge.node);
+			portfolioPanel.addChild(portfolioTitle, portfolioSub);
+			desktopTwoScene.addChild(portfolioPanel, portfolioWindow);
 
 			let desktopTwoPanelBoot = 0;
+			let desktopTwoPanelBaseY = 0;
+			let desktopTwoGlowBreath = 0;
 			let desktopTwoCartridgeHover = -1;
 			let desktopTwoLastCartridgeHover = -2;
+			let portfolioWindowOpen = false;
+			let portfolioWindowBoot = 0;
+			let portfolioWindowScanPhase = 0;
+			let portfolioTypingPrefixSrc = '';
+			let portfolioTypingWordSrc = '';
+			let portfolioTypingSuffixSrc = '';
+			let portfolioTypingChars = 0;
+			let portfolioTypingTimer = 0;
+			let portfolioCursorTimer = 0;
+
+			const applyPortfolioTypedLine = () => {
+				const full = `${portfolioTypingPrefixSrc}${portfolioTypingWordSrc}${portfolioTypingSuffixSrc}`;
+				const shown = full.slice(0, Math.max(0, Math.min(full.length, portfolioTypingChars)));
+				const preLen = portfolioTypingPrefixSrc.length;
+				const wordLen = portfolioTypingWordSrc.length;
+				const pre = shown.slice(0, preLen);
+				const word = shown.slice(preLen, preLen + wordLen);
+				const suf = shown.slice(preLen + wordLen);
+				portfolioTypingPrefix.text = pre;
+				portfolioTypingWord.text = word;
+				portfolioTypingSuffix.text = suf;
+				portfolioTypingWord.x = portfolioTypingPrefix.x + portfolioTypingPrefix.width;
+				portfolioTypingSuffix.x = portfolioTypingWord.x + portfolioTypingWord.width;
+				portfolioTypingCursor.clear();
+				portfolioTypingCursor.beginFill(0xf3e0c0, 0.95);
+				portfolioTypingCursor.drawRect(0, 0, 8, 13);
+				portfolioTypingCursor.endFill();
+				portfolioTypingCursor.position.set(portfolioTypingSuffix.x + portfolioTypingSuffix.width + 4, portfolioTypingPrefix.y + 1);
+			};
+
+			const openPortfolioWindow = () => {
+				portfolioWindowOpen = true;
+				portfolioWindowScanPhase = 0;
+				portfolioTypingPrefixSrc = 'Nothing here yet, ';
+				portfolioTypingWordSrc = pickBroPlaceholderWord();
+				portfolioTypingSuffixSrc = '.';
+				portfolioTypingChars = 0;
+				portfolioTypingTimer = 0;
+				portfolioCursorTimer = 0;
+				applyPortfolioTypedLine();
+			};
+
+			const closePortfolioWindow = () => {
+				portfolioWindowOpen = false;
+			};
+
+			tryCloseDesktopTwoPortfolioWindow = () => {
+				if (!portfolioWindowOpen && portfolioWindowBoot <= 0.04) return false;
+				closePortfolioWindow();
+				return true;
+			};
+
 			const setDesktopTwoCartridgeHover = (index, hovered) => {
 				if (hovered) {
 					desktopTwoCartridgeHover = index;
@@ -301,7 +425,11 @@ async function boot() {
 			for (const cartridge of portfolioCartridges) {
 				cartridge.node.on('pointerover', () => setDesktopTwoCartridgeHover(cartridge.index, true));
 				cartridge.node.on('pointerout', () => setDesktopTwoCartridgeHover(cartridge.index, false));
+				cartridge.node.on('pointertap', openPortfolioWindow);
 			}
+			portfolioWindowClose.on('pointerover', () => { portfolioWindowCloseHover = 1; });
+			portfolioWindowClose.on('pointerout', () => { portfolioWindowCloseHover = 0; });
+			portfolioWindowClose.on('pointertap', closePortfolioWindow);
 
 			const layoutPortfolioPanel = () => {
 				const w = desktopTwoApp.renderer.width;
@@ -309,26 +437,54 @@ async function boot() {
 				const panelW = Math.max(540, Math.min(1120, w * 0.78));
 				const panelH = Math.max(360, Math.min(780, h * 0.76));
 				const r = Math.max(12, Math.round(Math.min(panelW, panelH) * 0.03));
-				portfolioPanel.position.set(w * 0.5, h * 0.52);
+				desktopTwoPanelBaseY = h * 0.52;
+				portfolioPanel.position.set(w * 0.5, desktopTwoPanelBaseY);
 
 				portfolioShadow.clear();
-				portfolioShadow.beginFill(0x000000, 0.34);
-				portfolioShadow.drawRoundedRect(-panelW * 0.5 + 10, -panelH * 0.5 + 12, panelW, panelH, r + 2);
+				portfolioShadow.beginFill(0x000000, 0.24);
+				portfolioShadow.drawRoundedRect(-panelW * 0.52 + 10, panelH * 0.34, panelW * 1.04, panelH * 0.24, r + 6);
 				portfolioShadow.endFill();
+
+				portfolioOuterGlowMagenta.clear();
+				portfolioOuterGlowMagenta.lineStyle(5, 0xa53567, 0.1 + desktopTwoGlowBreath * 0.05);
+				portfolioOuterGlowMagenta.drawRoundedRect(-panelW * 0.5 - 3, -panelH * 0.5 - 3, panelW + 6, panelH + 6, r + 2);
+
+				portfolioOuterGlowTeal.clear();
+				portfolioOuterGlowTeal.lineStyle(4, 0x35b1a0, 0.08 + desktopTwoGlowBreath * 0.04);
+				portfolioOuterGlowTeal.drawRoundedRect(-panelW * 0.5 - 1, -panelH * 0.5 - 1, panelW + 2, panelH + 2, r + 1);
 
 				portfolioBody.clear();
 				portfolioBody.beginFill(0xd6c3a3, 0.97);
 				portfolioBody.drawRoundedRect(-panelW * 0.5, -panelH * 0.5, panelW, panelH, r);
 				portfolioBody.endFill();
+				portfolioBody.lineStyle(3, 0x222028, 0.92);
+				portfolioBody.drawRoundedRect(-panelW * 0.5, -panelH * 0.5, panelW, panelH, r);
 
 				portfolioInnerBorder.clear();
-				portfolioInnerBorder.lineStyle(2, 0xb89a73, 0.86);
+				portfolioInnerBorder.lineStyle(2, 0xe0c8a4, 0.62);
 				portfolioInnerBorder.drawRoundedRect(-panelW * 0.5 + 8, -panelH * 0.5 + 8, panelW - 16, panelH - 16, Math.max(8, r - 4));
 
 				portfolioAccent.clear();
-				portfolioAccent.lineStyle(2, 0x8f1b31, 0.22);
+				portfolioAccent.lineStyle(2, 0x8f1b31, 0.24);
 				portfolioAccent.moveTo(-panelW * 0.46, -panelH * 0.33);
 				portfolioAccent.lineTo(panelW * 0.46, -panelH * 0.33);
+				portfolioAccent.lineStyle(1.5, 0x3bb9a6, 0.16);
+				portfolioAccent.moveTo(-panelW * 0.46, panelH * 0.34);
+				portfolioAccent.lineTo(panelW * 0.46, panelH * 0.34);
+
+				portfolioCornerPixels.clear();
+				const px = Math.max(3, Math.round(panelW * 0.006));
+				const drawCornerPixels = (x, y, c) => {
+					portfolioCornerPixels.beginFill(c, 0.9);
+					portfolioCornerPixels.drawRect(x, y, px, px);
+					portfolioCornerPixels.drawRect(x + px, y, px, px);
+					portfolioCornerPixels.drawRect(x, y + px, px, px);
+					portfolioCornerPixels.endFill();
+				};
+				drawCornerPixels(-panelW * 0.5 + 12, -panelH * 0.5 + 12, 0x9f2b4f);
+				drawCornerPixels(panelW * 0.5 - 12 - px * 2, -panelH * 0.5 + 12, 0x3dc2aa);
+				drawCornerPixels(-panelW * 0.5 + 12, panelH * 0.5 - 12 - px * 2, 0x3dc2aa);
+				drawCornerPixels(panelW * 0.5 - 12 - px * 2, panelH * 0.5 - 12 - px * 2, 0x9f2b4f);
 
 				portfolioMask.clear();
 				portfolioMask.beginFill(0xffffff, 1);
@@ -338,17 +494,33 @@ async function boot() {
 				portfolioNoise.height = panelH - 8;
 				portfolioNoise.position.set(-panelW * 0.5 + 4, -panelH * 0.5 + 4);
 
+				portfolioRigging.clear();
+				portfolioRigging.lineStyle(2, 0x57412f, 0.45);
+				portfolioRigging.moveTo(-panelW * 0.34, -panelH * 0.58);
+				portfolioRigging.lineTo(-panelW * 0.34, -panelH * 0.5 + 8);
+				portfolioRigging.moveTo(panelW * 0.34, -panelH * 0.58);
+				portfolioRigging.lineTo(panelW * 0.34, -panelH * 0.5 + 8);
+
+				portfolioPlatform.clear();
+				portfolioPlatform.beginFill(0x1e2a35, 0.16);
+				portfolioPlatform.drawRoundedRect(-panelW * 0.48, panelH * 0.36, panelW * 0.96, panelH * 0.15, Math.max(8, r - 4));
+				portfolioPlatform.endFill();
+
 				portfolioTitle.position.set(0, -panelH * 0.42);
 				portfolioSub.position.set(0, -panelH * 0.35);
 
 				portfolioShelfLayer.clear();
-				portfolioShelfLayer.lineStyle(2, 0xae8d63, 0.62);
+				portfolioShelfLayer.lineStyle(3, 0x8f734f, 0.72);
 				const shelfTop = -panelH * 0.22;
 				const shelfGap = panelH * 0.31;
 				for (let i = 0; i < 2; i++) {
 					const y = shelfTop + shelfGap * i;
 					portfolioShelfLayer.moveTo(-panelW * 0.38, y);
 					portfolioShelfLayer.lineTo(panelW * 0.38, y);
+					portfolioShelfLayer.lineStyle(1.2, 0xe0c8a4, 0.34);
+					portfolioShelfLayer.moveTo(-panelW * 0.38, y - 2);
+					portfolioShelfLayer.lineTo(panelW * 0.38, y - 2);
+					portfolioShelfLayer.lineStyle(3, 0x8f734f, 0.72);
 				}
 
 				const cols = 3;
@@ -367,13 +539,14 @@ async function boot() {
 					const hovered = desktopTwoCartridgeHover === idx;
 					cartridge.node.position.set(x, y);
 					cartridge.node.scale.set(hovered ? 1.04 : 1);
+					const ledOn = hovered;
 					cartridge.glow.clear();
-					cartridge.glow.beginFill(cartridge.tint, hovered ? 0.22 : 0.08);
+					cartridge.glow.beginFill(cartridge.tint, hovered ? 0.24 : 0.06);
 					cartridge.glow.drawRoundedRect(-cardW * 0.53, -cardH * 0.53, cardW * 1.06, cardH * 1.06, 7);
 					cartridge.glow.endFill();
 
 					cartridge.body.clear();
-					cartridge.body.beginFill(0x2f2418, 0.94);
+					cartridge.body.beginFill(0x261b13, 0.96);
 					cartridge.body.lineStyle(2, mixDesktopColor(0x7b6550, cartridge.tint, hovered ? 0.4 : 0.2), 0.9);
 					cartridge.body.drawRoundedRect(-cardW * 0.5, -cardH * 0.5, cardW, cardH, 6);
 					cartridge.body.endFill();
@@ -383,10 +556,112 @@ async function boot() {
 					cartridge.notch.drawRoundedRect(-cardW * 0.18, -cardH * 0.5, cardW * 0.36, cardH * 0.2, 4);
 					cartridge.notch.endFill();
 
+					cartridge.labelStrip.clear();
+					cartridge.labelStrip.beginFill(0x3b2a1d, 0.95);
+					cartridge.labelStrip.drawRoundedRect(-cardW * 0.48, cardH * 0.14, cardW * 0.96, cardH * 0.3, 4);
+					cartridge.labelStrip.endFill();
+
+					cartridge.details.clear();
+					cartridge.details.lineStyle(1, 0x9a8468, 0.8);
+					cartridge.details.drawCircle(-cardW * 0.38, -cardH * 0.34, Math.max(2, cardH * 0.06));
+					cartridge.details.drawCircle(cardW * 0.38, -cardH * 0.34, Math.max(2, cardH * 0.06));
+					cartridge.details.drawCircle(-cardW * 0.38, cardH * 0.02, Math.max(2, cardH * 0.05));
+					cartridge.details.drawCircle(cardW * 0.38, cardH * 0.02, Math.max(2, cardH * 0.05));
+
+					cartridge.led.clear();
+					cartridge.led.beginFill(0x0d1117, ledOn ? 0.4 : 0.85);
+					cartridge.led.drawCircle(cardW * 0.32, -cardH * 0.33, Math.max(2, cardH * 0.07));
+					cartridge.led.endFill();
+					if (ledOn) {
+						const ledColor = cartridge.rare ? 0xffd56b : 0x5ef0cb;
+						cartridge.led.beginFill(ledColor, 0.95);
+						cartridge.led.drawCircle(cardW * 0.32, -cardH * 0.33, Math.max(1.5, cardH * 0.045));
+						cartridge.led.endFill();
+					}
+
 					cartridge.label.style.fill = hovered ? 0xfff2da : 0xe8dcc7;
 					cartridge.label.style.fontSize = Math.max(9, Math.round(cardH * 0.23));
-					cartridge.label.position.set(0, cardH * 0.06);
+					cartridge.label.position.set(0, cardH * 0.29);
 				});
+
+				const winW = Math.max(460, Math.min(920, w * 0.72));
+				const winH = Math.max(300, Math.min(560, h * 0.66));
+				const winR = Math.max(10, Math.round(Math.min(winW, winH) * 0.03));
+				const titleH = Math.max(42, Math.round(winH * 0.12));
+				portfolioWindow.position.set(w * 0.5, h * 0.5);
+
+				portfolioWindowGlow.clear();
+				portfolioWindowGlow.lineStyle(4, 0xaa2f62, 0.14 + desktopTwoGlowBreath * 0.08);
+				portfolioWindowGlow.drawRoundedRect(-winW * 0.5 - 4, -winH * 0.5 - 4, winW + 8, winH + 8, winR + 2);
+
+				portfolioWindowFrame.clear();
+				portfolioWindowFrame.beginFill(0xd6c3a3, 0.98);
+				portfolioWindowFrame.drawRoundedRect(-winW * 0.5, -winH * 0.5, winW, winH, winR);
+				portfolioWindowFrame.endFill();
+				portfolioWindowFrame.lineStyle(3, 0x10161f, 0.96);
+				portfolioWindowFrame.drawRoundedRect(-winW * 0.5, -winH * 0.5, winW, winH, winR);
+
+				portfolioWindowInner.clear();
+				portfolioWindowInner.lineStyle(2, 0xe0c8a4, 0.58);
+				portfolioWindowInner.drawRoundedRect(-winW * 0.5 + 8, -winH * 0.5 + 8, winW - 16, winH - 16, Math.max(8, winR - 4));
+
+				portfolioWindowTitlebar.clear();
+				portfolioWindowTitlebar.beginFill(0x263145, 0.95);
+				portfolioWindowTitlebar.drawRoundedRect(-winW * 0.5 + 4, -winH * 0.5 + 4, winW - 8, titleH, Math.max(8, winR - 4));
+				portfolioWindowTitlebar.endFill();
+
+				portfolioWindowBody.clear();
+				portfolioWindowBody.beginFill(0x1a2433, 0.94);
+				portfolioWindowBody.drawRoundedRect(-winW * 0.5 + 16, -winH * 0.5 + titleH + 12, winW - 32, winH - titleH - 28, 10);
+				portfolioWindowBody.endFill();
+
+				const galleryX = -winW * 0.5 + 34;
+				const galleryY = -winH * 0.5 + titleH + 28;
+				const galleryW = winW * 0.56;
+				const galleryH = winH - titleH - 66;
+				const infoX = galleryX + galleryW + 18;
+				const infoW = winW - (infoX + winW * 0.5) - 22;
+				const infoH = galleryH;
+
+				portfolioWindowGallery.clear();
+				portfolioWindowGallery.beginFill(0x101720, 0.95);
+				portfolioWindowGallery.lineStyle(2, 0x303e52, 0.85);
+				portfolioWindowGallery.drawRoundedRect(galleryX, galleryY, galleryW, galleryH, 8);
+				portfolioWindowGallery.endFill();
+
+				portfolioWindowInfo.clear();
+				portfolioWindowInfo.beginFill(0x3a2c1d, 0.82);
+				portfolioWindowInfo.lineStyle(2, 0x76583d, 0.85);
+				portfolioWindowInfo.drawRoundedRect(infoX, galleryY, infoW, infoH, 8);
+				portfolioWindowInfo.endFill();
+
+				portfolioWindowScanlines.clear();
+				portfolioWindowScanlines.lineStyle(1, 0xffffff, 0.055);
+				const linesTop = -winH * 0.5 + titleH + 16;
+				const linesBottom = winH * 0.5 - 16;
+				for (let y = linesTop; y <= linesBottom; y += 4) {
+					portfolioWindowScanlines.moveTo(-winW * 0.5 + 12, y);
+					portfolioWindowScanlines.lineTo(winW * 0.5 - 12, y);
+				}
+
+				portfolioWindowTitle.position.set(-winW * 0.5 + 22, -winH * 0.5 + 4 + titleH * 0.5);
+				portfolioWindowClose.position.set(winW * 0.5 - 28, -winH * 0.5 + 8 + titleH * 0.5);
+				portfolioWindowCloseBg.clear();
+				portfolioWindowCloseBg.beginFill(0xa5374d, 0.92 + portfolioWindowCloseHover * 0.08);
+				portfolioWindowCloseBg.lineStyle(2, 0x6d2032, 0.95);
+				portfolioWindowCloseBg.drawRoundedRect(-14, -11, 28, 22, 5);
+				portfolioWindowCloseBg.endFill();
+				portfolioWindowCloseX.position.set(0, 0);
+
+				portfolioPreview.width = Math.min(galleryW * 0.74, galleryH * 0.74);
+				portfolioPreview.height = portfolioPreview.width;
+				portfolioPreview.position.set(galleryX + galleryW * 0.5, galleryY + galleryH * 0.5);
+
+				portfolioTypingPrefix.position.set(infoX + 14, galleryY + 22);
+				portfolioTypingWord.position.set(portfolioTypingPrefix.x, portfolioTypingPrefix.y);
+				portfolioTypingSuffix.position.set(portfolioTypingPrefix.x, portfolioTypingPrefix.y);
+				portfolioWindowHint.position.set(infoX + 14, galleryY + 52);
+				applyPortfolioTypedLine();
 			};
 			layoutPortfolioPanel();
 
@@ -529,9 +804,45 @@ async function boot() {
 				desktopTwoCameraOffset.x += (targetX - desktopTwoCameraOffset.x) * DESKTOP_TWO_SMOOTHING;
 				desktopTwoCameraOffset.y += (targetY - desktopTwoCameraOffset.y) * DESKTOP_TWO_SMOOTHING;
 				desktopTwoPanelBoot += ((desktopTwoActive ? 1 : 0) - desktopTwoPanelBoot) * Math.min(1, dtSeconds * 9);
-				portfolioPanel.visible = !portfolioUi && desktopTwoPanelBoot > 0.01;
+				desktopTwoGlowBreath = 0.5 + 0.5 * Math.sin(desktopTwoTime * 1.8);
+				portfolioPanel.visible = desktopTwoPanelBoot > 0.01;
 				portfolioPanel.alpha = desktopTwoPanelBoot;
 				portfolioPanel.scale.set(0.98 + desktopTwoPanelBoot * 0.02);
+				portfolioPanel.position.y = desktopTwoPanelBaseY + Math.sin(desktopTwoTime * 1.3) * 2.2 * desktopTwoPanelBoot;
+
+				portfolioWindowBoot += ((portfolioWindowOpen ? 1 : 0) - portfolioWindowBoot) * Math.min(1, dtSeconds * 12);
+				portfolioWindow.visible = portfolioWindowBoot > 0.02;
+				portfolioWindow.alpha = portfolioWindowBoot;
+				portfolioWindow.scale.set(0.98 + portfolioWindowBoot * 0.02);
+				portfolioWindowClose.scale.set(1 + portfolioWindowCloseHover * 0.04);
+
+				if (portfolioWindow.visible) {
+					portfolioWindowScanPhase += dtSeconds * (portfolioWindowOpen ? 1.8 : 0.8);
+					portfolioWindowSweep.clear();
+					const sweepW = desktopTwoApp.renderer.width * 0.62;
+					const sweepH = 10;
+					const y = -desktopTwoApp.renderer.height * 0.23 + ((portfolioWindowScanPhase * 120) % (desktopTwoApp.renderer.height * 0.44));
+					portfolioWindowSweep.beginFill(0x9ad8ff, 0.08 + Math.max(0, 1 - portfolioWindowBoot) * 0.22);
+					portfolioWindowSweep.drawRoundedRect(-sweepW * 0.5, y, sweepW, sweepH, 4);
+					portfolioWindowSweep.endFill();
+
+					if (portfolioWindowOpen) {
+						const totalChars = (`${portfolioTypingPrefixSrc}${portfolioTypingWordSrc}${portfolioTypingSuffixSrc}`).length;
+						if (portfolioTypingChars < totalChars) {
+							portfolioTypingTimer += dtSeconds;
+							const interval = 0.017;
+							while (portfolioTypingTimer >= interval && portfolioTypingChars < totalChars) {
+								portfolioTypingTimer -= interval;
+								portfolioTypingChars += 1;
+							}
+							applyPortfolioTypedLine();
+						}
+						portfolioCursorTimer += dtSeconds;
+						portfolioTypingCursor.alpha = (portfolioCursorTimer % 0.66) < 0.36 ? 1 : 0.2;
+					} else {
+						portfolioTypingCursor.alpha = 0;
+					}
+				}
 				if (desktopTwoCartridgeHover !== desktopTwoLastCartridgeHover) {
 					desktopTwoLastCartridgeHover = desktopTwoCartridgeHover;
 					layoutPortfolioPanel();
@@ -555,6 +866,7 @@ async function boot() {
 
 				if (!desktopTwoActive) {
 					desktopTwoCartridgeHover = -1;
+					portfolioWindowOpen = false;
 					rightPortalProgress += (0 - rightPortalProgress) * 0.2;
 					rightGlowSoft.alpha = 0;
 					rightGlow.alpha = 0;
@@ -593,7 +905,8 @@ async function boot() {
 			if (desktopTwoOverlay) {
 				desktopTwoOverlay.setAttribute('aria-hidden', next ? 'false' : 'true');
 			}
-			setPortfolioUiActive(next);
+			setPortfolioUiActive(false);
+			if (!next) tryCloseDesktopTwoPortfolioWindow();
 			if (next) {
 				ensureDesktopTwoBackground();
 				onDesktopTwoActivated?.();
@@ -601,8 +914,7 @@ async function boot() {
 		};
 		window.addEventListener('keydown', (event) => {
 			if (event.key !== 'Escape') return;
-			if (desktopTwoActive && isProjectWindowOpen()) {
-				closeProjectWindow();
+			if (desktopTwoActive && tryCloseDesktopTwoPortfolioWindow()) {
 				return;
 			}
 			if (desktopTwoActive) setDesktopTwoActive(false);
