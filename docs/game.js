@@ -480,8 +480,8 @@ async function boot() {
 			world.sortableChildren = true;
 			scene.addChild(world);
 			const ENABLE_PLAYER_CUBE = false;
-			const player = new Player(app);
-			player.setColors(theme.player);
+			const player = ENABLE_PLAYER_CUBE ? new Player(app) : null;
+			if (player) player.setColors(theme.player);
 			const ENABLE_VINE_LAMPS = true;
 			const ENABLE_VINE_LAMP_LIGHTING = true;
 			// TODO: Rework vine visuals (shape, density, and color language) after layout updates are finalized.
@@ -601,9 +601,6 @@ async function boot() {
 			}
 
 			const systemCore = new PIXI.Container();
-			const coreAura = new PIXI.Graphics();
-			const coreFrame = new PIXI.Graphics();
-			const coreRing = new PIXI.Graphics();
 			const coreDial = new PIXI.Graphics();
 			const coreHourHand = new PIXI.Graphics();
 			const coreMinuteHand = new PIXI.Graphics();
@@ -632,7 +629,7 @@ async function boot() {
 			coreGhost.tint = 0x9bffd6;
 			coreGhost.alpha = 0.38;
 			coreGhost.visible = false;
-			systemCore.addChild(coreAura, coreFrame, coreRing, coreDial, coreTickMarks, coreNumerals, coreSecondTrail, coreHourHand, coreMinuteHand, coreSecondHand, coreGhost, coreSpinCue);
+			systemCore.addChild(coreDial, coreTickMarks, coreNumerals, coreSecondTrail, coreHourHand, coreMinuteHand, coreSecondHand, coreGhost, coreSpinCue);
 			systemCore.zIndex = 8;
 			world.addChild(systemCore);
 
@@ -736,8 +733,6 @@ async function boot() {
 				const spinEnergy = Math.min(1, Math.abs(ringSpinVel) * 0.22);
 				const activeBoost = Math.max(coreHoverAmount, ringDrag.active ? 1 : 0, spinEnergy);
 				const pulse = 0.72 + 0.28 * Math.sin(time * 1.6);
-				const ringR = screenToWorldSize(72);
-				const outerR = screenToWorldSize(92);
 				const dialHalf = screenToWorldSize(49);
 				const markerR = dialHalf - screenToWorldSize(8);
 				const now = new Date();
@@ -759,37 +754,12 @@ async function boot() {
 				const rgbC = hsvToRgbInt((rgbHue + 0.52) % 1, 0.86, 1.0);
 				const rgbSoft = hsvToRgbInt((rgbHue + 0.07) % 1, 0.45, 0.95);
 				const spinCueAlpha = dragEnabled ? 0.12 : (0.28 + activeBoost * 0.36 + 0.08 * Math.sin(time * 3.2));
-				coreAura.clear();
-				coreAura.beginFill(rgbA, (0.08 + activeBoost * 0.08) * pulse);
-				coreAura.drawCircle(0, 0, outerR + screenToWorldSize(8));
-				coreAura.endFill();
-				coreAura.beginFill(rgbB, (0.05 + activeBoost * 0.06) * pulse);
-				coreAura.drawCircle(0, 0, outerR + screenToWorldSize(18));
-				coreAura.endFill();
-
-				coreFrame.clear();
-				coreFrame.lineStyle(2.2, rgbA, 0.34 + activeBoost * 0.34);
-				coreFrame.drawCircle(0, 0, outerR);
-				coreFrame.lineStyle(1.3, rgbSoft, 0.26 + activeBoost * 0.28);
-				coreFrame.drawCircle(0, 0, screenToWorldSize(86));
-
-				coreRing.clear();
-				coreRing.beginFill(0x060a11, 0.82);
-				coreRing.drawCircle(0, 0, ringR);
-				coreRing.endFill();
-				coreRing.lineStyle(2.4, rgbB, 0.56 + activeBoost * 0.34);
-				coreRing.drawCircle(0, 0, ringR);
-				coreRing.lineStyle(1.2, rgbSoft, 0.28 + activeBoost * 0.28);
-				coreRing.drawCircle(0, 0, screenToWorldSize(80));
-
 				coreDial.clear();
-				coreDial.beginFill(0x0b1118, 0.94);
+				coreDial.beginFill(0x0b1118, (0.9 + 0.06 * pulse));
 				coreDial.drawRoundedRect(-dialHalf, -dialHalf, dialHalf * 2, dialHalf * 2, screenToWorldSize(7));
 				coreDial.endFill();
 				coreDial.lineStyle(2.1, rgbC, 0.62 + activeBoost * 0.3);
 				coreDial.drawRoundedRect(-dialHalf + screenToWorldSize(2), -dialHalf + screenToWorldSize(2), (dialHalf - screenToWorldSize(2)) * 2, (dialHalf - screenToWorldSize(2)) * 2, screenToWorldSize(6));
-				coreDial.lineStyle(1.2, rgbSoft, 0.42 + activeBoost * 0.26);
-				coreDial.drawCircle(0, 0, markerR + screenToWorldSize(4));
 
 				coreTickMarks.clear();
 				for (let i = 0; i < 12; i++) {
@@ -858,23 +828,18 @@ async function boot() {
 
 				coreSpinCue.clear();
 				coreSpinCue.lineStyle(2, rgbB, spinCueAlpha);
-				coreSpinCue.arc(0, 0, screenToWorldSize(76), -2.34 + ringSpin * 0.05, -0.92 + ringSpin * 0.05);
-				coreSpinCue.arc(0, 0, screenToWorldSize(76), 0.8 + ringSpin * 0.05, 2.22 + ringSpin * 0.05);
 				const cueHead = screenToWorldSize(7);
-				const c1 = -0.92 + ringSpin * 0.05;
-				const c2 = 2.22 + ringSpin * 0.05;
-				const cx1 = Math.cos(c1) * screenToWorldSize(76);
-				const cy1 = Math.sin(c1) * screenToWorldSize(76);
-				const cx2 = Math.cos(c2) * screenToWorldSize(76);
-				const cy2 = Math.sin(c2) * screenToWorldSize(76);
-				coreSpinCue.moveTo(cx1, cy1);
-				coreSpinCue.lineTo(cx1 - Math.cos(c1 - 0.45) * cueHead, cy1 - Math.sin(c1 - 0.45) * cueHead);
-				coreSpinCue.moveTo(cx1, cy1);
-				coreSpinCue.lineTo(cx1 - Math.cos(c1 + 0.45) * cueHead, cy1 - Math.sin(c1 + 0.45) * cueHead);
-				coreSpinCue.moveTo(cx2, cy2);
-				coreSpinCue.lineTo(cx2 - Math.cos(c2 - 0.45) * cueHead, cy2 - Math.sin(c2 - 0.45) * cueHead);
-				coreSpinCue.moveTo(cx2, cy2);
-				coreSpinCue.lineTo(cx2 - Math.cos(c2 + 0.45) * cueHead, cy2 - Math.sin(c2 + 0.45) * cueHead);
+				const cueOffset = screenToWorldSize(74);
+				const cueTilt = Math.sin(ringSpin * 0.4) * cueHead * 0.28;
+				const leftX = -cueOffset;
+				const rightX = cueOffset;
+				const midY = 0;
+				coreSpinCue.moveTo(leftX + cueHead, midY - cueHead + cueTilt);
+				coreSpinCue.lineTo(leftX - cueHead, midY + cueTilt);
+				coreSpinCue.lineTo(leftX + cueHead, midY + cueHead + cueTilt);
+				coreSpinCue.moveTo(rightX - cueHead, midY - cueHead - cueTilt);
+				coreSpinCue.lineTo(rightX + cueHead, midY - cueTilt);
+				coreSpinCue.lineTo(rightX - cueHead, midY + cueHead - cueTilt);
 				coreGhost.width = screenToWorldSize(34);
 				coreGhost.height = screenToWorldSize(34);
 				coreGhost.tint = rgbA;
@@ -1434,155 +1399,150 @@ async function boot() {
 				world.addChild(player.view);
 			}
 		const ENABLE_THEME_TOGGLE = false;
+		const toggleBtn = document.createElement('button');
 		if (ENABLE_THEME_TOGGLE) {
 			toggleBtn.type = 'button';
 			toggleBtn.textContent = themeKey === 'dark' ? 'Dark' : 'Light';
 			toggleBtn.title = 'Toggle theme (T)';
-			if (ENABLE_PLAYER_CUBE) {
-				if (grabRequested) {
-					grabRequested = false;
-					if (!vineGrab) {
-						const near = findNearestVinePoint(player.view.x, player.view.y, 48);
-						if (near) {
-							const pts = near.vine.getPointsView?.();
-							if (pts) {
-								const gx = pts.x[near.pointIndex];
-								const gy = pts.y[near.pointIndex];
-								const ox = player.view.x - gx;
-								const oy = (player.view.y - (gy + player.size * 0.55));
-								const ropeLen = Math.max(18, Math.hypot(ox, oy));
-								vineGrab = {
-									vine: near.vine,
-									pointIndex: near.pointIndex,
-									ropeLen,
-									angle: Math.atan2(ox, oy),
-									angVel: 0,
-								};
-							} else {
-								vineGrab = near;
-							}
-							player.grounded = false;
-							player.vy *= 0.25;
-							player.vx *= 0.25;
-						}
-					} else {
-						releaseRequested = true;
-					}
-				}
-				if (releaseRequested) {
-					releaseRequested = false;
-					if (vineGrab) {
-						const v = vineGrab.vine;
-						const i = vineGrab.pointIndex;
-						const pts = v.getPointsView?.();
-						if (pts) {
-							if (typeof vineGrab.ropeLen === 'number' && typeof vineGrab.angVel === 'number' && typeof vineGrab.angle === 'number') {
-								const gx = pts.x[i];
-								const gy = pts.y[i];
-								const L = vineGrab.ropeLen;
-								const a = vineGrab.angle;
-								const w = vineGrab.angVel;
-								const tx = Math.cos(a);
-								const ty = -Math.sin(a);
-								player.vx = tx * (w * L);
-								player.vy = ty * (w * L);
-								player.view.x = gx + Math.sin(a) * L;
-								player.view.y = gy + Math.cos(a) * L + player.size * 0.55;
-							} else {
-								const dx = (pts.x[i] - player.view.x);
-								const dy = (pts.y[i] - player.view.y);
-								player.vx = dx * 6;
-								player.vy = dy * 6;
-							}
-						}
-						vineGrab = null;
-					}
-				}
+			Object.assign(toggleBtn.style, {
+				position: 'fixed',
+				top: '16px',
+				right: '16px',
+				zIndex: 9999,
+				pointerEvents: 'auto',
+				padding: '8px 10px',
+				borderRadius: '10px',
+				border: '1px solid rgba(255,255,255,0.18)',
+				background: 'rgba(0,0,0,0.35)',
+				color: 'rgba(255,255,255,0.92)',
+				fontFamily: 'Minecraft, ui-monospace, Menlo, monospace',
+				fontSize: '12px',
+				cursor: 'pointer',
+			});
+			document.body.appendChild(toggleBtn);
+		}
 
-				if (!vineGrab) {
-					player.update(seconds);
-				} else {
-					// While grabbed: pendulum swing around the grabbed vine point.
-					const v = vineGrab.vine;
-					const pts = v.getPointsView?.();
-					if (!pts) {
-						vineGrab = null;
-						player.update(seconds);
-					} else {
-						const i = vineGrab.pointIndex;
-						// Keep the grab index valid if vines were rebuilt
-						vineGrab.pointIndex = Math.max(1, Math.min(pts.count - 1, i));
-						const gx = pts.x[vineGrab.pointIndex];
-						const gy = pts.y[vineGrab.pointIndex];
-
-						// Input (A/D or arrows) pumps swing.
-						let input = 0;
-						if (player.keys?.has('KeyA') || player.keys?.has('ArrowLeft')) input -= 1;
-						if (player.keys?.has('KeyD') || player.keys?.has('ArrowRight')) input += 1;
-
-						// Ensure swing state exists.
-						if (typeof vineGrab.ropeLen !== 'number') vineGrab.ropeLen = Math.max(28, player.size * 2.0);
-						if (typeof vineGrab.angle !== 'number') vineGrab.angle = 0;
-						if (typeof vineGrab.angVel !== 'number') vineGrab.angVel = 0;
-						const L = vineGrab.ropeLen;
-
-						// Simple pendulum dynamics: a'' = -g/L * sin(a) + input
-						// Using constants tuned for "game feel" rather than real-world units.
-						const a = vineGrab.angle;
-						let w = vineGrab.angVel;
-						const accel = (-SWING_GRAVITY * Math.sin(a)) + (input * SWING_ACCEL);
-						w += accel * seconds;
-						w *= Math.pow(SWING_DAMP, dt);
-						vineGrab.angle = a + w * seconds;
-						vineGrab.angVel = w;
-
-						// Place player at the end of the rope.
-						player.view.x = gx + Math.sin(vineGrab.angle) * L;
-						player.view.y = gy + Math.cos(vineGrab.angle) * L + player.size * 0.55;
-						player.grounded = false;
-						// While swinging, keep the player's freefall velocities synced to swing
-						// so when you release it feels smooth.
-						player.vx = Math.cos(vineGrab.angle) * (vineGrab.angVel * L);
-						player.vy = -Math.sin(vineGrab.angle) * (vineGrab.angVel * L);
-					}
-				}
-				// Simple AABB collision with platform tops (slab + link platforms)
-				const half = player.size / 2;
-				const plLeft = player.view.x - half;
-				const plRight = player.view.x + half;
-				const plTop = player.view.y - half;
-				const plBottom = player.view.y + half;
-
-				function resolveTopPlatform(pLeft, pTop, pWidth, pHeight) {
-					const pRight = pLeft + pWidth;
-					const overlapX = plRight > pLeft && plLeft < pRight;
-					const fallingOnto = player.vy >= 0 && plBottom >= pTop && plTop < pTop;
-					if (overlapX && fallingOnto) {
-						player.view.y = pTop - half;
-						player.vy = 0;
-						player.grounded = true;
-						return true;
-					}
-					return false;
-				}
-
-				// link platforms
-				for (const lp of appLauncher.platforms) {
-					lp._updatePlatformRect?.();
-					const r = lp._platformRect;
-					if (!r) continue;
-					resolveTopPlatform(r.x, r.y, r.w, r.h);
-				}
-			} else {
-				grabRequested = false;
-				releaseRequested = false;
-				vineGrab = null;
+		function applyTheme(nextKey) {
+			themeKey = nextKey;
+			theme = THEMES[themeKey];
+			app.renderer.background.color = theme.appBackground;
+			if (player) player.setColors(theme.player);
+			for (const v of vines) v.setColor(theme.vines.hue);
+			if (ENABLE_THEME_TOGGLE) {
+				toggleBtn.textContent = themeKey === 'dark' ? 'Dark' : 'Light';
 			}
-				graphics.endFill();
-				const w = grid[0].length * px;
-				const h = grid.length * px;
-				graphics.pivot.set(w / 2, h / 2);
+			saveThemeKey(themeKey);
+		}
+
+		function toggleTheme() {
+			applyTheme(themeKey === 'dark' ? 'light' : 'dark');
+		}
+		if (ENABLE_THEME_TOGGLE) {
+			toggleBtn.addEventListener('click', toggleTheme);
+			window.addEventListener('keydown', (e) => {
+				if (e.code === 'KeyT') toggleTheme();
+			});
+		}
+
+		const mouse = {
+			x: app.renderer.width * 0.5,
+			y: app.renderer.height * 0.3,
+			down: false,
+		};
+		const cursorTextureUrl = './assets/spritesheet/cursor.png';
+		try {
+			await withTimeout(PIXI.Assets.load([cursorTextureUrl]), 2500, 'Cursor texture');
+		} catch (err) {
+			console.warn('Cursor texture load failed or timed out:', err);
+		}
+		const cursorTexture = PIXI.Texture.from(cursorTextureUrl);
+		const cursorBase = cursorTexture.baseTexture;
+		const cursor = new PIXI.Sprite(cursorTexture);
+		cursor.anchor.set(0.5);
+		const cursorGlow = new PIXI.Sprite(cursorTexture);
+		cursorGlow.anchor.set(0.5);
+		cursorGlow.tint = 0xff5aa8;
+		cursorGlow.alpha = 0.35;
+		cursorGlow.scale.set(1.2);
+		cursorGlow.blendMode = PIXI.BLEND_MODES.ADD;
+		const USE_ANIMATED_CURSOR = true;
+		const CURSOR_ANIM_MAX_FRAMES = 240;
+		let cursorAnim = null;
+		const fallbackFrame = 32;
+		const frameW = Math.max(1, Math.min(fallbackFrame, Math.round(cursorTexture.height) || fallbackFrame));
+		const frameH = Math.max(1, Math.min(fallbackFrame, Math.round(cursorTexture.height) || fallbackFrame));
+		const cols = Math.floor(cursorBase.width / frameW);
+		const rows = Math.floor(cursorBase.height / frameH);
+		const firstFrameTexture = new PIXI.Texture(cursorBase, new PIXI.Rectangle(0, 0, frameW, frameH));
+		cursor.texture = firstFrameTexture;
+		cursorGlow.texture = firstFrameTexture;
+		if (USE_ANIMATED_CURSOR && cols > 0 && rows > 0) {
+			const frames = [];
+			for (let y = 0; y < rows; y++) {
+				for (let x = 0; x < cols; x++) {
+					if (frames.length >= CURSOR_ANIM_MAX_FRAMES) break;
+					frames.push(new PIXI.Texture(
+						cursorBase,
+						new PIXI.Rectangle(x * frameW, y * frameH, frameW, frameH),
+					));
+				}
+				if (frames.length >= CURSOR_ANIM_MAX_FRAMES) break;
 			}
+			if (frames.length > 0) {
+				cursorAnim = new PIXI.AnimatedSprite(frames);
+				cursorAnim.anchor.set(0.5);
+				cursorAnim.animationSpeed = 0.22;
+				cursorAnim.play();
+			}
+		}
+		const cursorContainer = new PIXI.Container();
+		if (cursorAnim && cursorAnim.totalFrames > 1) cursorContainer.addChild(cursorGlow, cursorAnim);
+		else cursorContainer.addChild(cursorGlow, cursor);
+		cursorContainer.eventMode = 'none';
+		cursorContainer.scale.set(0.85);
+		cursorContainer.zIndex = 200;
+		const { filter: cursorPixelateFilter, update: updateCursorPixelate } = createPixelateFilter(app, { pixelSize: 2 });
+		cursorContainer.filters = [cursorPixelateFilter];
+		world.addChild(cursorContainer);
+
+		const leftPortal = new PIXI.Container();
+		const leftGlowSoft = new PIXI.Graphics();
+		const leftGlow = new PIXI.Graphics();
+		const leftArrow = new PIXI.Graphics();
+		const leftPortalHitZone = new PIXI.Graphics();
+		leftPortal.addChild(leftGlowSoft, leftGlow, leftArrow, leftPortalHitZone);
+		world.addChild(leftPortal);
+		leftArrow.eventMode = 'static';
+		leftArrow.cursor = 'pointer';
+		leftArrow.on('pointertap', () => setDesktopTwoActive(true));
+		leftPortalHitZone.eventMode = 'static';
+		leftPortalHitZone.cursor = 'pointer';
+		leftPortalHitZone.on('pointertap', () => setDesktopTwoActive(true));
+		let leftPortalWidth = 84;
+		let leftPortalProgress = 0;
+		let leftPortalShownX = 0;
+		let leftPortalHiddenX = 0;
+		let leftPortalY = 0;
+		function drawPixelArrow(graphics, size, fillColor) {
+			const px = Math.max(1, Math.round(size / 6));
+			const grid = [
+				[0, 0, 1, 0, 0],
+				[0, 1, 1, 0, 0],
+				[1, 1, 1, 1, 1],
+				[0, 1, 1, 0, 0],
+				[0, 0, 1, 0, 0],
+			];
+			graphics.beginFill(fillColor, 0.95);
+			for (let y = 0; y < grid.length; y++) {
+				for (let x = 0; x < grid[y].length; x++) {
+					if (grid[y][x]) graphics.drawRect(x * px, y * px, px, px);
+				}
+			}
+			graphics.endFill();
+			const w = grid[0].length * px;
+			const h = grid.length * px;
+			graphics.pivot.set(w / 2, h / 2);
+		}
 		function layoutLeftPortal() {
 				leftPortalWidth = Math.max(56, Math.min(110, app.renderer.width * 0.095));
 				const h = app.renderer.height;
@@ -2159,6 +2119,7 @@ async function boot() {
 				}
 			}
 
+			if (ENABLE_PLAYER_CUBE && player) {
 			if (grabRequested) {
 				grabRequested = false;
 				if (!vineGrab) {
@@ -2292,6 +2253,7 @@ async function boot() {
 				const r = lp._platformRect;
 				if (!r) continue;
 				resolveTopPlatform(r.x, r.y, r.w, r.h);
+			}
 			}
 			if (circle) circle.rotation += 0.02;
 		});
