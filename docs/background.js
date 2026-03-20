@@ -87,6 +87,11 @@ function createFlowFilter(app, options = {}) {
   const {
     lineColor = 0x7f0020,
     bgColor = 0x000000,
+    mistColorA = 0x180f16,
+    mistColorB = 0x0d1824,
+    mistColorC = 0x22152a,
+    mistStrength = 0.26,
+    sparkStrength = 0.14,
     lineWidth = 0.13,
     glowWidth = 0.4,
     glowStrength = 0.45,
@@ -103,6 +108,11 @@ function createFlowFilter(app, options = {}) {
     uniform vec2 u_offset;
     uniform vec3 u_lineColor;
     uniform vec3 u_bgColor;
+    uniform vec3 u_mistColorA;
+    uniform vec3 u_mistColorB;
+    uniform vec3 u_mistColorC;
+    uniform float u_mistStrength;
+    uniform float u_sparkStrength;
     uniform float u_lineWidth;
     uniform float u_glowWidth;
     uniform float u_glowStrength;
@@ -146,11 +156,29 @@ function createFlowFilter(app, options = {}) {
       float t = u_time * u_speed;
       float n = fbm(p * 1.2 + vec2(t * 0.12, -t * 0.09));
       float w = fbm(p * 2.4 + vec2(-t * 0.08, t * 0.05));
+
+      // Dark moving mist that lives behind the line field.
+      float mistFieldA = fbm(p * 0.85 + vec2(t * 0.03, -t * 0.02));
+      float mistFieldB = fbm(p * 1.45 + vec2(-t * 0.025, t * 0.018));
+      float mistMaskA = smoothstep(0.34, 0.88, mistFieldA);
+      float mistMaskB = smoothstep(0.42, 0.93, mistFieldB);
+      float mistMask = mistMaskA * 0.62 + mistMaskB * 0.38;
+      vec3 mistColor = mix(u_mistColorA, u_mistColorB, mistFieldA);
+      mistColor = mix(mistColor, u_mistColorC, mistFieldB * 0.75);
+      vec3 mist = mistColor * mistMask * u_mistStrength;
+
+      // Sparse colored sparks drifting through the void.
+      float sparkField = fbm(p * 6.6 + vec2(t * 0.11, -t * 0.09));
+      float sparkScatter = fbm(p * 11.5 + vec2(-t * 0.16, t * 0.13));
+      float spark = smoothstep(0.83, 0.97, sparkField) * (0.35 + 0.65 * sparkScatter);
+      vec3 sparkColor = mix(u_mistColorB, u_mistColorC, sparkScatter);
+      vec3 sparkGlow = sparkColor * spark * u_sparkStrength;
+
       float field = p.y * u_density + n * 1.4 + w * 1.1;
       float wave = abs(sin(field * 3.14159));
       float line = smoothstep(u_lineWidth, 0.0, wave);
       float glow = smoothstep(u_glowWidth, 0.0, wave);
-      vec3 color = u_bgColor + u_lineColor * line + u_lineColor * glow * u_glowStrength;
+      vec3 color = u_bgColor + mist + sparkGlow + u_lineColor * line + u_lineColor * glow * u_glowStrength;
       gl_FragColor = vec4(color, 1.0);
     }
   `;
@@ -161,6 +189,11 @@ function createFlowFilter(app, options = {}) {
     u_offset: new Float32Array([0, 0]),
     u_lineColor: colorToVec3(lineColor),
     u_bgColor: colorToVec3(bgColor),
+    u_mistColorA: colorToVec3(mistColorA),
+    u_mistColorB: colorToVec3(mistColorB),
+    u_mistColorC: colorToVec3(mistColorC),
+    u_mistStrength: mistStrength,
+    u_sparkStrength: sparkStrength,
     u_lineWidth: lineWidth,
     u_glowWidth: glowWidth,
     u_glowStrength: glowStrength,
@@ -177,6 +210,11 @@ export function createCrimsonFlowBackground(app, options = {}) {
     lineColor = 0x7f0020,
     glowColor = 0xb1002a,
     bgColor = 0x000000,
+    mistColorA = 0x180f16,
+    mistColorB = 0x0d1824,
+    mistColorC = 0x22152a,
+    mistStrength = 0.26,
+    sparkStrength = 0.14,
     glowAlpha = 0.65,
     parallax = 0.035,
     pixelSize = 4,
@@ -194,6 +232,11 @@ export function createCrimsonFlowBackground(app, options = {}) {
   const { filter: coreFilter, uniforms: coreUniforms } = createFlowFilter(app, {
     lineColor,
     bgColor,
+    mistColorA,
+    mistColorB,
+    mistColorC,
+    mistStrength,
+    sparkStrength,
     lineWidth: 0.12,
     glowWidth: 0.34,
     glowStrength: 0.35,
@@ -211,6 +254,8 @@ export function createCrimsonFlowBackground(app, options = {}) {
   const { filter: glowFilter, uniforms: glowUniforms } = createFlowFilter(app, {
     lineColor: glowColor,
     bgColor: 0x000000,
+    mistStrength: 0.0,
+    sparkStrength: 0.0,
     lineWidth: 0.22,
     glowWidth: 0.6,
     glowStrength: 0.9,

@@ -581,13 +581,27 @@ async function boot() {
 
 			const systemCore = new PIXI.Container();
 			const coreAura = new PIXI.Graphics();
+			const coreFrame = new PIXI.Graphics();
 			const coreRing = new PIXI.Graphics();
+			const coreDial = new PIXI.Graphics();
+			const coreCrankArm = new PIXI.Graphics();
+			const coreCrankKnob = new PIXI.Graphics();
+			const coreSpinArrows = new PIXI.Graphics();
+			const coreHintText = new PIXI.Text('GRAB CRANK + DRAG', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 11,
+				fill: 0xe6ffe8,
+				align: 'center',
+				letterSpacing: 1,
+			});
+			coreHintText.anchor.set(0.5, 0);
+			coreHintText.alpha = 0.32;
 			const coreGhost = new PIXI.Sprite(PIXI.Texture.WHITE);
 			coreGhost.anchor.set(0.5);
 			coreGhost.tint = 0x9bffd6;
 			coreGhost.alpha = 0.38;
 			coreGhost.visible = false;
-			systemCore.addChild(coreAura, coreRing, coreGhost);
+			systemCore.addChild(coreAura, coreFrame, coreRing, coreDial, coreGhost, coreCrankArm, coreCrankKnob, coreSpinArrows, coreHintText);
 			systemCore.zIndex = 8;
 			world.addChild(systemCore);
 
@@ -658,7 +672,9 @@ async function boot() {
 				return { x: screenToWorldX(p.x), y: screenToWorldY(p.y) };
 			};
 			const getRingRadius = () => Math.max(120, Math.min(220, Math.min(app.renderer.width, app.renderer.height) * 0.24));
+			const getCoreControlRadius = () => Math.max(44, getRingRadius() * 0.46);
 			const getRingIconSize = () => Math.max(58, Math.min(84, app.renderer.height * 0.108));
+			let coreHoverAmount = 0;
 			const RING_THROW_BOOST = 1.7;
 			const RING_MAX_SPIN_VEL = 10.5;
 			const getRingSlotScreenPos = (slotIndex) => {
@@ -686,18 +702,89 @@ async function boot() {
 			const drawSystemCore = (time = 0) => {
 				const p = getCoreWorldPos();
 				systemCore.position.set(p.x, p.y);
+				const spinEnergy = Math.min(1, Math.abs(ringSpinVel) * 0.22);
+				const activeBoost = Math.max(coreHoverAmount, ringDrag.active ? 1 : 0, spinEnergy);
 				const pulse = 0.72 + 0.28 * Math.sin(time * 1.6);
+				const ringR = screenToWorldSize(72);
+				const outerR = screenToWorldSize(92);
+				const innerR = screenToWorldSize(26);
+				const crankLen = screenToWorldSize(48);
+				const crankAngle = ringSpin - Math.PI * 0.5;
+				const crankX = Math.cos(crankAngle) * crankLen;
+				const crankY = Math.sin(crankAngle) * crankLen;
 				coreAura.clear();
-				coreAura.beginFill(0x22f3c8, 0.07 * pulse);
-				coreAura.drawCircle(0, 0, screenToWorldSize(96));
+				coreAura.beginFill(0x22f3c8, (0.05 + activeBoost * 0.05) * pulse);
+				coreAura.drawCircle(0, 0, outerR + screenToWorldSize(8));
 				coreAura.endFill();
+
+				coreFrame.clear();
+				coreFrame.lineStyle(2, 0x6cffe3, 0.24 + activeBoost * 0.24);
+				coreFrame.drawCircle(0, 0, outerR);
+				coreFrame.lineStyle(1, 0xbfffea, 0.18 + activeBoost * 0.18);
+				for (let i = 0; i < 16; i++) {
+					const a = (Math.PI * 2 * i) / 16 + ringSpin * 0.12;
+					const x0 = Math.cos(a) * screenToWorldSize(84);
+					const y0 = Math.sin(a) * screenToWorldSize(84);
+					const x1 = Math.cos(a) * screenToWorldSize(90);
+					const y1 = Math.sin(a) * screenToWorldSize(90);
+					coreFrame.moveTo(x0, y0);
+					coreFrame.lineTo(x1, y1);
+				}
+
 				coreRing.clear();
-				coreRing.lineStyle(2, 0x22f3c8, 0.5);
-				coreRing.drawCircle(0, 0, screenToWorldSize(70));
-				coreRing.lineStyle(1, 0x9bffd6, 0.32);
+				coreRing.beginFill(0x061512, 0.78);
+				coreRing.drawCircle(0, 0, ringR);
+				coreRing.endFill();
+				coreRing.lineStyle(2, 0x22f3c8, 0.5 + activeBoost * 0.34);
+				coreRing.drawCircle(0, 0, ringR);
+				coreRing.lineStyle(1, 0x9bffd6, 0.22 + activeBoost * 0.24);
 				coreRing.drawCircle(0, 0, screenToWorldSize(82));
+
+				coreDial.clear();
+				coreDial.beginFill(0x0b221d, 0.92);
+				coreDial.drawCircle(0, 0, innerR);
+				coreDial.endFill();
+				coreDial.lineStyle(2, 0xcffff2, 0.42 + activeBoost * 0.36);
+				coreDial.drawCircle(0, 0, innerR - screenToWorldSize(2));
+
+				coreCrankArm.clear();
+				coreCrankArm.lineStyle(3, 0xf0e2b4, 0.82 + activeBoost * 0.14);
+				coreCrankArm.moveTo(0, 0);
+				coreCrankArm.lineTo(crankX, crankY);
+
+				coreCrankKnob.clear();
+				coreCrankKnob.beginFill(0xead3a0, 0.95);
+				coreCrankKnob.drawCircle(crankX, crankY, screenToWorldSize(8));
+				coreCrankKnob.endFill();
+				coreCrankKnob.lineStyle(2, 0x6a4d29, 0.72);
+				coreCrankKnob.drawCircle(crankX, crankY, screenToWorldSize(8));
+
+				coreSpinArrows.clear();
+				coreSpinArrows.lineStyle(2, 0xf8dda2, 0.3 + activeBoost * 0.5);
+				coreSpinArrows.arc(0, 0, screenToWorldSize(58), -2.35 + ringSpin * 0.08, -0.72 + ringSpin * 0.08);
+				coreSpinArrows.arc(0, 0, screenToWorldSize(58), 0.78 + ringSpin * 0.08, 2.42 + ringSpin * 0.08);
+				const ah = screenToWorldSize(7);
+				const a1 = -0.72 + ringSpin * 0.08;
+				const a2 = 2.42 + ringSpin * 0.08;
+				const x1 = Math.cos(a1) * screenToWorldSize(58);
+				const y1 = Math.sin(a1) * screenToWorldSize(58);
+				const x2 = Math.cos(a2) * screenToWorldSize(58);
+				const y2 = Math.sin(a2) * screenToWorldSize(58);
+				coreSpinArrows.lineStyle(2, 0xf8dda2, 0.3 + activeBoost * 0.5);
+				coreSpinArrows.moveTo(x1, y1);
+				coreSpinArrows.lineTo(x1 - Math.cos(a1 - 0.5) * ah, y1 - Math.sin(a1 - 0.5) * ah);
+				coreSpinArrows.moveTo(x1, y1);
+				coreSpinArrows.lineTo(x1 - Math.cos(a1 + 0.5) * ah, y1 - Math.sin(a1 + 0.5) * ah);
+				coreSpinArrows.moveTo(x2, y2);
+				coreSpinArrows.lineTo(x2 - Math.cos(a2 - 0.5) * ah, y2 - Math.sin(a2 - 0.5) * ah);
+				coreSpinArrows.moveTo(x2, y2);
+				coreSpinArrows.lineTo(x2 - Math.cos(a2 + 0.5) * ah, y2 - Math.sin(a2 + 0.5) * ah);
+
+				coreHintText.position.set(0, screenToWorldSize(96));
+				coreHintText.alpha = dragEnabled ? 0 : (0.26 + 0.56 * activeBoost + 0.08 * Math.sin(time * 3.2));
 				coreGhost.width = screenToWorldSize(96);
 				coreGhost.height = screenToWorldSize(96);
+				coreGhost.alpha = 0.34 + activeBoost * 0.2;
 			};
 
 			const placeAmbientDebris = () => {
@@ -1297,7 +1384,7 @@ async function boot() {
 			const dx = p.x - c.x;
 			const dy = p.y - c.y;
 			const d = Math.hypot(dx, dy);
-			const coreControlRadius = Math.max(34, getRingRadius() * 0.36);
+			const coreControlRadius = getCoreControlRadius();
 			if (d > coreControlRadius) return;
 			ringCandidate.active = true;
 			ringCandidate.startX = p.x;
@@ -1477,6 +1564,10 @@ async function boot() {
 				layoutReflexIcon();
 				layoutWalklatroIcon();
 			}
+			const coreScreen = getCoreScreenPos();
+			const coreDist = Math.hypot(mouse.x - coreScreen.x, mouse.y - coreScreen.y);
+			const hoverTarget = (!dragEnabled && coreDist <= getCoreControlRadius()) || ringDrag.active ? 1 : 0;
+			coreHoverAmount += (hoverTarget - coreHoverAmount) * Math.min(1, seconds * 12);
 			drawSystemCore(time);
 			const mx = (mouse.x / app.renderer.width) * 2 - 1;
 			const my = (mouse.y / app.renderer.height) * 2 - 1;
