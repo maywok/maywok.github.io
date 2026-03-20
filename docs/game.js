@@ -610,21 +610,29 @@ async function boot() {
 			const coreSecondHand = new PIXI.Graphics();
 			const coreTickMarks = new PIXI.Graphics();
 			const coreSecondTrail = new PIXI.Graphics();
-			const coreHintText = new PIXI.Text('CLOCK CORE // DRAG RING', {
+			const coreSpinCue = new PIXI.Graphics();
+			const coreNumerals = new PIXI.Container();
+			const numeralStyle = {
 				fontFamily: 'Minecraft, monospace',
 				fontSize: 11,
-				fill: 0xe6ffe8,
+				fill: 0xffffff,
 				align: 'center',
-				letterSpacing: 1,
-			});
-			coreHintText.anchor.set(0.5, 0);
-			coreHintText.alpha = 0.32;
+			};
+			const coreNum12 = new PIXI.Text('12', numeralStyle);
+			const coreNum3 = new PIXI.Text('3', numeralStyle);
+			const coreNum6 = new PIXI.Text('6', numeralStyle);
+			const coreNum9 = new PIXI.Text('9', numeralStyle);
+			coreNum12.anchor.set(0.5);
+			coreNum3.anchor.set(0.5);
+			coreNum6.anchor.set(0.5);
+			coreNum9.anchor.set(0.5);
+			coreNumerals.addChild(coreNum12, coreNum3, coreNum6, coreNum9);
 			const coreGhost = new PIXI.Sprite(PIXI.Texture.WHITE);
 			coreGhost.anchor.set(0.5);
 			coreGhost.tint = 0x9bffd6;
 			coreGhost.alpha = 0.38;
 			coreGhost.visible = false;
-			systemCore.addChild(coreAura, coreFrame, coreRing, coreDial, coreTickMarks, coreSecondTrail, coreHourHand, coreMinuteHand, coreSecondHand, coreGhost, coreHintText);
+			systemCore.addChild(coreAura, coreFrame, coreRing, coreDial, coreTickMarks, coreNumerals, coreSecondTrail, coreHourHand, coreMinuteHand, coreSecondHand, coreGhost, coreSpinCue);
 			systemCore.zIndex = 8;
 			world.addChild(systemCore);
 
@@ -730,7 +738,8 @@ async function boot() {
 				const pulse = 0.72 + 0.28 * Math.sin(time * 1.6);
 				const ringR = screenToWorldSize(72);
 				const outerR = screenToWorldSize(92);
-				const innerR = screenToWorldSize(56);
+				const dialHalf = screenToWorldSize(49);
+				const markerR = dialHalf - screenToWorldSize(8);
 				const now = new Date();
 				const h = now.getHours() % 12;
 				const m = now.getMinutes();
@@ -749,6 +758,7 @@ async function boot() {
 				const rgbB = hsvToRgbInt((rgbHue + 0.2) % 1, 0.78, 1.0);
 				const rgbC = hsvToRgbInt((rgbHue + 0.52) % 1, 0.86, 1.0);
 				const rgbSoft = hsvToRgbInt((rgbHue + 0.07) % 1, 0.45, 0.95);
+				const spinCueAlpha = dragEnabled ? 0.12 : (0.28 + activeBoost * 0.36 + 0.08 * Math.sin(time * 3.2));
 				coreAura.clear();
 				coreAura.beginFill(rgbA, (0.08 + activeBoost * 0.08) * pulse);
 				coreAura.drawCircle(0, 0, outerR + screenToWorldSize(8));
@@ -760,53 +770,59 @@ async function boot() {
 				coreFrame.clear();
 				coreFrame.lineStyle(2.2, rgbA, 0.34 + activeBoost * 0.34);
 				coreFrame.drawCircle(0, 0, outerR);
-				coreFrame.lineStyle(1.3, rgbSoft, 0.24 + activeBoost * 0.26);
-				for (let i = 0; i < 16; i++) {
-					const a = (Math.PI * 2 * i) / 16 + ringSpin * 0.12;
-					const x0 = Math.cos(a) * screenToWorldSize(84);
-					const y0 = Math.sin(a) * screenToWorldSize(84);
-					const x1 = Math.cos(a) * screenToWorldSize(90);
-					const y1 = Math.sin(a) * screenToWorldSize(90);
-					coreFrame.moveTo(x0, y0);
-					coreFrame.lineTo(x1, y1);
-				}
+				coreFrame.lineStyle(1.3, rgbSoft, 0.26 + activeBoost * 0.28);
+				coreFrame.drawCircle(0, 0, screenToWorldSize(86));
 
 				coreRing.clear();
-				coreRing.beginFill(0x061512, 0.78);
+				coreRing.beginFill(0x060a11, 0.82);
 				coreRing.drawCircle(0, 0, ringR);
 				coreRing.endFill();
 				coreRing.lineStyle(2.4, rgbB, 0.56 + activeBoost * 0.34);
 				coreRing.drawCircle(0, 0, ringR);
-				coreRing.lineStyle(1.2, rgbSoft, 0.24 + activeBoost * 0.24);
-				coreRing.drawCircle(0, 0, screenToWorldSize(82));
+				coreRing.lineStyle(1.2, rgbSoft, 0.28 + activeBoost * 0.28);
+				coreRing.drawCircle(0, 0, screenToWorldSize(80));
 
 				coreDial.clear();
-				coreDial.beginFill(0x071017, 0.96);
-				coreDial.drawCircle(0, 0, innerR);
+				coreDial.beginFill(0x0b1118, 0.94);
+				coreDial.drawRoundedRect(-dialHalf, -dialHalf, dialHalf * 2, dialHalf * 2, screenToWorldSize(7));
 				coreDial.endFill();
-				coreDial.lineStyle(2.1, rgbC, 0.6 + activeBoost * 0.28);
-				coreDial.drawCircle(0, 0, innerR - screenToWorldSize(2));
+				coreDial.lineStyle(2.1, rgbC, 0.62 + activeBoost * 0.3);
+				coreDial.drawRoundedRect(-dialHalf + screenToWorldSize(2), -dialHalf + screenToWorldSize(2), (dialHalf - screenToWorldSize(2)) * 2, (dialHalf - screenToWorldSize(2)) * 2, screenToWorldSize(6));
+				coreDial.lineStyle(1.2, rgbSoft, 0.42 + activeBoost * 0.26);
+				coreDial.drawCircle(0, 0, markerR + screenToWorldSize(4));
 
 				coreTickMarks.clear();
-				for (let i = 0; i < 60; i++) {
-					const a = (Math.PI * 2 * i) / 60 - Math.PI * 0.5;
-					const major = i % 5 === 0;
-					const r0 = innerR - (major ? screenToWorldSize(12) : screenToWorldSize(7));
-					const r1 = innerR - screenToWorldSize(2.2);
-					const alpha = major ? (0.72 + activeBoost * 0.2) : 0.36;
-					coreTickMarks.lineStyle(major ? 2.1 : 1.1, major ? rgbA : rgbSoft, alpha);
-					coreTickMarks.moveTo(Math.cos(a) * r0, Math.sin(a) * r0);
-					coreTickMarks.lineTo(Math.cos(a) * r1, Math.sin(a) * r1);
+				for (let i = 0; i < 12; i++) {
+					if (i % 3 === 0) continue;
+					const a = (Math.PI * 2 * i) / 12 - Math.PI * 0.5;
+					const x = Math.cos(a) * markerR;
+					const y = Math.sin(a) * markerR;
+					coreTickMarks.beginFill(rgbSoft, 0.72);
+					coreTickMarks.drawCircle(x, y, screenToWorldSize(1.9));
+					coreTickMarks.endFill();
 				}
+				const numeralR = markerR - screenToWorldSize(9);
+				coreNum12.position.set(0, -numeralR);
+				coreNum3.position.set(numeralR, 0);
+				coreNum6.position.set(0, numeralR);
+				coreNum9.position.set(-numeralR, 0);
+				coreNum12.tint = rgbC;
+				coreNum3.tint = rgbA;
+				coreNum6.tint = rgbB;
+				coreNum9.tint = rgbSoft;
+				coreNum12.alpha = 0.96;
+				coreNum3.alpha = 0.96;
+				coreNum6.alpha = 0.96;
+				coreNum9.alpha = 0.96;
 
 				coreSecondTrail.clear();
-				const secTrailR = innerR - screenToWorldSize(5);
+				const secTrailR = markerR - screenToWorldSize(4);
 				coreSecondTrail.lineStyle(1.4, rgbC, 0.32 + activeBoost * 0.34);
 				coreSecondTrail.arc(0, 0, secTrailR, secondAngle - 0.45, secondAngle);
 
-				const hourLen = innerR - screenToWorldSize(24);
-				const minuteLen = innerR - screenToWorldSize(14);
-				const secondLen = innerR - screenToWorldSize(8);
+				const hourLen = markerR - screenToWorldSize(18);
+				const minuteLen = markerR - screenToWorldSize(9);
+				const secondLen = markerR - screenToWorldSize(4);
 				const hourX = Math.cos(hourAngle) * hourLen;
 				const hourY = Math.sin(hourAngle) * hourLen;
 				const minuteX = Math.cos(minuteAngle) * minuteLen;
@@ -840,9 +856,25 @@ async function boot() {
 				coreSecondHand.drawCircle(secondX, secondY, screenToWorldSize(2.8));
 				coreSecondHand.endFill();
 
-				coreHintText.position.set(0, screenToWorldSize(96));
-				coreHintText.alpha = dragEnabled ? 0 : (0.26 + 0.56 * activeBoost + 0.08 * Math.sin(time * 3.2));
-				coreHintText.style.fill = rgbSoft;
+				coreSpinCue.clear();
+				coreSpinCue.lineStyle(2, rgbB, spinCueAlpha);
+				coreSpinCue.arc(0, 0, screenToWorldSize(76), -2.34 + ringSpin * 0.05, -0.92 + ringSpin * 0.05);
+				coreSpinCue.arc(0, 0, screenToWorldSize(76), 0.8 + ringSpin * 0.05, 2.22 + ringSpin * 0.05);
+				const cueHead = screenToWorldSize(7);
+				const c1 = -0.92 + ringSpin * 0.05;
+				const c2 = 2.22 + ringSpin * 0.05;
+				const cx1 = Math.cos(c1) * screenToWorldSize(76);
+				const cy1 = Math.sin(c1) * screenToWorldSize(76);
+				const cx2 = Math.cos(c2) * screenToWorldSize(76);
+				const cy2 = Math.sin(c2) * screenToWorldSize(76);
+				coreSpinCue.moveTo(cx1, cy1);
+				coreSpinCue.lineTo(cx1 - Math.cos(c1 - 0.45) * cueHead, cy1 - Math.sin(c1 - 0.45) * cueHead);
+				coreSpinCue.moveTo(cx1, cy1);
+				coreSpinCue.lineTo(cx1 - Math.cos(c1 + 0.45) * cueHead, cy1 - Math.sin(c1 + 0.45) * cueHead);
+				coreSpinCue.moveTo(cx2, cy2);
+				coreSpinCue.lineTo(cx2 - Math.cos(c2 - 0.45) * cueHead, cy2 - Math.sin(c2 - 0.45) * cueHead);
+				coreSpinCue.moveTo(cx2, cy2);
+				coreSpinCue.lineTo(cx2 - Math.cos(c2 + 0.45) * cueHead, cy2 - Math.sin(c2 + 0.45) * cueHead);
 				coreGhost.width = screenToWorldSize(34);
 				coreGhost.height = screenToWorldSize(34);
 				coreGhost.tint = rgbA;
