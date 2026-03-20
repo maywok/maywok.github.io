@@ -105,6 +105,7 @@ async function boot() {
 				scanStrength: 0.85,
 				curve: 0.008,
 				vignette: 0.0,
+				edgeColor: DESKTOP_TWO_BG,
 			});
 			const { filter: desktopTwoScanlinesFilter, uniforms: desktopTwoScanlinesUniforms } = createCRTScanlinesFilter(desktopTwoApp, {
 				strength: 0.42,

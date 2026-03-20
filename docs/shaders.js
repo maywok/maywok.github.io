@@ -54,6 +54,7 @@ export function createCRTFisheyeFilter(app, {
 	scanStrength = 0.6,
 	curve = 0.12,
 	vignette = 0.35,
+	edgeColor = null,
 } = {}) {
 	const fragment = `
 		precision mediump float;
@@ -66,6 +67,8 @@ export function createCRTFisheyeFilter(app, {
 		uniform float u_scanStrength;
 		uniform float u_curve;
 		uniform float u_vignette;
+		uniform vec3 u_edgeColor;
+		uniform float u_useEdgeColor;
 
 		vec2 fisheye(vec2 uv) {
 			vec2 p = uv * 2.0 - 1.0;
@@ -81,7 +84,11 @@ export function createCRTFisheyeFilter(app, {
 		void main() {
 			vec2 uv = fisheye(vTextureCoord);
 			if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-				gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+				if (u_useEdgeColor > 0.5) {
+					gl_FragColor = vec4(u_edgeColor, 1.0);
+				} else {
+					gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0);
+				}
 				return;
 			}
 			vec4 base = texture2D(uSampler, uv);
@@ -94,6 +101,9 @@ export function createCRTFisheyeFilter(app, {
 			gl_FragColor = vec4(color, base.a);
 		}
 	`;
+	const edgeR = edgeColor == null ? 0 : ((edgeColor >> 16) & 255) / 255;
+	const edgeG = edgeColor == null ? 0 : ((edgeColor >> 8) & 255) / 255;
+	const edgeB = edgeColor == null ? 0 : (edgeColor & 255) / 255;
 	const uniforms = {
 		u_resolution: new Float32Array([app.renderer.width, app.renderer.height]),
 		u_time: 0,
@@ -102,6 +112,8 @@ export function createCRTFisheyeFilter(app, {
 		u_scanStrength: scanStrength,
 		u_curve: curve,
 		u_vignette: vignette,
+		u_edgeColor: new Float32Array([edgeR, edgeG, edgeB]),
+		u_useEdgeColor: edgeColor == null ? 0 : 1,
 	};
 	return { filter: new PIXI.Filter(undefined, fragment, uniforms), uniforms };
 }
