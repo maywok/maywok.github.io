@@ -579,6 +579,14 @@ async function boot() {
 				lampBoost: 0.0,
 			};
 			const MOOD_TRANSITION_SECONDS = 0.34;
+			const HOVER_MOOD_DEBOUNCE_MS = 110;
+			const MOOD_REENABLE_DELAY_MS = 200;
+			const DRAG_MOOD = {
+				...BASE_MOOD,
+				waveMotion: 0.92,
+				waveMix: 0.1,
+				vignette: 0.008,
+			};
 			const MOOD_MAP = {
 				default: BASE_MOOD,
 				GitHub: {
@@ -649,32 +657,67 @@ async function boot() {
 				},
 			};
 			const hoverMoodSources = new Map();
+			const pendingMoodSources = new Map();
 			let activeMoodEntry = null;
 			let moodTarget = { ...BASE_MOOD };
 			const moodCurrent = { ...BASE_MOOD };
+			let moodHoverEnabled = true;
+			let moodLockTarget = null;
+			let moodHoverResumeAtMs = 0;
 			const getMoodProfile = (key) => MOOD_MAP[key] || MOOD_MAP.default;
+			const nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
 			const resolveActiveMood = () => {
+				if (moodLockTarget) {
+					activeMoodEntry = null;
+					moodTarget = { ...moodLockTarget };
+					window.moodTarget = {
+						key: 'default',
+						locked: true,
+						...moodTarget,
+					};
+					return;
+				}
 				let last = null;
 				for (const entry of hoverMoodSources.values()) last = entry;
 				activeMoodEntry = last;
 				moodTarget = { ...getMoodProfile(last?.key || 'default') };
 				window.moodTarget = {
 					key: last?.key || 'default',
+					locked: false,
 					...moodTarget,
 				};
 			};
 			const setMoodHover = (key, hovered, container) => {
 				if (!container) return;
+				const moodKey = getMoodProfile(key) === MOOD_MAP.default && key !== 'default' ? 'default' : key;
 				if (hovered) {
+					if (!moodHoverEnabled || moodLockTarget) return;
 					hoverMoodSources.delete(container);
-					hoverMoodSources.set(container, {
-						key: getMoodProfile(key) === MOOD_MAP.default && key !== 'default' ? 'default' : key,
+					pendingMoodSources.set(container, {
+						key: moodKey,
 						container,
+						activateAt: nowMs() + HOVER_MOOD_DEBOUNCE_MS,
 					});
 				} else {
+					pendingMoodSources.delete(container);
 					hoverMoodSources.delete(container);
+					resolveActiveMood();
 				}
-				resolveActiveMood();
+			};
+			const flushPendingMoodSources = (timeMs) => {
+				if (!moodHoverEnabled || moodLockTarget) {
+					if (pendingMoodSources.size) pendingMoodSources.clear();
+					return;
+				}
+				let changed = false;
+				for (const [container, pending] of pendingMoodSources.entries()) {
+					if (timeMs < pending.activateAt) continue;
+					pendingMoodSources.delete(container);
+					hoverMoodSources.delete(container);
+					hoverMoodSources.set(container, { key: pending.key, container });
+					changed = true;
+				}
+				if (changed) resolveActiveMood();
 			};
 			resolveActiveMood();
 			for (let i = 0; i < 10; i++) {
@@ -1069,14 +1112,14 @@ async function boot() {
 						url: 'https://github.com/maywok',
 						panelFill: 0x171c24,
 						panelFillAlpha: 0.96,
-						panelBorder: 0xff5fa8,
+						panelBorder: 0x5e4e84,
 						panelBorderAlpha: 0.95,
 						glyphColor: 0xe8edf8,
 						labelColor: 0xd0d8ec,
-						glowAlpha: 0.08,
-						glowHoverAlpha: 0.24,
+						glowAlpha: 0.06,
+						glowHoverAlpha: 0.19,
 						ornament: 'cat',
-						ornamentColor: 0xff5fa8,
+						ornamentColor: 0x75639a,
 					},
 				],
 				screenToWorldX,
@@ -1375,6 +1418,21 @@ async function boot() {
 			};
 			const applyDragEnabled = (enabled) => {
 				dragEnabled = Boolean(enabled);
+				if (dragEnabled) {
+					moodHoverEnabled = false;
+					moodHoverResumeAtMs = 0;
+					pendingMoodSources.clear();
+					hoverMoodSources.clear();
+					moodLockTarget = { ...DRAG_MOOD };
+					resolveActiveMood();
+				} else {
+					moodHoverEnabled = false;
+					moodHoverResumeAtMs = nowMs() + MOOD_REENABLE_DELAY_MS;
+					pendingMoodSources.clear();
+					hoverMoodSources.clear();
+					moodLockTarget = { ...BASE_MOOD };
+					resolveActiveMood();
+				}
 				lockAnimTarget = dragEnabled ? 1 : 0;
 				basketballToggle.visible = dragEnabled;
 				basketballToggle.eventMode = dragEnabled ? 'static' : 'none';
@@ -2040,6 +2098,14 @@ async function boot() {
 				leftPortal.visible = false;
 			}
 			time += seconds;
+			const tickNow = nowMs();
+			if (!dragEnabled && !moodHoverEnabled && moodHoverResumeAtMs > 0 && tickNow >= moodHoverResumeAtMs) {
+				moodHoverEnabled = true;
+				moodHoverResumeAtMs = 0;
+				moodLockTarget = null;
+				resolveActiveMood();
+			}
+			flushPendingMoodSources(tickNow);
 			const moodLerp = 1 - Math.exp(-seconds / MOOD_TRANSITION_SECONDS);
 			moodCurrent.waveTint = mixColors(moodCurrent.waveTint, moodTarget.waveTint, moodLerp);
 			moodCurrent.lampTint = mixColors(moodCurrent.lampTint, moodTarget.lampTint, moodLerp);
@@ -2071,6 +2137,7 @@ async function boot() {
 			crtScanlinesUniforms.u_strength = 0.42 + moodCurrent.contrast * 0.45;
 			window.moodCurrent = {
 				key: activeMoodEntry?.key || 'default',
+				locked: Boolean(moodLockTarget),
 				...moodCurrent,
 			};
 			const introSpeed = 1.25;
