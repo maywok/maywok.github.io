@@ -111,6 +111,7 @@ async function boot() {
 			desktopTwoBaseFill.height = desktopTwoApp.renderer.height;
 			desktopTwoApp.stage.addChild(desktopTwoBaseFill);
 			const desktopTwoScene = new PIXI.Container();
+			desktopTwoScene.sortableChildren = true;
 			desktopTwoApp.stage.addChild(desktopTwoScene);
 			const {
 				container: desktopTwoFlow,
@@ -387,6 +388,8 @@ async function boot() {
 			);
 			for (const cartridge of portfolioCartridges) portfolioPanel.addChild(cartridge.node);
 			portfolioPanel.addChild(portfolioTitle, portfolioSub, portfolioStatusText);
+			portfolioPanel.zIndex = 10;
+			portfolioWindow.zIndex = 20;
 			desktopTwoScene.addChild(portfolioPanel, portfolioWindow);
 
 			let desktopTwoPanelBoot = 0;
@@ -756,6 +759,7 @@ async function boot() {
 			const rightArrow = new PIXI.Graphics();
 			const rightPortalHitZone = new PIXI.Graphics();
 			rightPortal.addChild(rightGlowSoft, rightGlow, rightArrow, rightPortalHitZone);
+			rightPortal.zIndex = 30;
 			desktopTwoScene.addChild(rightPortal);
 			rightArrow.eventMode = 'static';
 			rightArrow.cursor = 'pointer';
@@ -826,7 +830,7 @@ async function boot() {
 			else desktopTwoCursor.addChild(desktopTwoCursorGlow, desktopTwoCursorSprite);
 			desktopTwoCursor.eventMode = 'none';
 			desktopTwoCursor.scale.set(0.85);
-			desktopTwoCursor.zIndex = 300;
+			desktopTwoCursor.zIndex = 999;
 			const { filter: desktopTwoCursorPixelate, update: updateDesktopTwoCursorPixelate } = createPixelateFilter(desktopTwoApp, { pixelSize: 2 });
 			desktopTwoCursor.filters = [desktopTwoCursorPixelate];
 			desktopTwoScene.addChild(desktopTwoCursor);

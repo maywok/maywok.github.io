@@ -258,7 +258,7 @@ export function createAppLauncher(app, world, options = {}) {
 				const eyeH = Math.max(2, size * 0.04);
 				const eyeGap = Math.max(1, size * 0.04);
 				const earBaseY = visorY - visorH * 0.88;
-				const earTipY = Math.max(-size * 0.5 + spacing, earBaseY - size * 0.17);
+				const earTipY = earBaseY - size * 0.21;
 				const earSpan = size * 0.16;
 				const earInset = size * 0.2;
 				ornament.lineStyle(1.8, outline, 0.9);
