@@ -248,6 +248,7 @@ async function boot() {
 			const portfolioWindowTitlebar = new PIXI.Graphics();
 			const portfolioWindowBody = new PIXI.Graphics();
 			const portfolioWindowGallery = new PIXI.Graphics();
+			const portfolioWindowGalleryMask = new PIXI.Graphics();
 			const portfolioWindowInfo = new PIXI.Graphics();
 			const portfolioWindowScanlines = new PIXI.Graphics();
 			const portfolioWindowSweep = new PIXI.Graphics();
@@ -301,6 +302,8 @@ async function boot() {
 			const portfolioPreview = new PIXI.Sprite(PIXI.Texture.from('./assets/images/Uh-Oh.png'));
 			portfolioPreview.anchor.set(0.5, 0.5);
 			portfolioPreview.alpha = 0.9;
+			portfolioPreview.visible = false;
+			portfolioPreview.mask = portfolioWindowGalleryMask;
 
 			portfolioWindow.addChild(
 				portfolioWindowGlow,
@@ -309,6 +312,7 @@ async function boot() {
 				portfolioWindowTitlebar,
 				portfolioWindowBody,
 				portfolioWindowGallery,
+				portfolioWindowGalleryMask,
 				portfolioWindowInfo,
 				portfolioWindowScanlines,
 				portfolioWindowSweep,
@@ -530,7 +534,6 @@ async function boot() {
 					cartridge.led.endFill();
 
 					cartridge.label.style.fill = mixDesktopColor(0xe8dcc7, 0xfff2da, h * 0.85);
-					cartridge.label.style.fontSize = Math.max(10, Math.round(cardH * 0.27));
 					cartridge.label.position.set(0, cardH * 0.295);
 
 					if (h > 0.03) {
@@ -656,6 +659,9 @@ async function boot() {
 				portfolioStatusPanel.drawRoundedRect(-statusW * 0.5, portfolioLayout.statusY - statusH * 0.5, statusW, statusH, 8);
 				portfolioStatusPanel.endFill();
 				portfolioStatusText.position.set(0, portfolioLayout.statusY);
+				for (const cartridge of portfolioCartridges) {
+					cartridge.label.style.fontSize = Math.max(10, Math.round(portfolioLayout.cardH * 0.27));
+				}
 
 				drawPortfolioCartridges(0, desktopTwoTime);
 
@@ -703,6 +709,10 @@ async function boot() {
 				portfolioWindowGallery.lineStyle(2, 0x303e52, 0.85);
 				portfolioWindowGallery.drawRoundedRect(galleryX, galleryY, galleryW, galleryH, 8);
 				portfolioWindowGallery.endFill();
+				portfolioWindowGalleryMask.clear();
+				portfolioWindowGalleryMask.beginFill(0xffffff, 1);
+				portfolioWindowGalleryMask.drawRoundedRect(galleryX + 2, galleryY + 2, Math.max(4, galleryW - 4), Math.max(4, galleryH - 4), 7);
+				portfolioWindowGalleryMask.endFill();
 
 				portfolioWindowInfo.clear();
 				portfolioWindowInfo.beginFill(0x3a2c1d, 0.82);
@@ -893,6 +903,7 @@ async function boot() {
 				portfolioWindow.alpha = portfolioWindowBoot;
 				portfolioWindow.scale.set(0.98 + portfolioWindowBoot * 0.02);
 				portfolioWindowClose.scale.set(1 + portfolioWindowCloseHover * 0.04);
+				portfolioPreview.visible = portfolioWindow.visible;
 
 				if (portfolioWindow.visible) {
 					portfolioWindowScanPhase += dtSeconds * (portfolioWindowOpen ? 1.8 : 0.8);
@@ -922,6 +933,9 @@ async function boot() {
 					}
 				}
 
+				if (portfolioLayout.cardW <= 0 || portfolioLayout.cardH <= 0) {
+					layoutPortfolioPanel();
+				}
 				drawPortfolioCartridges(dtSeconds, desktopTwoTime);
 				if (Math.random() < dtSeconds * 0.5) desktopTwoSubFlicker = 0.985;
 				desktopTwoSubFlicker += (1 - desktopTwoSubFlicker) * Math.min(1, dtSeconds * 4);
