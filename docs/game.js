@@ -159,6 +159,19 @@ async function boot() {
 				const rb = Math.round(ab + (bb - ab) * tt);
 				return (rr << 16) | (rg << 8) | rb;
 			};
+			const stepDesktopColor = (from, to, t) => {
+				const tt = Math.max(0, Math.min(1, t));
+				const fr = (from >> 16) & 255;
+				const fg = (from >> 8) & 255;
+				const fb = from & 255;
+				const tr = (to >> 16) & 255;
+				const tg = (to >> 8) & 255;
+				const tb = to & 255;
+				const nr = Math.round(fr + (tr - fr) * tt);
+				const ng = Math.round(fg + (tg - fg) * tt);
+				const nb = Math.round(fb + (tb - fb) * tt);
+				return (nr << 16) | (ng << 8) | nb;
+			};
 			const makeDesktopTwoNoiseTexture = () => {
 				const canvas = document.createElement('canvas');
 				canvas.width = 128;
@@ -200,6 +213,8 @@ async function boot() {
 			portfolioNoise.blendMode = PIXI.BLEND_MODES.MULTIPLY;
 			portfolioNoise.mask = portfolioMask;
 			const portfolioShelfLayer = new PIXI.Graphics();
+			const portfolioFocusRails = new PIXI.Graphics();
+			const portfolioStatusPanel = new PIXI.Graphics();
 			const portfolioTitle = new PIXI.Text('PROJECT CARTRIDGES', {
 				fontFamily: 'Minecraft, monospace',
 				fontSize: 16,
@@ -216,6 +231,15 @@ async function boot() {
 				letterSpacing: 1,
 			});
 			portfolioSub.anchor.set(0.5, 0);
+			portfolioSub.alpha = 0.92;
+			const portfolioStatusText = new PIXI.Text('EMPTY BAY : 6 SLOTS', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 10,
+				fill: 0xd9e6f5,
+				align: 'center',
+				letterSpacing: 1,
+			});
+			portfolioStatusText.anchor.set(0.5, 0.5);
 
 			const portfolioWindow = new PIXI.Container();
 			const portfolioWindowGlow = new PIXI.Graphics();
@@ -320,7 +344,7 @@ async function boot() {
 				const labelStrip = new PIXI.Graphics();
 				const details = new PIXI.Graphics();
 				const led = new PIXI.Graphics();
-				const label = new PIXI.Text(project.label, slotLabelStyle);
+				const label = new PIXI.Text('EMPTY', slotLabelStyle);
 				label.anchor.set(0.5, 0.5);
 				node.eventMode = 'static';
 				node.cursor = 'pointer';
@@ -338,6 +362,7 @@ async function boot() {
 					led,
 					label,
 					hovered: false,
+					hoverMix: 0,
 				};
 			});
 			portfolioPanel.addChild(
@@ -353,9 +378,11 @@ async function boot() {
 				portfolioRigging,
 				portfolioPlatform,
 				portfolioShelfLayer,
+				portfolioStatusPanel,
+				portfolioFocusRails,
 			);
 			for (const cartridge of portfolioCartridges) portfolioPanel.addChild(cartridge.node);
-			portfolioPanel.addChild(portfolioTitle, portfolioSub);
+			portfolioPanel.addChild(portfolioTitle, portfolioSub, portfolioStatusText);
 			desktopTwoScene.addChild(portfolioPanel, portfolioWindow);
 
 			let desktopTwoPanelBoot = 0;
@@ -363,6 +390,21 @@ async function boot() {
 			let desktopTwoGlowBreath = 0;
 			let desktopTwoCartridgeHover = -1;
 			let desktopTwoLastCartridgeHover = -2;
+			let desktopTwoSubFlicker = 1;
+			let desktopTwoFlowHoverCurrent = 0;
+			let desktopTwoFlowTintCurrent = desktopTwoFlowBase.glowColor;
+			const portfolioLayout = {
+				panelW: 0,
+				panelH: 0,
+				cardW: 0,
+				cardH: 0,
+				xGap: 0,
+				yGap: 0,
+				startX: 0,
+				startY: 0,
+				statusY: 0,
+				statusTopY: 0,
+			};
 			let portfolioWindowOpen = false;
 			let portfolioWindowBoot = 0;
 			let portfolioWindowScanPhase = 0;
@@ -430,6 +472,78 @@ async function boot() {
 			portfolioWindowClose.on('pointerover', () => { portfolioWindowCloseHover = 1; });
 			portfolioWindowClose.on('pointerout', () => { portfolioWindowCloseHover = 0; });
 			portfolioWindowClose.on('pointertap', closePortfolioWindow);
+
+			const drawPortfolioCartridges = (dtSeconds, timeNow) => {
+				portfolioFocusRails.clear();
+				const { cardW, cardH, startX, startY, xGap, yGap, statusTopY } = portfolioLayout;
+				if (cardW <= 0 || cardH <= 0) return;
+				const cols = 3;
+				portfolioCartridges.forEach((cartridge, idx) => {
+					const col = idx % cols;
+					const row = Math.floor(idx / cols) % 2;
+					const x = startX + xGap * col;
+					const y = startY + yGap * row;
+					const targetHover = desktopTwoCartridgeHover === idx ? 1 : 0;
+					const lerpT = Math.min(1, dtSeconds > 0 ? dtSeconds * 12 : 1);
+					cartridge.hoverMix += (targetHover - cartridge.hoverMix) * lerpT;
+					const h = Math.max(0, Math.min(1, cartridge.hoverMix));
+
+					cartridge.node.position.set(x, y);
+					cartridge.node.scale.set(1 + h * 0.04);
+
+					cartridge.glow.clear();
+					cartridge.glow.beginFill(cartridge.tint, 0.06 + h * 0.2);
+					cartridge.glow.drawRoundedRect(-cardW * 0.53, -cardH * 0.53, cardW * 1.06, cardH * 1.06, 7);
+					cartridge.glow.endFill();
+
+					cartridge.body.clear();
+					cartridge.body.beginFill(0x261b13, 0.96);
+					cartridge.body.lineStyle(2, mixDesktopColor(0x7b6550, cartridge.tint, 0.16 + h * 0.24), 0.9);
+					cartridge.body.drawRoundedRect(-cardW * 0.5, -cardH * 0.5, cardW, cardH, 6);
+					cartridge.body.endFill();
+
+					cartridge.notch.clear();
+					cartridge.notch.beginFill(0x1f170f, 0.9);
+					cartridge.notch.drawRoundedRect(-cardW * 0.18, -cardH * 0.5, cardW * 0.36, cardH * 0.2, 4);
+					cartridge.notch.endFill();
+
+					cartridge.labelStrip.clear();
+					cartridge.labelStrip.beginFill(0x3b2a1d, 0.95);
+					cartridge.labelStrip.drawRoundedRect(-cardW * 0.48, cardH * 0.14, cardW * 0.96, cardH * 0.3, 4);
+					cartridge.labelStrip.endFill();
+
+					cartridge.details.clear();
+					cartridge.details.lineStyle(1, 0x9a8468, 0.8);
+					cartridge.details.drawCircle(-cardW * 0.38, -cardH * 0.34, Math.max(2, cardH * 0.06));
+					cartridge.details.drawCircle(cardW * 0.38, -cardH * 0.34, Math.max(2, cardH * 0.06));
+					cartridge.details.drawCircle(-cardW * 0.38, cardH * 0.02, Math.max(2, cardH * 0.05));
+					cartridge.details.drawCircle(cardW * 0.38, cardH * 0.02, Math.max(2, cardH * 0.05));
+
+					const ledPulse = 0.06 + (0.06 + 0.04 * Math.sin(timeNow * 1.7 + idx * 0.8)) * (0.15 + h * 0.85);
+					cartridge.led.clear();
+					cartridge.led.beginFill(0x0d1117, 0.7);
+					cartridge.led.drawCircle(cardW * 0.32, -cardH * 0.33, Math.max(2, cardH * 0.07));
+					cartridge.led.endFill();
+					const ledColor = cartridge.rare ? 0xffd56b : 0x5ef0cb;
+					cartridge.led.beginFill(ledColor, ledPulse);
+					cartridge.led.drawCircle(cardW * 0.32, -cardH * 0.33, Math.max(1.5, cardH * 0.045));
+					cartridge.led.endFill();
+
+					cartridge.label.style.fill = mixDesktopColor(0xe8dcc7, 0xfff2da, h * 0.85);
+					cartridge.label.style.fontSize = Math.max(10, Math.round(cardH * 0.27));
+					cartridge.label.position.set(0, cardH * 0.295);
+
+					if (h > 0.03) {
+						const railColor = mixDesktopColor(0x5a6b77, cartridge.tint, 0.4);
+						portfolioFocusRails.lineStyle(1.2, railColor, 0.08 + h * 0.2);
+						const fromY = y + cardH * 0.54;
+						const midY = statusTopY - 12;
+						portfolioFocusRails.moveTo(x, fromY);
+						portfolioFocusRails.lineTo(x * 0.8, midY);
+						portfolioFocusRails.lineTo(0, statusTopY);
+					}
+				});
+			};
 
 			const layoutPortfolioPanel = () => {
 				const w = desktopTwoApp.renderer.width;
@@ -523,66 +637,27 @@ async function boot() {
 					portfolioShelfLayer.lineStyle(3, 0x8f734f, 0.72);
 				}
 
-				const cols = 3;
-				const rows = 2;
-				const cardW = panelW * 0.2;
-				const cardH = panelH * 0.16;
-				const xGap = panelW * 0.26;
-				const yGap = panelH * 0.31;
-				const startX = -xGap;
-				const startY = -panelH * 0.2;
-				portfolioCartridges.forEach((cartridge, idx) => {
-					const col = idx % cols;
-					const row = Math.floor(idx / cols) % rows;
-					const x = startX + xGap * col;
-					const y = startY + yGap * row;
-					const hovered = desktopTwoCartridgeHover === idx;
-					cartridge.node.position.set(x, y);
-					cartridge.node.scale.set(hovered ? 1.04 : 1);
-					const ledOn = hovered;
-					cartridge.glow.clear();
-					cartridge.glow.beginFill(cartridge.tint, hovered ? 0.24 : 0.06);
-					cartridge.glow.drawRoundedRect(-cardW * 0.53, -cardH * 0.53, cardW * 1.06, cardH * 1.06, 7);
-					cartridge.glow.endFill();
+				portfolioLayout.panelW = panelW;
+				portfolioLayout.panelH = panelH;
+				portfolioLayout.cardW = panelW * 0.2;
+				portfolioLayout.cardH = panelH * 0.16;
+				portfolioLayout.xGap = panelW * 0.26;
+				portfolioLayout.yGap = panelH * 0.31;
+				portfolioLayout.startX = -portfolioLayout.xGap;
+				portfolioLayout.startY = -panelH * 0.2;
+				portfolioLayout.statusY = panelH * 0.395;
+				const statusW = panelW * 0.48;
+				const statusH = panelH * 0.1;
+				portfolioLayout.statusTopY = portfolioLayout.statusY - statusH * 0.5;
 
-					cartridge.body.clear();
-					cartridge.body.beginFill(0x261b13, 0.96);
-					cartridge.body.lineStyle(2, mixDesktopColor(0x7b6550, cartridge.tint, hovered ? 0.4 : 0.2), 0.9);
-					cartridge.body.drawRoundedRect(-cardW * 0.5, -cardH * 0.5, cardW, cardH, 6);
-					cartridge.body.endFill();
+				portfolioStatusPanel.clear();
+				portfolioStatusPanel.beginFill(0x1f2d3d, 0.35);
+				portfolioStatusPanel.lineStyle(2, 0x7f99b7, 0.38);
+				portfolioStatusPanel.drawRoundedRect(-statusW * 0.5, portfolioLayout.statusY - statusH * 0.5, statusW, statusH, 8);
+				portfolioStatusPanel.endFill();
+				portfolioStatusText.position.set(0, portfolioLayout.statusY);
 
-					cartridge.notch.clear();
-					cartridge.notch.beginFill(0x1f170f, 0.9);
-					cartridge.notch.drawRoundedRect(-cardW * 0.18, -cardH * 0.5, cardW * 0.36, cardH * 0.2, 4);
-					cartridge.notch.endFill();
-
-					cartridge.labelStrip.clear();
-					cartridge.labelStrip.beginFill(0x3b2a1d, 0.95);
-					cartridge.labelStrip.drawRoundedRect(-cardW * 0.48, cardH * 0.14, cardW * 0.96, cardH * 0.3, 4);
-					cartridge.labelStrip.endFill();
-
-					cartridge.details.clear();
-					cartridge.details.lineStyle(1, 0x9a8468, 0.8);
-					cartridge.details.drawCircle(-cardW * 0.38, -cardH * 0.34, Math.max(2, cardH * 0.06));
-					cartridge.details.drawCircle(cardW * 0.38, -cardH * 0.34, Math.max(2, cardH * 0.06));
-					cartridge.details.drawCircle(-cardW * 0.38, cardH * 0.02, Math.max(2, cardH * 0.05));
-					cartridge.details.drawCircle(cardW * 0.38, cardH * 0.02, Math.max(2, cardH * 0.05));
-
-					cartridge.led.clear();
-					cartridge.led.beginFill(0x0d1117, ledOn ? 0.4 : 0.85);
-					cartridge.led.drawCircle(cardW * 0.32, -cardH * 0.33, Math.max(2, cardH * 0.07));
-					cartridge.led.endFill();
-					if (ledOn) {
-						const ledColor = cartridge.rare ? 0xffd56b : 0x5ef0cb;
-						cartridge.led.beginFill(ledColor, 0.95);
-						cartridge.led.drawCircle(cardW * 0.32, -cardH * 0.33, Math.max(1.5, cardH * 0.045));
-						cartridge.led.endFill();
-					}
-
-					cartridge.label.style.fill = hovered ? 0xfff2da : 0xe8dcc7;
-					cartridge.label.style.fontSize = Math.max(9, Math.round(cardH * 0.23));
-					cartridge.label.position.set(0, cardH * 0.29);
-				});
+				drawPortfolioCartridges(0, desktopTwoTime);
 
 				const winW = Math.max(460, Math.min(920, w * 0.72));
 				const winH = Math.max(300, Math.min(560, h * 0.66));
@@ -846,22 +921,32 @@ async function boot() {
 						portfolioTypingCursor.alpha = 0;
 					}
 				}
-				if (desktopTwoCartridgeHover !== desktopTwoLastCartridgeHover) {
-					desktopTwoLastCartridgeHover = desktopTwoCartridgeHover;
-					layoutPortfolioPanel();
-				}
-				const cartridgeTint = desktopTwoCartridgeHover >= 0
+
+				drawPortfolioCartridges(dtSeconds, desktopTwoTime);
+				if (Math.random() < dtSeconds * 0.5) desktopTwoSubFlicker = 0.985;
+				desktopTwoSubFlicker += (1 - desktopTwoSubFlicker) * Math.min(1, dtSeconds * 4);
+				portfolioSub.alpha = (0.9 + 0.015 * Math.sin(desktopTwoTime * 1.6)) * desktopTwoSubFlicker;
+				portfolioNoise.tilePosition.x += dtSeconds * 4.2;
+				portfolioNoise.tilePosition.y += dtSeconds * 1.7;
+
+				const hoverTintTarget = desktopTwoCartridgeHover >= 0
 					? projectCartridgeDefs[desktopTwoCartridgeHover]?.tint ?? desktopTwoFlowBase.glowColor
 					: desktopTwoFlowBase.glowColor;
-				const cartridgeMix = desktopTwoCartridgeHover >= 0 ? 0.26 : 0.08;
+				const hoverMixTarget = desktopTwoCartridgeHover >= 0 ? 1 : 0;
+				desktopTwoFlowHoverCurrent += (hoverMixTarget - desktopTwoFlowHoverCurrent) * Math.min(1, dtSeconds * 8);
+				desktopTwoFlowTintCurrent = stepDesktopColor(desktopTwoFlowTintCurrent, hoverTintTarget, Math.min(1, dtSeconds * 7));
+				const hoverBreathe = desktopTwoFlowHoverCurrent > 0.05
+					? (0.5 + 0.5 * Math.sin(desktopTwoTime * 4.2)) * desktopTwoFlowHoverCurrent * 0.06
+					: 0;
+				const cartridgeMix = 0.04 + desktopTwoFlowHoverCurrent * 0.16 + hoverBreathe;
 				setDesktopTwoFlowAmbience?.({
-					lineColor: mixDesktopColor(desktopTwoFlowBase.lineColor, cartridgeTint, cartridgeMix),
-					glowColor: mixDesktopColor(desktopTwoFlowBase.glowColor, cartridgeTint, cartridgeMix + 0.08),
-					mistColorB: mixDesktopColor(desktopTwoFlowBase.mistColorB, cartridgeTint, cartridgeMix * 0.44),
-					mistColorC: mixDesktopColor(desktopTwoFlowBase.mistColorC, cartridgeTint, cartridgeMix * 0.5),
-					speed: desktopTwoFlowBase.speed * (desktopTwoCartridgeHover >= 0 ? 1.08 : 1.0),
-					density: desktopTwoFlowBase.density * (desktopTwoCartridgeHover >= 0 ? 1.05 : 1.0),
-					glowStrength: desktopTwoFlowBase.glowStrength + (desktopTwoCartridgeHover >= 0 ? 0.14 : 0.03),
+					lineColor: mixDesktopColor(desktopTwoFlowBase.lineColor, desktopTwoFlowTintCurrent, cartridgeMix),
+					glowColor: mixDesktopColor(desktopTwoFlowBase.glowColor, desktopTwoFlowTintCurrent, cartridgeMix + 0.05),
+					mistColorB: mixDesktopColor(desktopTwoFlowBase.mistColorB, desktopTwoFlowTintCurrent, cartridgeMix * 0.34),
+					mistColorC: mixDesktopColor(desktopTwoFlowBase.mistColorC, desktopTwoFlowTintCurrent, cartridgeMix * 0.38),
+					speed: desktopTwoFlowBase.speed * (1 + desktopTwoFlowHoverCurrent * 0.05),
+					density: desktopTwoFlowBase.density * (1 + desktopTwoFlowHoverCurrent * 0.04),
+					glowStrength: desktopTwoFlowBase.glowStrength + desktopTwoFlowHoverCurrent * 0.08 + hoverBreathe * 0.7,
 				});
 				updateDesktopTwoFlow(desktopTwoTime, desktopTwoCameraOffset);
 				updateDesktopTwoCursorPixelate();
@@ -1732,16 +1817,16 @@ async function boot() {
 						glyph: 'G',
 						tooltip: 'View GitHub',
 						url: 'https://github.com/maywok',
-						panelFill: 0x171c24,
+						panelFill: 0x171b20,
 						panelFillAlpha: 0.96,
-						panelBorder: 0x5e4e84,
+						panelBorder: 0x4d5562,
 						panelBorderAlpha: 0.95,
-						glyphColor: 0xe8edf8,
-						labelColor: 0xd0d8ec,
+						glyphColor: 0xe4e9f1,
+						labelColor: 0xcfd6e1,
 						glowAlpha: 0.06,
 						glowHoverAlpha: 0.19,
 						ornament: 'cat',
-						ornamentColor: 0x75639a,
+						ornamentColor: 0x665881,
 					},
 				],
 				screenToWorldX,

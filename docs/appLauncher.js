@@ -250,17 +250,17 @@ export function createAppLauncher(app, world, options = {}) {
 			if (item.ornament === 'cat') {
 				const spacing = Math.max(2, size * 0.04);
 				const outline = ornamentColor;
-				const darkFace = 0x141923;
-				const visorW = size * 0.5;
-				const visorH = size * 0.28;
-				const visorY = -size * 0.03;
-				const eyeW = Math.max(2, size * 0.085);
-				const eyeH = Math.max(2, size * 0.045);
+				const darkFace = 0x11151c;
+				const visorW = size * 0.56;
+				const visorH = size * 0.2;
+				const visorY = -size * 0.24;
+				const eyeW = Math.max(2, size * 0.075);
+				const eyeH = Math.max(2, size * 0.04);
 				const eyeGap = Math.max(1, size * 0.04);
-				const earBaseY = visorY - visorH * 0.72;
+				const earBaseY = visorY - visorH * 0.88;
 				const earTipY = Math.max(-size * 0.5 + spacing, earBaseY - size * 0.17);
-				const earSpan = size * 0.18;
-				const earInset = size * 0.22;
+				const earSpan = size * 0.16;
+				const earInset = size * 0.2;
 				ornament.lineStyle(1.8, outline, 0.9);
 				ornament.beginFill(darkFace, 0.97);
 				ornament.moveTo(-earInset - earSpan * 0.5, earBaseY);
@@ -273,23 +273,13 @@ export function createAppLauncher(app, world, options = {}) {
 				ornament.closePath();
 				ornament.drawRoundedRect(-visorW * 0.5, visorY - visorH * 0.5, visorW, visorH, Math.max(4, size * 0.085));
 				ornament.endFill();
-				ornament.beginFill(0xc9d3ea, 0.82);
+				ornament.lineStyle(1.2, outline, 0.45);
+				ornament.moveTo(-visorW * 0.46, visorY - visorH * 0.9);
+				ornament.lineTo(visorW * 0.46, visorY - visorH * 0.9);
+				ornament.beginFill(0xd4d9e5, 0.84);
 				ornament.drawRoundedRect(-eyeGap * 0.5 - eyeW, visorY - eyeH * 0.5, eyeW, eyeH, 1.1);
 				ornament.drawRoundedRect(eyeGap * 0.5, visorY - eyeH * 0.5, eyeW, eyeH, 1.1);
 				ornament.endFill();
-
-				catWhiskers.visible = true;
-				catWhiskers.lineStyle(1.4, outline, 0.72);
-				catWhiskers.moveTo(-size * 0.11, size * 0.03);
-				catWhiskers.lineTo(-size * 0.4, -size * 0.03);
-				catWhiskers.moveTo(-size * 0.11, size * 0.095);
-				catWhiskers.lineTo(-size * 0.37, size * 0.13);
-				catWhiskers.moveTo(size * 0.11, size * 0.03);
-				catWhiskers.lineTo(size * 0.4, -size * 0.03);
-				catWhiskers.moveTo(size * 0.11, size * 0.095);
-				catWhiskers.lineTo(size * 0.37, size * 0.13);
-				catWhiskers.position.set(0, 0);
-				catWhiskers.rotation = 0;
 			}
 			if (item.ornament === 'resume') {
 				const printerBodyW = size * 0.56;
@@ -359,7 +349,7 @@ export function createAppLauncher(app, world, options = {}) {
 			tooltipText.position.set(0, 0);
 			tooltip.position.set(0, -size / 2 - tooltipH * 0.6);
 
-			glyph.position.set(0, 0);
+			glyph.position.set(0, item.ornament === 'cat' ? size * 0.08 : 0);
 			if (iconSprite) {
 				const baseW = baseTextures?.[0]?.width || iconSprite.width || 1;
 				const baseH = baseTextures?.[0]?.height || iconSprite.height || 1;
