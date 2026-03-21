@@ -367,9 +367,9 @@ html.desktop-two-active .project-window {
     }
 }
 
-.desktop-two-overlay,
-.desktop-two-root,
-.desktop-two-root canvas {
+html.desktop-two-cursor-ready .desktop-two-overlay,
+html.desktop-two-cursor-ready .desktop-two-root,
+html.desktop-two-cursor-ready .desktop-two-root canvas {
     cursor: none !important;
 }
 

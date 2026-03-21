@@ -480,7 +480,7 @@ async function boot() {
 			portfolioWindowClose.on('pointerout', () => { portfolioWindowCloseHover = 0; });
 			portfolioWindowClose.on('pointertap', closePortfolioWindow);
 
-			const drawPortfolioCartridges = (dtSeconds, timeNow) => {
+			const drawPortfolioCartridges = (dtSeconds, timeNow = 0) => {
 				portfolioFocusRails.clear();
 				const { cardW, cardH, startX, startY, xGap, yGap, statusTopY } = portfolioLayout;
 				if (cardW <= 0 || cardH <= 0) return;
@@ -666,7 +666,7 @@ async function boot() {
 					cartridge.label.style.fontSize = Math.max(10, Math.round(portfolioLayout.cardH * 0.27));
 				}
 
-				drawPortfolioCartridges(0, desktopTwoTime);
+				drawPortfolioCartridges(0, 0);
 
 				const winW = Math.max(460, Math.min(920, w * 0.72));
 				const winH = Math.max(300, Math.min(560, h * 0.66));
@@ -834,6 +834,7 @@ async function boot() {
 			const { filter: desktopTwoCursorPixelate, update: updateDesktopTwoCursorPixelate } = createPixelateFilter(desktopTwoApp, { pixelSize: 2 });
 			desktopTwoCursor.filters = [desktopTwoCursorPixelate];
 			desktopTwoScene.addChild(desktopTwoCursor);
+			document.documentElement.classList.add('desktop-two-cursor-ready');
 
 			const layoutRightPortal = () => {
 				rightPortalWidth = Math.max(56, Math.min(110, desktopTwoApp.renderer.width * 0.095));
@@ -1016,8 +1017,15 @@ async function boot() {
 			setPortfolioUiActive(false);
 			if (!next) tryCloseDesktopTwoPortfolioWindow();
 			if (next) {
-				ensureDesktopTwoBackground();
-				onDesktopTwoActivated?.();
+				try {
+					ensureDesktopTwoBackground();
+					onDesktopTwoActivated?.();
+				} catch (err) {
+					console.error('Desktop Two activation failed:', err);
+					desktopTwoActive = false;
+					document.documentElement.classList.remove('desktop-two-active');
+					if (desktopTwoOverlay) desktopTwoOverlay.setAttribute('aria-hidden', 'true');
+				}
 			}
 		};
 		window.addEventListener('keydown', (event) => {
