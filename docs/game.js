@@ -137,10 +137,10 @@ async function boot() {
 				edgeColor: DESKTOP_TWO_BG,
 			});
 			const { filter: desktopTwoScanlinesFilter, uniforms: desktopTwoScanlinesUniforms } = createCRTScanlinesFilter(desktopTwoApp, {
-				strength: 0.42,
-				speed: 0.25,
-				noise: 0.03,
-				mask: 0.14,
+				strength: 0.18,
+				speed: 0.08,
+				noise: 0.0,
+				mask: 0.06,
 			});
 			desktopTwoFisheyeFilter.padding = 16;
 			desktopTwoScene.filters = [desktopTwoFisheyeFilter, desktopTwoScanlinesFilter];
@@ -210,7 +210,7 @@ async function boot() {
 			const portfolioPlatform = new PIXI.Graphics();
 			const portfolioMask = new PIXI.Graphics();
 			const portfolioNoise = new PIXI.TilingSprite(makeDesktopTwoNoiseTexture(), 64, 64);
-			portfolioNoise.alpha = 0.08;
+			portfolioNoise.alpha = 0;
 			portfolioNoise.blendMode = PIXI.BLEND_MODES.MULTIPLY;
 			portfolioNoise.mask = portfolioMask;
 			const portfolioShelfLayer = new PIXI.Graphics();
@@ -397,7 +397,6 @@ async function boot() {
 			let desktopTwoGlowBreath = 0;
 			let desktopTwoCartridgeHover = -1;
 			let desktopTwoLastCartridgeHover = -2;
-			let desktopTwoSubFlicker = 1;
 			let desktopTwoFlowHoverCurrent = 0;
 			let desktopTwoFlowTintCurrent = desktopTwoFlowBase.glowColor;
 			const portfolioLayout = {
@@ -942,11 +941,7 @@ async function boot() {
 					layoutPortfolioPanel();
 				}
 				drawPortfolioCartridges(dtSeconds, desktopTwoTime);
-				if (Math.random() < dtSeconds * 0.5) desktopTwoSubFlicker = 0.985;
-				desktopTwoSubFlicker += (1 - desktopTwoSubFlicker) * Math.min(1, dtSeconds * 4);
-				portfolioSub.alpha = (0.9 + 0.015 * Math.sin(desktopTwoTime * 1.6)) * desktopTwoSubFlicker;
-				portfolioNoise.tilePosition.x += dtSeconds * 4.2;
-				portfolioNoise.tilePosition.y += dtSeconds * 1.7;
+				portfolioSub.alpha = 0.9 + 0.01 * Math.sin(desktopTwoTime * 1.6);
 
 				const hoverTintTarget = desktopTwoCartridgeHover >= 0
 					? projectCartridgeDefs[desktopTwoCartridgeHover]?.tint ?? desktopTwoFlowBase.glowColor
@@ -2535,39 +2530,17 @@ async function boot() {
 			duration: 0.36,
 			surge: 0,
 		};
-		const drawTransitionWipe = (phase) => {
-			const t = Math.max(0, Math.min(1, phase));
-			const cols = 22;
-			const rows = 14;
-			const w = app.renderer.width;
-			const h = app.renderer.height;
-			const cw = w / cols;
-			const rh = h / rows;
-			const revealCols = Math.ceil(cols * t);
+		const drawTransitionWipe = (_phase) => {
 			transitionWipe.clear();
-			if (revealCols <= 0) {
-				transitionWipe.visible = false;
-				return;
-			}
-			transitionWipe.visible = true;
-			for (let c = 0; c < revealCols; c++) {
-				for (let r = 0; r < rows; r++) {
-					const stagger = ((c * 7 + r * 3) % 9) / 9;
-					if (t < stagger * 0.12) continue;
-					const color = ((c + r) % 2 === 0) ? 0x8f1b31 : 0xd6c3a3;
-					const alpha = 0.6 + 0.3 * (1 - c / cols);
-					transitionWipe.beginFill(color, alpha);
-					transitionWipe.drawRect(c * cw, r * rh, Math.ceil(cw) + 1, Math.ceil(rh) + 1);
-					transitionWipe.endFill();
-				}
-			}
+			transitionWipe.visible = false;
 		};
 		const startDesktopTwoEntryTransition = () => {
 			if (desktopTwoActive || desktopTwoEntryTransition.active) return;
-			desktopTwoEntryTransition.active = true;
-			desktopTwoEntryTransition.phase = 0;
-			desktopTwoEntryTransition.surge = 1;
+			desktopTwoEntryTransition.active = false;
+			desktopTwoEntryTransition.phase = 1;
+			desktopTwoEntryTransition.surge = 0;
 			drawTransitionWipe(0);
+			setDesktopTwoActive(true);
 		};
 
 		const leftPortal = new PIXI.Container();

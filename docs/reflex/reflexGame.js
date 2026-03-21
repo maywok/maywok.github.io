@@ -442,6 +442,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const screenScale = options.screenScale ?? 1;
 	const state = {
 		open: false,
+		bootProgress: 1,
 		phase: 'idle',
 		startTime: 0,
 		cpuTime: 0,
@@ -465,10 +466,12 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		return (screenY - cy) / screenScale + cy;
 	};
 
-	const windowWidth = Math.min(480, app.renderer.width * 0.9);
-	const windowHeight = Math.min(320, app.renderer.height * 0.68);
+	const windowWidth = Math.min(560, app.renderer.width * 0.9);
+	const windowHeight = Math.min(352, app.renderer.height * 0.7);
 	const headerHeight = 26;
 	const padding = 12;
+	let windowBaseX = 0;
+	let windowBaseY = 0;
 
 	const container = new PIXI.Container();
 	container.visible = false;
@@ -526,18 +529,18 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const closeBtn = new PIXI.Graphics();
 	closeBtn.beginFill(0xff5667, 1);
 	closeBtn.lineStyle(1, 0x000000, 0.6);
-	closeBtn.drawRoundedRect(0, 0, 24, 24, 0);
+	closeBtn.drawRoundedRect(0, 0, 28, 22, 5);
 	closeBtn.endFill();
-	closeBtn.position.set(windowWidth - 32, 2);
+	closeBtn.position.set(windowWidth - 34, 3);
 	closeBtn.eventMode = 'static';
 	closeBtn.cursor = 'pointer';
-	const closeX = new PIXI.Text('✕', {
+	const closeX = new PIXI.Text('X', {
 		fontFamily: 'Minecraft, monospace',
-		fontSize: 12,
+		fontSize: 11,
 		fill: 0xf4f7ff,
 	});
 	closeX.anchor.set(0.5);
-	closeX.position.set(12, 12);
+	closeX.position.set(14, 11);
 	closeBtn.addChild(closeX);
 
 	const status = new PIXI.Text('Press Start to begin.', {
@@ -1238,12 +1241,32 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	container.addChild(panelFill, flow.container, panelMask, headerBg, title, closeBtn);
 	container.addChild(stageBg, stageMat, stageMask, stage, flash, slash, playerActor, cpuActor, playerLabel, cpuLabel, arrowGroup, status, metrics, result, hint, streakText, difficultyBtn, difficultyMenu, startBtn, panelBorder);
 
+	const applyBootPose = () => {
+		const t = clamp(state.bootProgress, 0, 1);
+		const eased = 1 - Math.pow(1 - t, 3);
+		const scale = 0.96 + eased * 0.04;
+		const offsetX = (windowWidth * (1 - scale)) * 0.5;
+		const offsetY = (windowHeight * (1 - scale)) * 0.5;
+		container.scale.set(scale);
+		container.alpha = eased;
+		if (!dragState.active && !playerDrag.active && !petState.dragging) {
+			container.position.set(windowBaseX + offsetX, windowBaseY + offsetY + (1 - eased) * 12);
+		}
+	};
+
 	const layout = () => {
 		const cx = app.renderer.width / 2;
 		const cy = app.renderer.height / 2;
 		const worldX = screenToWorldX(cx - windowWidth / 2);
 		const worldY = screenToWorldY(cy - windowHeight / 2);
-		container.position.set(worldX, worldY);
+		windowBaseX = worldX;
+		windowBaseY = worldY;
+		if (state.open) applyBootPose();
+		else {
+			container.scale.set(1);
+			container.alpha = 1;
+			container.position.set(worldX, worldY);
+		}
 		panelMask.position.set(0, 0);
 		panelBorder.position.set(0, 0);
 		stageBg.position.set(stageX, stageY);
@@ -1261,6 +1284,10 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	app.ticker.add((dt) => {
 		const dtSeconds = dt / 60;
 		updateDesktopPet(dtSeconds);
+		if (state.open && state.bootProgress < 1) {
+			state.bootProgress = Math.min(1, state.bootProgress + dtSeconds * 8.5);
+		}
+		if (state.open) applyBootPose();
 		if (!state.open) return;
 		flowTime += dt / 60;
 		flow.update?.(flowTime, { x: 0, y: 0 });
@@ -1313,6 +1340,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	const open = () => {
 		container.visible = true;
 		state.open = true;
+		state.bootProgress = 0;
+		container.alpha = 0;
 		startText.text = 'Start';
 		difficultyMenu.visible = false;
 		layout();
@@ -1325,6 +1354,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		state.timers.clear();
 		state.open = false;
 		container.visible = false;
+		container.alpha = 1;
+		container.scale.set(1);
 		difficultyMenu.visible = false;
 		state.phase = 'idle';
 		status.text = 'Press Start to begin.';

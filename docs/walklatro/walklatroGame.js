@@ -229,6 +229,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	};
 	const state = {
 		open: false,
+		bootProgress: 1,
 		round: 1,
 		ante: 1,
 		coins: 0,
@@ -276,6 +277,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	const windowHeight = Math.min(460, app.renderer.height * 0.85);
 	const headerHeight = 26;
 	const padding = 12;
+	let windowBaseX = 0;
+	let windowBaseY = 0;
 
 	const container = new PIXI.Container();
 	container.visible = false;
@@ -1005,17 +1008,42 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		restartBtn,
 	);
 
+	const applyBootPose = () => {
+		const t = clamp(state.bootProgress, 0, 1);
+		const eased = 1 - Math.pow(1 - t, 3);
+		const scale = 0.96 + eased * 0.04;
+		const offsetX = (windowWidth * (1 - scale)) * 0.5;
+		const offsetY = (windowHeight * (1 - scale)) * 0.5;
+		container.scale.set(scale);
+		container.alpha = eased;
+		if (!dragState.active) {
+			container.position.set(windowBaseX + offsetX, windowBaseY + offsetY + (1 - eased) * 12);
+		}
+	};
+
 	const layout = () => {
 		const cx = app.renderer.width / 2;
 		const cy = app.renderer.height / 2;
 		const worldX = screenToWorldX(cx - windowWidth / 2);
 		const worldY = screenToWorldY(cy - windowHeight / 2);
-		container.position.set(worldX, worldY);
+		windowBaseX = worldX;
+		windowBaseY = worldY;
+		if (state.open) applyBootPose();
+		else {
+			container.scale.set(1);
+			container.alpha = 1;
+			container.position.set(worldX, worldY);
+		}
 	};
 	layout();
 	world.addChild(container);
 
 	app.ticker.add((dt) => {
+		const dtSeconds = dt / 60;
+		if (state.open && state.bootProgress < 1) {
+			state.bootProgress = Math.min(1, state.bootProgress + dtSeconds * 8.5);
+		}
+		if (state.open) applyBootPose();
 		if (!state.open) return;
 		glowTime += dt / 60;
 		swirlTime += dt / 60;
@@ -1104,6 +1132,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	const open = () => {
 		container.visible = true;
 		state.open = true;
+		state.bootProgress = 0;
+		container.alpha = 0;
 		resetRun();
 		layout();
 	};
@@ -1111,6 +1141,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	const close = () => {
 		state.open = false;
 		container.visible = false;
+		container.alpha = 1;
+		container.scale.set(1);
 	};
 
 	return { open, close, container };
