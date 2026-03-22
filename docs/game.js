@@ -88,6 +88,8 @@ async function boot() {
 		let livingRoomActive = false;
 		let closeLivingRoomScene = () => {};
 		let openLivingRoomScene = () => {};
+		let closePortfolioLibraryNow = () => {};
+		let openPortfolioLibraryNow = () => {};
 		let returnToTvAreaFromFullscreen = () => {};
 		let isFullscreenTvPlaybackActive = () => false;
 		const ensureDesktopTwoBackground = () => {
@@ -1656,7 +1658,7 @@ async function boot() {
 			const CORE_BASE_HALF_SIZE = 49;
 			const ringDrag = { active: false, lastAngle: 0, lastTime: 0 };
 			const ringCandidate = { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 };
-			const ringSlotAngles = [-90, -30, 30, 90, 150, 210];
+			const ringSlotAngles = [-90, -30, 20, 90, 150, 210, 270];
 			const getCoreScreenPos = () => ({
 				x: app.renderer.width * 0.5,
 				y: app.renderer.height * 0.48,
@@ -1907,6 +1909,24 @@ async function boot() {
 						ornament: 'cat',
 						ornamentColor: 0x665881,
 					},
+					{
+						label: 'Library',
+						moodKey: 'Library',
+						glyph: 'L',
+						tooltip: 'Open Portfolio Library',
+						onTap: () => {
+							startDesktopTwoEntryTransition();
+						},
+						panelFill: 0x131d2d,
+						panelFillAlpha: 0.96,
+						panelBorder: 0x6ec6f7,
+						panelBorderAlpha: 0.96,
+						glyphColor: 0xe8f6ff,
+						labelColor: 0xcfe9ff,
+						glowAlpha: 0.08,
+						glowHoverAlpha: 0.24,
+						ornamentColor: 0x6ec6f7,
+					},
 				],
 				screenToWorldX,
 				screenToWorldY,
@@ -1915,7 +1935,8 @@ async function boot() {
 					setMoodHover(key, hovered, container);
 				},
 				layoutProvider: ({ index }) => {
-					const slot = index === 0 ? 5 : 1;
+					const slots = [5, 1, 6];
+					const slot = slots[index] ?? 5;
 					return getIntroPoseForSlot(slot);
 				},
 			});
@@ -2586,21 +2607,76 @@ async function boot() {
 		const desktopTwoEntryTransition = {
 			active: false,
 			phase: 0,
-			duration: 0.36,
+			duration: 0.28,
 			surge: 0,
+			direction: 1,
+			action: null,
+			actionTriggered: false,
 		};
-		const drawTransitionWipe = (_phase) => {
+		let portfolioSnapTimer = 0;
+		const drawTransitionWipe = (phase) => {
+			const p = Math.max(0, Math.min(1, phase));
 			transitionWipe.clear();
-			transitionWipe.visible = false;
+			if (p <= 0.001) {
+				transitionWipe.visible = false;
+				return;
+			}
+			const sw = app.renderer.width;
+			const sh = app.renderer.height;
+			transitionWipe.visible = true;
+			const glitchPulse = Math.sin(p * Math.PI);
+			transitionWipe.beginFill(0x05070d, 0.08 + glitchPulse * 0.14);
+			transitionWipe.drawRect(0, 0, sw, sh);
+			transitionWipe.endFill();
+			const stripeCount = 22;
+			for (let i = 0; i < stripeCount; i++) {
+				const y = Math.random() * sh;
+				const h = 1 + Math.random() * 3;
+				const xJitter = (Math.random() - 0.5) * 24 * glitchPulse;
+				transitionWipe.beginFill(0xaedfff, 0.03 + Math.random() * 0.08 * glitchPulse);
+				transitionWipe.drawRect(xJitter, y, sw, h);
+				transitionWipe.endFill();
+			}
+			if (glitchPulse > 0.45) {
+				for (let i = 0; i < 4; i++) {
+					const bandH = Math.max(8, sh * (0.03 + Math.random() * 0.08));
+					const by = Math.random() * (sh - bandH);
+					const bx = (Math.random() - 0.5) * 18;
+					transitionWipe.beginFill(0xffffff, 0.03 + Math.random() * 0.07);
+					transitionWipe.drawRect(bx, by, sw, bandH);
+					transitionWipe.endFill();
+				}
+			}
+		};
+		const startDesktopTwoExitTransition = () => {
+			if (!livingRoomActive || desktopTwoActive || desktopTwoEntryTransition.active) return;
+			desktopTwoEntryTransition.active = true;
+			desktopTwoEntryTransition.phase = 0;
+			desktopTwoEntryTransition.duration = 0.3;
+			desktopTwoEntryTransition.surge = 1;
+			desktopTwoEntryTransition.direction = -1;
+			desktopTwoEntryTransition.actionTriggered = false;
+			desktopTwoEntryTransition.action = () => {
+				closePortfolioLibraryNow();
+			};
+			drawTransitionWipe(0.01);
 		};
 		const startDesktopTwoEntryTransition = () => {
-			if (desktopTwoActive || desktopTwoEntryTransition.active) return;
-			desktopTwoEntryTransition.active = false;
-			desktopTwoEntryTransition.phase = 1;
-			desktopTwoEntryTransition.surge = 0;
-			drawTransitionWipe(0);
-			openLivingRoomScene();
+			if (livingRoomActive || desktopTwoActive || desktopTwoEntryTransition.active) return;
+			terminalTypingHold = true;
+			desktopTwoEntryTransition.active = true;
+			desktopTwoEntryTransition.phase = 0;
+			desktopTwoEntryTransition.duration = 0.28;
+			desktopTwoEntryTransition.surge = 1;
+			desktopTwoEntryTransition.direction = 1;
+			desktopTwoEntryTransition.actionTriggered = false;
+			desktopTwoEntryTransition.action = () => {
+				openPortfolioLibraryNow();
+				portfolioSnapTimer = 0.16;
+			};
+			drawTransitionWipe(0.01);
 		};
+		const ENABLE_LEFT_PORTAL_SHORTCUT = false;
 
 		const leftPortal = new PIXI.Container();
 		const leftGlowSoft = new PIXI.Graphics();
@@ -2644,19 +2720,21 @@ async function boot() {
 		const onPortalHoverOut = () => {
 			leftPortalHoverTarget = 0;
 		};
-		leftArrow.eventMode = 'static';
-		leftArrow.cursor = 'pointer';
+		leftArrow.eventMode = ENABLE_LEFT_PORTAL_SHORTCUT ? 'static' : 'none';
+		leftArrow.cursor = ENABLE_LEFT_PORTAL_SHORTCUT ? 'pointer' : 'default';
 		leftArrow.on('pointerover', onPortalHoverIn);
 		leftArrow.on('pointerout', onPortalHoverOut);
 		leftArrow.on('pointertap', () => {
+			if (!ENABLE_LEFT_PORTAL_SHORTCUT) return;
 			markPortalInteraction();
 			startDesktopTwoEntryTransition();
 		});
-		leftPortalHitZone.eventMode = 'static';
-		leftPortalHitZone.cursor = 'pointer';
+		leftPortalHitZone.eventMode = ENABLE_LEFT_PORTAL_SHORTCUT ? 'static' : 'none';
+		leftPortalHitZone.cursor = ENABLE_LEFT_PORTAL_SHORTCUT ? 'pointer' : 'default';
 		leftPortalHitZone.on('pointerover', onPortalHoverIn);
 		leftPortalHitZone.on('pointerout', onPortalHoverOut);
 		leftPortalHitZone.on('pointertap', () => {
+			if (!ENABLE_LEFT_PORTAL_SHORTCUT) return;
 			markPortalInteraction();
 			startDesktopTwoEntryTransition();
 		});
@@ -2768,7 +2846,7 @@ async function boot() {
 		const CONTENT_BRO_MEME = 'BRO_MEME';
 		const CONTENT_EMPTY = 'EMPTY';
 		const CONTENT_SCREENSAVER = 'SCREENSAVER';
-		const LIVING_ROOM_TRANSITION_SECONDS = 0.9;
+		const LIVING_ROOM_TRANSITION_SECONDS = 0.32;
 		const livingRoomState = {
 			mode: STATE_DESKTOP_FULLSCREEN,
 			overlayMode: OVERLAY_MODE_LIBRARY,
@@ -3023,6 +3101,7 @@ async function boot() {
 		let terminalTypeTimer = 0;
 		let terminalRenderedSnapshot = '';
 		let terminalCursorBlinkTimer = 0;
+		let terminalTypingHold = false;
 		let terminalSourceKey = '';
 		let previewSourceKey = '';
 		let previewUsesDesktopFeed = false;
@@ -3165,25 +3244,30 @@ async function boot() {
 		};
 		const createTapeNode = (tape, index) => {
 			const node = new PIXI.Container();
+			const aura = new PIXI.Graphics();
 			const shadow = new PIXI.Graphics();
 			const body = new PIXI.Graphics();
 			const notch = new PIXI.Graphics();
 			const shellHighlight = new PIXI.Graphics();
 			const shellShadow = new PIXI.Graphics();
 			const screws = new PIXI.Graphics();
+			const badge = new PIXI.Graphics();
+			const badgeSpec = new PIXI.Graphics();
 			const art = new PIXI.Sprite(PIXI.Texture.WHITE);
 			const labelStrip = new PIXI.Graphics();
 			const title = new PIXI.Text('EMPTY', {
 				fontFamily: 'Minecraft, monospace',
-				fontSize: 10,
-				fill: 0xefe1cb,
+				fontSize: 13,
+				fill: 0xf2fbff,
+				stroke: 0x0a1320,
+				strokeThickness: 2,
 				letterSpacing: 1,
 			});
 			title.anchor.set(0.5, 0.5);
 			title.text = tape.label;
 			applyWipSpriteTexture(art, LIVING_ROOM_ASSETS.tapeLabelById[tape.id] || LIVING_ROOM_ASSETS.tapeSpritePath);
 			art.alpha = 0.6;
-			node.addChild(shadow, body, notch, labelStrip, art, screws, shellHighlight, shellShadow, title);
+			node.addChild(aura, shadow, body, notch, labelStrip, badge, art, badgeSpec, screws, shellHighlight, shellShadow, title);
 			node.eventMode = 'static';
 			node.cursor = 'pointer';
 			node.on('pointerover', () => {
@@ -3204,12 +3288,15 @@ async function boot() {
 			return {
 				tape,
 				node,
+				aura,
 				shadow,
 				body,
 				notch,
 				shellHighlight,
 				shellShadow,
 				screws,
+				badge,
+				badgeSpec,
 				art,
 				labelStrip,
 				title,
@@ -3582,12 +3669,18 @@ async function boot() {
 			drawLivingRoomBackdrop(livingRoomState.blend);
 		};
 		layoutLivingRoom();
-		openLivingRoomScene = () => {
+		openPortfolioLibraryNow = () => {
 			if (desktopTwoActive) return;
 			enterLivingRoom();
 		};
-		closeLivingRoomScene = () => {
+		closePortfolioLibraryNow = () => {
 			exitLivingRoom();
+		};
+		openLivingRoomScene = () => {
+			startDesktopTwoEntryTransition();
+		};
+		closeLivingRoomScene = () => {
+			startDesktopTwoExitTransition();
 		};
 		onDesktopTwoExitRequested = () => {};
 		tvScreenHitArea.on('pointertap', () => {
@@ -3607,14 +3700,14 @@ async function boot() {
 		fullscreenExitBtn.on('pointerout', () => { fullscreenExitBtn.scale.set(1); });
 		livingRoomBackBtn.on('pointertap', () => {
 			if (livingRoomState.overlayMode === OVERLAY_MODE_LIBRARY) {
-				exitLivingRoom();
+				closeLivingRoomScene();
 				return;
 			}
 			if (isFullscreenTvPlaybackActive()) {
 				returnToTvAreaFromFullscreen();
 				return;
 			}
-			exitLivingRoom();
+			closeLivingRoomScene();
 		});
 		livingRoomBackBtn.on('pointerover', () => { livingRoomBackBtn.scale.set(1.04); });
 		livingRoomBackBtn.on('pointerout', () => { livingRoomBackBtn.scale.set(1); });
@@ -3750,8 +3843,10 @@ async function boot() {
 			const screensaverTarget = livingRoomState.contentMode === CONTENT_SCREENSAVER ? 1 : 0;
 			tvScreensaverLayer.alpha += (screensaverTarget - tvScreensaverLayer.alpha) * Math.min(1, dtSeconds * 6);
 
-			terminalTypeTimer += dtSeconds * TERMINAL_TYPE_RATE;
-			if (terminalTypedIndex < terminalFullText.length) {
+			if (!terminalTypingHold) {
+				terminalTypeTimer += dtSeconds * TERMINAL_TYPE_RATE;
+			}
+			if (!terminalTypingHold && terminalTypedIndex < terminalFullText.length) {
 				const charsToAdd = Math.floor(terminalTypeTimer);
 				if (charsToAdd > 0) {
 					terminalTypeTimer -= charsToAdd;
@@ -3813,17 +3908,26 @@ async function boot() {
 				const targetMix = Math.max(targetHover, selected ? 0.7 : 0);
 				tape.hoverMix += (targetMix - tape.hoverMix) * Math.min(1, dtSeconds * 12);
 				const h = Math.max(0, Math.min(1, tape.hoverMix));
+				const pulse = 0.5 + 0.5 * Math.sin(pulseTime * 2.8 + i * 0.7);
 				tape.node.position.set(tape.baseX + targetHover * 8, tape.baseY - h * 1.5);
 				tape.node.scale.set(1 + h * 0.03);
 				const tw = livingRoomTapeW;
 				const th = livingRoomTapeH;
+				tape.aura.clear();
+				if (selected || targetHover > 0) {
+					const glowAlpha = selected ? (0.08 + pulse * 0.12) : (0.04 + pulse * 0.07);
+					const glowPad = 5 + pulse * 3;
+					tape.aura.beginFill(tape.tape.accent || DEFAULT_NEON_ACCENT, glowAlpha);
+					tape.aura.drawRoundedRect(-tw * 0.5 - glowPad, -th * 0.5 - glowPad, tw + glowPad * 2, th + glowPad * 2, 12 + pulse * 2);
+					tape.aura.endFill();
+				}
 				tape.shadow.clear();
 				tape.shadow.beginFill(0x000000, 0.16 + h * 0.08);
 				tape.shadow.drawRoundedRect(-tw * 0.5 + 4, -th * 0.5 + 7, tw, th, 9);
 				tape.shadow.endFill();
 				tape.body.clear();
 				tape.body.beginFill(0x1a2633, 0.98);
-				const borderAlpha = selected ? 0.98 : (targetHover > 0 ? 0.6 : 0.28);
+				const borderAlpha = selected ? (0.7 + pulse * 0.3) : (targetHover > 0 ? (0.42 + pulse * 0.18) : 0.28);
 				tape.body.lineStyle(2, tape.tape.accent || DEFAULT_NEON_ACCENT, borderAlpha);
 				tape.body.drawRoundedRect(-tw * 0.5, -th * 0.5, tw, th, 9);
 				tape.body.endFill();
@@ -3836,9 +3940,31 @@ async function boot() {
 				tape.labelStrip.lineStyle(1, 0x89d5ff, 0.34);
 				tape.labelStrip.drawRoundedRect(-tw * 0.42, -th * 0.06, tw * 0.84, th * 0.38, 4);
 				tape.labelStrip.endFill();
-				tape.art.position.set(-tw * 0.34, -th * 0.015);
-				tape.art.width = th * 0.28;
-				tape.art.height = th * 0.28;
+				const badgeW = th * 0.44;
+				const badgeH = th * 0.44;
+				const badgeX = -tw * 0.28;
+				const badgeY = -th * 0.02;
+				tape.badge.clear();
+				tape.badge.beginFill(0x182437, 0.96);
+				tape.badge.drawRoundedRect(badgeX - badgeW * 0.5, badgeY - badgeH * 0.5, badgeW, badgeH, 6);
+				tape.badge.endFill();
+				tape.badge.beginFill(0x35587d, 0.38);
+				tape.badge.drawPolygon([
+					badgeX - badgeW * 0.44, badgeY - badgeH * 0.4,
+					badgeX + badgeW * 0.24, badgeY - badgeH * 0.4,
+					badgeX - badgeW * 0.18, badgeY + badgeH * 0.42,
+					badgeX - badgeW * 0.44, badgeY + badgeH * 0.42,
+				]);
+				tape.badge.endFill();
+				tape.badge.lineStyle(1.4, tape.tape.accent || DEFAULT_NEON_ACCENT, 0.85);
+				tape.badge.drawRoundedRect(badgeX - badgeW * 0.5, badgeY - badgeH * 0.5, badgeW, badgeH, 6);
+				tape.badgeSpec.clear();
+				tape.badgeSpec.beginFill(0xd8f2ff, 0.18);
+				tape.badgeSpec.drawRoundedRect(badgeX - badgeW * 0.32, badgeY - badgeH * 0.34, badgeW * 0.64, badgeH * 0.14, 2);
+				tape.badgeSpec.endFill();
+				tape.art.position.set(badgeX, badgeY);
+				tape.art.width = badgeW * 0.82;
+				tape.art.height = badgeH * 0.82;
 				tape.art.alpha = 0.85;
 				tape.screws.clear();
 				tape.screws.beginFill(0x7da1bb, 0.92);
@@ -3859,9 +3985,10 @@ async function boot() {
 				tape.shellShadow.lineTo(tw * 0.46, th * 0.45);
 				tape.shellShadow.moveTo(tw * 0.46, -th * 0.45);
 				tape.shellShadow.lineTo(tw * 0.46, th * 0.45);
-				tape.title.position.set(tw * 0.08, th * 0.12);
+				tape.title.position.set(tw * 0.12, th * 0.12);
 				tape.title.text = tape.tape.label;
 				tape.title.style.fill = selected ? 0xf0fbff : 0xd0dce8;
+				tape.title.style.fontSize = Math.max(12, Math.round(th * 0.28));
 				tape.node.alpha = 0.16 + reveal * 0.84;
 			}
 
@@ -4102,17 +4229,43 @@ async function boot() {
 			desktopTwoEntryTransition.surge = Math.max(0, desktopTwoEntryTransition.surge - seconds / 0.32);
 			if (desktopTwoEntryTransition.active) {
 				desktopTwoEntryTransition.phase += seconds / desktopTwoEntryTransition.duration;
+				const triggerAt = desktopTwoEntryTransition.direction > 0 ? 0.78 : 0.16;
+				if (!desktopTwoEntryTransition.actionTriggered && desktopTwoEntryTransition.phase >= triggerAt) {
+					desktopTwoEntryTransition.action?.();
+					desktopTwoEntryTransition.actionTriggered = true;
+				}
 				drawTransitionWipe(desktopTwoEntryTransition.phase);
+				if (desktopTwoEntryTransition.direction > 0 && desktopTwoEntryTransition.actionTriggered && livingRoomLayer.visible) {
+					const jitterScale = Math.max(0, 1 - desktopTwoEntryTransition.phase);
+					livingRoomLayer.position.x = (Math.random() - 0.5) * 6 * jitterScale;
+				}
 				if (desktopTwoEntryTransition.phase >= 1) {
 					desktopTwoEntryTransition.active = false;
+					if (!desktopTwoEntryTransition.actionTriggered) {
+						desktopTwoEntryTransition.action?.();
+					}
+					desktopTwoEntryTransition.actionTriggered = false;
+					desktopTwoEntryTransition.action = null;
+					if (desktopTwoEntryTransition.direction > 0) {
+						terminalTypingHold = false;
+					}
+					livingRoomLayer.position.x = 0;
 					drawTransitionWipe(0);
-					openLivingRoomScene();
 				}
 			} else if (transitionWipe.visible) {
 				drawTransitionWipe(0);
+				livingRoomLayer.position.x = 0;
 			}
 			updateLivingRoomScene(seconds);
-			if (!desktopTwoActive && !livingRoomActive) {
+			if (portfolioSnapTimer > 0 && livingRoomActive) {
+				portfolioSnapTimer = Math.max(0, portfolioSnapTimer - seconds);
+				const t = 1 - (portfolioSnapTimer / 0.16);
+				const eased = 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3);
+				livingRoomLayer.scale.set(0.98 + eased * 0.02);
+			} else {
+				livingRoomLayer.scale.set(1);
+			}
+			if (ENABLE_LEFT_PORTAL_SHORTCUT && !desktopTwoActive && !livingRoomActive) {
 				const edgeWidth = Math.max(1, leftPortalWidth * 1.9);
 				const edgeFactor = Math.max(0, Math.min(1, 1 - mouse.x / edgeWidth));
 				leftPortalProgress += (edgeFactor - leftPortalProgress) * 0.18;

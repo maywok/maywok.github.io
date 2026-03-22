@@ -379,7 +379,13 @@ export function createAppLauncher(app, world, options = {}) {
 		iconContainer.cursor = 'pointer';
 		iconContainer.on('pointertap', () => {
 			if (dragState.enabled) return;
-			window.open(item.url, '_blank', 'noopener');
+			if (typeof item.onTap === 'function') {
+				item.onTap({ item, iconContainer, state });
+				return;
+			}
+			if (item.url) {
+				window.open(item.url, '_blank', 'noopener');
+			}
 		});
 		iconContainer.on('pointerdown', (event) => {
 			if (!dragState.enabled) return;
