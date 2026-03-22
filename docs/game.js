@@ -2741,16 +2741,16 @@ async function boot() {
 			tvSpritePath: '',
 			tapeSpritePath: './assets/images/Uh-Oh.png',
 			tapeLabelById: {
-				blog: './assets/images/Uh-Oh.png',
-				reflex: './assets/images/Uh-Oh.png',
-				walklatro: './assets/images/Uh-Oh.png',
-				resume: './assets/images/Uh-Oh.png',
-				linkedin: './assets/images/Uh-Oh.png',
-				github: './assets/images/Uh-Oh.png',
+				'default-home': './assets/images/background.gif',
+				'slot-b': './assets/images/Uh-Oh.png',
+				'slot-c': './assets/images/Uh-Oh.png',
+				'slot-d': './assets/images/Uh-Oh.png',
+				'slot-e': './assets/images/Uh-Oh.png',
+				'slot-f': './assets/images/Uh-Oh.png',
 			},
 		};
 		const VHS_TAPE_LIBRARY = [
-			{ id: 'default-home', label: 'EMPTY', title: 'EMPTY', status: 'ready', contentType: 'BRO_MEME', hasContent: true, accent: 0x8eb8ff, summary: 'Default tape: bro jokes terminal.' },
+			{ id: 'default-home', label: 'MAIN PAGE', title: 'MAIN PAGE', status: 'ready', contentType: 'BRO_MEME', hasContent: true, accent: 0x8eb8ff, summary: 'the magic happens here' },
 			{ id: 'slot-b', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'EMPTY', hasContent: false, accent: 0xcf5f8f, summary: 'Nothing here yet.' },
 			{ id: 'slot-c', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'EMPTY', hasContent: false, accent: 0xd5a063, summary: 'Nothing here yet.' },
 			{ id: 'slot-d', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'EMPTY', hasContent: false, accent: 0xb58a59, summary: 'Nothing here yet.' },
@@ -2797,6 +2797,15 @@ async function boot() {
 		const rightShelf = new PIXI.Graphics();
 		const vhsTapesLeft = new PIXI.Container();
 		const vhsTapesRight = new PIXI.Container();
+		const cartridgeListViewport = new PIXI.Container();
+		const cartridgeListContent = new PIXI.Container();
+		const cartridgeListMask = new PIXI.Graphics();
+		const cartridgeScrollUi = new PIXI.Container();
+		const cartridgeScrollTrack = new PIXI.Graphics();
+		const cartridgeScrollThumb = new PIXI.Graphics();
+		cartridgeListViewport.addChild(cartridgeListContent, cartridgeListMask);
+		cartridgeListViewport.mask = cartridgeListMask;
+		cartridgeScrollUi.addChild(cartridgeScrollTrack, cartridgeScrollThumb);
 		const livingRoomTv = new PIXI.Container();
 		livingRoomTv.sortableChildren = true;
 		const tvBodyShadow = new PIXI.Graphics();
@@ -2819,7 +2828,7 @@ async function boot() {
 		tvDesktopTransitionLayer.eventMode = 'none';
 		const tvBroScreen = new PIXI.Container();
 		const tvBroBg = new PIXI.Graphics();
-		const tvBroTitle = new PIXI.Text('BRO MEME FEED', {
+		const tvBroTitle = new PIXI.Text('TERMINAL', {
 			fontFamily: 'Minecraft, monospace',
 			fontSize: 13,
 			fill: 0xf5ecdb,
@@ -2833,8 +2842,14 @@ async function boot() {
 			letterSpacing: 1,
 		});
 		tvBroSub.anchor.set(0.5, 0.5);
+		const tvTerminalLines = new PIXI.Container();
+		const tvTerminalCursor = new PIXI.Graphics();
 		let tvBroTitleBaseY = 0;
 		let tvBroSubBaseY = 0;
+		let tvTerminalStartX = 0;
+		let tvTerminalStartY = 0;
+		let tvTerminalLineHeight = 15;
+		let tvTerminalFontSize = 11;
 		let tvDesktopRenderTexture = PIXI.RenderTexture.create({
 			width: Math.max(1, app.renderer.width),
 			height: Math.max(1, app.renderer.height),
@@ -2842,7 +2857,7 @@ async function boot() {
 		tvDesktopContentSprite.texture = tvDesktopRenderTexture;
 		tvDesktopTransitionSprite.texture = tvDesktopRenderTexture;
 		tvDesktopTransitionSprite.alpha = 0;
-		tvBroScreen.addChild(tvBroBg, tvBroTitle, tvBroSub);
+		tvBroScreen.addChild(tvBroBg, tvBroTitle, tvTerminalLines, tvTerminalCursor, tvBroSub);
 		const tvEmptyScreen = new PIXI.Container();
 		const tvEmptyBg = new PIXI.Graphics();
 		const tvEmptySprite = new PIXI.Sprite(PIXI.Texture.WHITE);
@@ -3003,17 +3018,101 @@ async function boot() {
 		let terminalFullText = '';
 		let terminalTypedIndex = 0;
 		let terminalTypeTimer = 0;
+		let terminalRenderedSnapshot = '';
+		let terminalCursorBlinkTimer = 0;
 		let terminalSourceKey = '';
 		let previewSourceKey = '';
 		let previewUsesDesktopFeed = false;
+		const cartridgeScrollState = {
+			scrollY: 0,
+			maxScroll: 0,
+			viewportH: 0,
+			contentH: 0,
+			trackY: 0,
+			trackH: 0,
+			thumbY: 0,
+			thumbH: 0,
+			dragging: false,
+			dragOffsetY: 0,
+		};
+		const cartridgeViewportRect = { x: 0, y: 0, w: 0, h: 0 };
 		const TERMINAL_TYPE_RATE = 54;
+		const TERMINAL_BASE_COLOR = 0xf3f8ff;
+		const TERMINAL_BRO_COLOR = 0xffd56b;
 		const DEFAULT_TERMINAL_TEXT = [
-			'boot sequence complete...',
-			'loading jokes.bro',
-			'> why did bro cross the terminal?',
-			'> to escape the null zone, bro',
+			'> MAIN PAGE READY',
+			'the magic happens here',
+			'> bro-link synced',
 		].join('\n');
 		const getTapeById = (tapeId) => VHS_TAPE_LIBRARY.find((tape) => tape.id === tapeId) || null;
+		const destroyContainerChildren = (container) => {
+			const nodes = container.removeChildren();
+			for (const node of nodes) {
+				node.destroy?.({ children: true });
+			}
+		};
+		const renderTerminalTypedText = (force = false) => {
+			const typedText = terminalFullText.slice(0, terminalTypedIndex);
+			if (!force && terminalRenderedSnapshot === typedText) return;
+			terminalRenderedSnapshot = typedText;
+			destroyContainerChildren(tvTerminalLines);
+			const lines = typedText.length ? typedText.split('\n') : [''];
+			let cursorX = tvTerminalStartX;
+			let cursorY = tvTerminalStartY;
+			for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
+				const lineText = lines[lineIndex] || '';
+				const line = new PIXI.Container();
+				line.position.set(tvTerminalStartX, tvTerminalStartY + lineIndex * tvTerminalLineHeight);
+				let lineX = 0;
+				const regex = /bro/ig;
+				let last = 0;
+				let match = null;
+				const appendChunk = (chunkText, color) => {
+					if (!chunkText) return;
+					const chunk = new PIXI.Text(chunkText, {
+						fontFamily: 'Minecraft, monospace',
+						fontSize: tvTerminalFontSize,
+						fill: color,
+						letterSpacing: 0.8,
+					});
+					chunk.position.set(lineX, 0);
+					line.addChild(chunk);
+					lineX += chunk.width;
+				};
+				while ((match = regex.exec(lineText)) !== null) {
+					appendChunk(lineText.slice(last, match.index), TERMINAL_BASE_COLOR);
+					appendChunk(match[0], TERMINAL_BRO_COLOR);
+					last = regex.lastIndex;
+				}
+				appendChunk(lineText.slice(last), TERMINAL_BASE_COLOR);
+				tvTerminalLines.addChild(line);
+				cursorX = tvTerminalStartX + lineX;
+				cursorY = tvTerminalStartY + lineIndex * tvTerminalLineHeight;
+			}
+			tvTerminalCursor.clear();
+			tvTerminalCursor.beginFill(0xe8f6ff, 0.95);
+			tvTerminalCursor.drawRect(0, 0, Math.max(6, Math.round(tvTerminalFontSize * 0.52)), Math.max(10, Math.round(tvTerminalFontSize * 0.98)));
+			tvTerminalCursor.endFill();
+			tvTerminalCursor.position.set(cursorX + 6, cursorY + Math.max(1, Math.round(tvTerminalFontSize * 0.06)));
+		};
+		const updateCartridgeScrollUi = () => {
+			const maxScroll = Math.max(0, cartridgeScrollState.maxScroll);
+			cartridgeScrollState.scrollY = Math.max(0, Math.min(maxScroll, cartridgeScrollState.scrollY));
+			cartridgeListContent.position.set(0, -cartridgeScrollState.scrollY);
+			const viewportH = Math.max(1, cartridgeScrollState.viewportH);
+			const contentH = Math.max(viewportH, cartridgeScrollState.contentH);
+			const trackH = Math.max(1, cartridgeScrollState.trackH);
+			const thumbH = Math.max(24, trackH * (viewportH / contentH));
+			const progress = maxScroll > 0 ? (cartridgeScrollState.scrollY / maxScroll) : 0;
+			const thumbY = cartridgeScrollState.trackY + (trackH - thumbH) * progress;
+			cartridgeScrollState.thumbY = thumbY;
+			cartridgeScrollState.thumbH = thumbH;
+			cartridgeScrollThumb.clear();
+			cartridgeScrollThumb.beginFill(0x6ec6f7, maxScroll > 0 ? 0.9 : 0.35);
+			cartridgeScrollThumb.drawRoundedRect(0, thumbY, 8, thumbH, 4);
+			cartridgeScrollThumb.endFill();
+			cartridgeScrollThumb.visible = maxScroll > 0;
+		};
 		const getTerminalTextForTape = (tape) => {
 			if (!tape) return 'No cartridge selected.';
 			if (tape.id === 'default-home') return DEFAULT_TERMINAL_TEXT;
@@ -3025,7 +3124,8 @@ async function boot() {
 			terminalFullText = nextText;
 			terminalTypedIndex = 0;
 			terminalTypeTimer = 0;
-			tvBroSub.text = '';
+			terminalRenderedSnapshot = '';
+			renderTerminalTypedText(true);
 		};
 		const setPreviewForTape = (tape) => {
 			const nextPreviewKey = tape?.id || 'none';
@@ -3067,6 +3167,7 @@ async function boot() {
 				letterSpacing: 1,
 			});
 			title.anchor.set(0.5, 0.5);
+			title.text = tape.label;
 			applyWipSpriteTexture(art, LIVING_ROOM_ASSETS.tapeLabelById[tape.id] || LIVING_ROOM_ASSETS.tapeSpritePath);
 			art.alpha = 0.6;
 			node.addChild(shadow, body, notch, labelStrip, art, screws, shellHighlight, shellShadow, title);
@@ -3175,6 +3276,8 @@ async function boot() {
 		rightShelf.zIndex = 21;
 		vhsTapesLeft.zIndex = 30;
 		vhsTapesRight.zIndex = 31;
+		cartridgeListViewport.zIndex = 30;
+		cartridgeScrollUi.zIndex = 31;
 		livingRoomTv.zIndex = 50;
 		tvBodyShadow.zIndex = 10;
 		tvBody.zIndex = 20;
@@ -3201,9 +3304,9 @@ async function boot() {
 			tvSlotForeground,
 		);
 		for (const tape of livingRoomTapes) {
-			vhsTapesLeft.addChild(tape.node);
+			cartridgeListContent.addChild(tape.node);
 		}
-		livingRoomLayer.addChild(roomBg, leftShelf, vhsTapesLeft, livingRoomTv, tvDesktopTransitionLayer, livingRoomBackBtn);
+		livingRoomLayer.addChild(roomBg, leftShelf, cartridgeListViewport, cartridgeScrollUi, livingRoomTv, tvDesktopTransitionLayer, livingRoomBackBtn);
 		app.stage.addChild(livingRoomLayer);
 		let livingRoomTvSlotX = 0;
 		let livingRoomTvSlotY = 0;
@@ -3266,6 +3369,30 @@ async function boot() {
 
 			rightShelf.clear();
 			rightShelf.alpha = 0;
+
+			const rackPad = 12;
+			const scrollbarW = 8;
+			const scrollbarGap = 8;
+			const viewportX = rackX + rackPad;
+			const viewportY = rackY + rackPad;
+			const viewportW = rackW - rackPad * 2 - scrollbarW - scrollbarGap;
+			const viewportH = panelH - rackPad * 2;
+			cartridgeViewportRect.x = viewportX;
+			cartridgeViewportRect.y = viewportY;
+			cartridgeViewportRect.w = viewportW;
+			cartridgeViewportRect.h = viewportH;
+			cartridgeListViewport.position.set(viewportX, viewportY);
+			cartridgeListMask.clear();
+			cartridgeListMask.beginFill(0xffffff, 1);
+			cartridgeListMask.drawRoundedRect(0, 0, viewportW, viewportH, 8);
+			cartridgeListMask.endFill();
+			cartridgeScrollUi.position.set(viewportX + viewportW + scrollbarGap, viewportY);
+			cartridgeScrollTrack.clear();
+			cartridgeScrollTrack.beginFill(0x0b1926, 0.78);
+			cartridgeScrollTrack.drawRoundedRect(0, 0, scrollbarW, viewportH, 4);
+			cartridgeScrollTrack.endFill();
+			cartridgeScrollState.trackY = 0;
+			cartridgeScrollState.trackH = viewportH;
 
 			livingRoomTv.position.set(panelX, panelY);
 			tvBodyShadow.clear();
@@ -3342,15 +3469,14 @@ async function boot() {
 			tvBroTitle.style.fill = 0x9fdfff;
 			tvBroTitle.text = 'TERMINAL';
 			tvBroTitle.position.set(terminalX + 12, contentY + 10);
-			tvBroSub.anchor.set(0, 0);
-			tvBroSub.style.fill = 0xf4d06d;
-			tvBroSub.style.wordWrap = true;
-			tvBroSub.style.wordWrapWidth = Math.max(110, terminalW - 24);
-			tvBroSub.style.lineHeight = 15;
-			tvBroSub.style.fontSize = Math.max(10, Math.round(Math.min(13, terminalW * 0.058)));
-			tvBroSub.position.set(terminalX + 12, contentY + 34);
+			tvBroSub.visible = false;
+			tvTerminalFontSize = Math.max(10, Math.round(Math.min(13, terminalW * 0.058)));
+			tvTerminalLineHeight = Math.max(13, Math.round(tvTerminalFontSize * 1.24));
+			tvTerminalStartX = terminalX + 12;
+			tvTerminalStartY = contentY + 34;
 			tvBroTitleBaseY = tvBroTitle.y;
 			tvBroSubBaseY = tvBroSub.y;
+			renderTerminalTypedText(true);
 
 			tvEmptyBg.clear();
 			tvEmptyScreen.alpha = 0;
@@ -3405,15 +3531,19 @@ async function boot() {
 			livingRoomTapeH = Math.max(64, livingRoomTapeW * 0.44);
 			const tapeSpacing = Math.max(10, Math.round(livingRoomTapeH * 0.12));
 			const totalTapeH = livingRoomTapes.length * livingRoomTapeH + (livingRoomTapes.length - 1) * tapeSpacing;
-			const tapesTop = rackY + Math.max(12, Math.round((panelH - totalTapeH) * 0.5));
-			const rackCenterX = rackX + rackW * 0.5;
+			const tapesTop = 10;
+			const rackCenterX = viewportW * 0.5;
 			for (let i = 0; i < livingRoomTapes.length; i++) {
 				const tape = livingRoomTapes[i];
 				tape.baseX = rackCenterX;
 				tape.baseY = tapesTop + livingRoomTapeH * 0.5 + i * (livingRoomTapeH + tapeSpacing);
 			}
+			cartridgeScrollState.viewportH = viewportH;
+			cartridgeScrollState.contentH = tapesTop + totalTapeH + 10;
+			cartridgeScrollState.maxScroll = Math.max(0, cartridgeScrollState.contentH - viewportH);
+			updateCartridgeScrollUi();
 
-			livingRoomTvSlotX = rackCenterX;
+			livingRoomTvSlotX = viewportX + rackCenterX;
 			livingRoomTvSlotY = panelY + panelH * 0.5;
 
 			tvDesktopTransitionSprite.position.set(0, 0);
@@ -3464,6 +3594,56 @@ async function boot() {
 		});
 		livingRoomBackBtn.on('pointerover', () => { livingRoomBackBtn.scale.set(1.04); });
 		livingRoomBackBtn.on('pointerout', () => { livingRoomBackBtn.scale.set(1); });
+		const setCartridgeScrollFromThumbY = (thumbYLocal) => {
+			const maxThumbTravel = Math.max(0, cartridgeScrollState.trackH - cartridgeScrollState.thumbH);
+			const clampedThumbY = Math.max(cartridgeScrollState.trackY, Math.min(cartridgeScrollState.trackY + maxThumbTravel, thumbYLocal));
+			const progress = maxThumbTravel > 0 ? ((clampedThumbY - cartridgeScrollState.trackY) / maxThumbTravel) : 0;
+			cartridgeScrollState.scrollY = progress * cartridgeScrollState.maxScroll;
+			updateCartridgeScrollUi();
+		};
+		cartridgeScrollTrack.eventMode = 'static';
+		cartridgeScrollTrack.cursor = 'pointer';
+		cartridgeScrollThumb.eventMode = 'static';
+		cartridgeScrollThumb.cursor = 'grab';
+		cartridgeScrollTrack.on('pointerdown', (event) => {
+			if (!livingRoomActive || livingRoomState.viewMode !== VIEW_TV_AREA) return;
+			const local = event.data.getLocalPosition(cartridgeScrollUi);
+			setCartridgeScrollFromThumbY(local.y - cartridgeScrollState.thumbH * 0.5);
+		});
+		cartridgeScrollThumb.on('pointerdown', (event) => {
+			if (!livingRoomActive || livingRoomState.viewMode !== VIEW_TV_AREA) return;
+			event.stopPropagation?.();
+			const local = event.data.getLocalPosition(cartridgeScrollUi);
+			cartridgeScrollState.dragging = true;
+			cartridgeScrollState.dragOffsetY = local.y - cartridgeScrollState.thumbY;
+			cartridgeScrollThumb.cursor = 'grabbing';
+		});
+		livingRoomLayer.on('pointermove', (event) => {
+			if (!cartridgeScrollState.dragging) return;
+			const local = event.data.getLocalPosition(cartridgeScrollUi);
+			setCartridgeScrollFromThumbY(local.y - cartridgeScrollState.dragOffsetY);
+		});
+		const endCartridgeScrollDrag = () => {
+			cartridgeScrollState.dragging = false;
+			cartridgeScrollThumb.cursor = 'grab';
+		};
+		livingRoomLayer.on('pointerup', endCartridgeScrollDrag);
+		livingRoomLayer.on('pointerupoutside', endCartridgeScrollDrag);
+		window.addEventListener('pointerup', endCartridgeScrollDrag);
+		window.addEventListener('pointercancel', endCartridgeScrollDrag);
+		app.view.addEventListener('wheel', (event) => {
+			if (!livingRoomActive || livingRoomState.viewMode !== VIEW_TV_AREA) return;
+			const point = toRendererPoint(event);
+			if (!point) return;
+			const insideViewport = point.x >= cartridgeViewportRect.x
+				&& point.x <= (cartridgeViewportRect.x + cartridgeViewportRect.w)
+				&& point.y >= cartridgeViewportRect.y
+				&& point.y <= (cartridgeViewportRect.y + cartridgeViewportRect.h);
+			if (!insideViewport) return;
+			event.preventDefault();
+			cartridgeScrollState.scrollY += event.deltaY;
+			updateCartridgeScrollUi();
+		}, { passive: false });
 		const updateLivingRoomScene = (dtSeconds) => {
 			const step = dtSeconds / LIVING_ROOM_TRANSITION_SECONDS;
 			if (livingRoomState.targetBlend > livingRoomState.blend) {
@@ -3551,13 +3731,14 @@ async function boot() {
 				if (charsToAdd > 0) {
 					terminalTypeTimer -= charsToAdd;
 					terminalTypedIndex = Math.min(terminalFullText.length, terminalTypedIndex + charsToAdd);
-					tvBroSub.text = terminalFullText.slice(0, terminalTypedIndex);
+					renderTerminalTypedText();
 				}
 			}
+			terminalCursorBlinkTimer = (terminalCursorBlinkTimer + dtSeconds) % 1;
+			tvTerminalCursor.visible = terminalCursorBlinkTimer < 0.5;
 
 			const pulseTime = (performance.now ? performance.now() : Date.now()) * 0.003;
-			tvBroTitle.y = tvBroTitleBaseY + Math.sin(pulseTime) * 0.8;
-			tvBroSub.y = tvBroSubBaseY + Math.cos(pulseTime * 0.9) * 0.4;
+			tvBroTitle.y = tvBroTitleBaseY;
 			const shimmerY = holoPanelLocalRect.y + ((pulseTime * 42) % (holoPanelLocalRect.h + 26)) - 12;
 			tvSlotForeground.clear();
 			tvSlotForeground.beginFill(0x8bd9ff, 0.18);
@@ -3617,7 +3798,7 @@ async function boot() {
 				tape.shadow.endFill();
 				tape.body.clear();
 				tape.body.beginFill(0x1a2633, 0.98);
-				tape.body.lineStyle(2, tape.tape.accent, 0.78 + h * 0.18);
+				tape.body.lineStyle(2, selected ? 0x89d5ff : 0x36556f, selected ? 0.98 : (0.5 + h * 0.16));
 				tape.body.drawRoundedRect(-tw * 0.5, -th * 0.5, tw, th, 9);
 				tape.body.endFill();
 				tape.notch.clear();
@@ -3653,6 +3834,8 @@ async function boot() {
 				tape.shellShadow.moveTo(tw * 0.46, -th * 0.45);
 				tape.shellShadow.lineTo(tw * 0.46, th * 0.45);
 				tape.title.position.set(tw * 0.08, th * 0.12);
+				tape.title.text = tape.tape.label;
+				tape.title.style.fill = selected ? 0xf0fbff : 0xd0dce8;
 				tape.node.alpha = 0.16 + reveal * 0.84;
 			}
 
