@@ -1173,33 +1173,25 @@ async function boot() {
 				scene.scale.set(SCENE_SCALE);
 			}
 			const { filter: crtScanlinesFilter, uniforms: crtScanlinesUniforms } = createCRTScanlinesFilter(app, {
-				strength: 0.18,
-				speed: 0.08,
-				noise: 0.0,
-				mask: 0.06,
+				strength: 0.42,
+				speed: 0.25,
+				noise: 0.03,
+				mask: 0.14,
 			});
-			const crtOverlay = new PIXI.Container();
-			crtOverlay.sortableChildren = true;
-			crtOverlay.eventMode = 'none';
-			crtOverlay.zIndex = 4500;
-			const crtOverlayPlate = new PIXI.Sprite(PIXI.Texture.WHITE);
-			crtOverlayPlate.tint = 0xd8eef4;
-			crtOverlayPlate.alpha = 0.035;
-			const crtOverlayVignette = new PIXI.Graphics();
-			crtOverlay.addChild(crtOverlayPlate, crtOverlayVignette);
-			crtOverlay.filters = [crtScanlinesFilter];
-			uiTopLayer.addChild(crtOverlay);
-			const drawCrtOverlay = () => {
-				const sw = app.renderer.width;
-				const sh = app.renderer.height;
-				const edge = Math.max(24, Math.round(Math.min(sw, sh) * 0.06));
-				crtOverlayPlate.position.set(0, 0);
-				crtOverlayPlate.width = sw;
-				crtOverlayPlate.height = sh;
-				crtOverlayVignette.clear();
-				// Keep vignette disabled; scanlines should be the only persistent global pass.
-			};
-			drawCrtOverlay();
+			scene.filters = [crtScanlinesFilter];
+			scene.filterArea = new PIXI.Rectangle(0, 0, app.renderer.width, app.renderer.height);
+			window.addEventListener('keydown', (event) => {
+				if (event.code !== 'F9') return;
+				const filters = scene.filters || [];
+				console.log('[F9 CRT]', {
+					sceneHasFilters: filters.length > 0,
+					sceneFilterCount: filters.length,
+					scanlinesAttachedToScene: filters.includes(crtScanlinesFilter),
+					scanStrength: crtScanlinesUniforms.u_strength,
+					scanNoise: crtScanlinesUniforms.u_noise,
+					scanMask: crtScanlinesUniforms.u_mask,
+				});
+			});
 			let themeKey = loadThemeKey();
 			let theme = THEMES[themeKey];
 
@@ -1668,7 +1660,7 @@ async function boot() {
 			const WHEEL_EXTERNAL_ICON_COUNT = 4;
 			const getRingIconCount = () => Math.max(1, launcherWheelItemCount + WHEEL_EXTERNAL_ICON_COUNT);
 			const ringStartAngle = -Math.PI * 0.62;
-			const CORE_CLOCK_SCALE = 1.3;
+			const CORE_CLOCK_SCALE = 1.56;
 			const CORE_BASE_HALF_SIZE = 49;
 			const ringDrag = { active: false, lastAngle: 0, lastTime: 0 };
 			const ringCandidate = { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 };
@@ -1833,19 +1825,6 @@ async function boot() {
 				coreSecondHand.endFill();
 
 				coreSpinCue.clear();
-				coreSpinCue.lineStyle(2, rgbB, spinCueAlpha);
-				const cueHead = screenToWorldSize(7);
-				const cueOffset = dialHalf + screenToWorldSize(24);
-				const cueTilt = Math.sin(ringSpin * 0.4) * cueHead * 0.28;
-				const leftX = -cueOffset;
-				const rightX = cueOffset;
-				const midY = 0;
-				coreSpinCue.moveTo(leftX + cueHead, midY - cueHead + cueTilt);
-				coreSpinCue.lineTo(leftX - cueHead, midY + cueTilt);
-				coreSpinCue.lineTo(leftX + cueHead, midY + cueHead + cueTilt);
-				coreSpinCue.moveTo(rightX - cueHead, midY - cueHead - cueTilt);
-				coreSpinCue.lineTo(rightX + cueHead, midY - cueTilt);
-				coreSpinCue.lineTo(rightX - cueHead, midY + cueHead - cueTilt);
 				coreGhost.width = screenToWorldSize(34);
 				coreGhost.height = screenToWorldSize(34);
 				coreGhost.tint = rgbA;
@@ -4461,8 +4440,8 @@ async function boot() {
 				density: FLOW_BASE.density * (1 + (moodCurrent.waveMotion - 1) * 0.45 + transitionSurge * 0.14),
 				glowAlpha: clamp01(FLOW_BASE.glowAlpha + moodCurrent.glowStrength * 0.16 + transitionSurge * 0.2),
 			});
-			crtScanlinesUniforms.u_strength = 0.18 + moodCurrent.contrast * 0.18;
-			crtScanlinesUniforms.u_noise = 0.0;
+			crtScanlinesUniforms.u_strength = 0.42 + moodCurrent.contrast * 0.45;
+			crtScanlinesUniforms.u_noise = 0.03 + moodCurrent.glowStrength * 0.01;
 			window.moodCurrent = {
 				key: activeMoodEntry?.key || 'default',
 				locked: Boolean(moodLockTarget),
@@ -4968,7 +4947,7 @@ async function boot() {
 			layoutScene();
 			layoutLeftPortal();
 			layoutLivingRoom();
-			drawCrtOverlay();
+			scene.filterArea = new PIXI.Rectangle(0, 0, app.renderer.width, app.renderer.height);
 			if (desktopTwoEntryTransition.active || vineLabTransition.active) {
 				drawTransitionWipe(Math.max(desktopTwoEntryTransition.phase, vineLabTransition.phase));
 			}
