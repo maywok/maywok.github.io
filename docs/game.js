@@ -2724,82 +2724,113 @@ async function boot() {
 		// Scene B asset metadata: keep paths here so WIP placeholders are easy to swap later.
 		const LIVING_ROOM_ASSETS = {
 			tvSpritePath: '',
-			tapeSpritePath: '',
+			tapeSpritePath: './assets/images/Uh-Oh.png',
 			tapeLabelById: {
-				blog: './assets/images/wip-tape-blog.png',
-				reflex: './assets/images/wip-tape-reflex.png',
-				walklatro: './assets/images/wip-tape-walklatro.png',
-				resume: './assets/images/wip-tape-resume.png',
-				linkedin: './assets/images/wip-tape-linkedin.png',
-				github: './assets/images/wip-tape-github.png',
+				blog: './assets/images/Uh-Oh.png',
+				reflex: './assets/images/Uh-Oh.png',
+				walklatro: './assets/images/Uh-Oh.png',
+				resume: './assets/images/Uh-Oh.png',
+				linkedin: './assets/images/Uh-Oh.png',
+				github: './assets/images/Uh-Oh.png',
 			},
 		};
 		const VHS_TAPE_LIBRARY = [
-			{ id: 'blog', label: 'BLOG', title: 'Blog', status: 'wip', hasContent: false, accent: 0x5c9d6f, summary: 'WIP tape sprite. Content will be added later.' },
-			{ id: 'reflex', label: 'REFLEX', title: 'Reflex', status: 'wip', hasContent: false, accent: 0xcf5f8f, summary: 'WIP tape sprite. Content will be added later.' },
-			{ id: 'walklatro', label: 'WALKLATRO', title: 'Walklatro', status: 'wip', hasContent: false, accent: 0xd5a063, summary: 'WIP tape sprite. Content will be added later.' },
-			{ id: 'resume', label: 'RESUME', title: 'Resume', status: 'wip', hasContent: false, accent: 0xb58a59, summary: 'WIP tape sprite. Content will be added later.' },
-			{ id: 'linkedin', label: 'LINKEDIN', title: 'LinkedIn', status: 'wip', hasContent: false, accent: 0x4f80bf, summary: 'WIP tape sprite. Content will be added later.' },
-			{ id: 'github', label: 'GITHUB', title: 'GitHub', status: 'wip', hasContent: false, accent: 0x7a659d, summary: 'WIP tape sprite. Content will be added later.' },
+			{ id: 'blog', label: 'BLOG', title: 'Blog', status: 'wip', hasContent: true, accent: 0x5c9d6f, summary: 'Click to insert. Placeholder tape art uses Uh-Oh.png.' },
+			{ id: 'reflex', label: 'REFLEX', title: 'Reflex', status: 'wip', hasContent: true, accent: 0xcf5f8f, summary: 'Click to insert. Placeholder tape art uses Uh-Oh.png.' },
+			{ id: 'walklatro', label: 'WALKLATRO', title: 'Walklatro', status: 'wip', hasContent: true, accent: 0xd5a063, summary: 'Click to insert. Placeholder tape art uses Uh-Oh.png.' },
+			{ id: 'resume', label: 'RESUME', title: 'Resume', status: 'empty', hasContent: true, accent: 0xb58a59, summary: 'Click to insert. Placeholder tape art uses Uh-Oh.png.' },
+			{ id: 'linkedin', label: 'LINKEDIN', title: 'LinkedIn', status: 'wip', hasContent: true, accent: 0x4f80bf, summary: 'Click to insert. Placeholder tape art uses Uh-Oh.png.' },
+			{ id: 'github', label: 'GITHUB', title: 'GitHub', status: 'wip', hasContent: true, accent: 0x7a659d, summary: 'Click to insert. Placeholder tape art uses Uh-Oh.png.' },
 		];
+		const STATE_DESKTOP_FULLSCREEN = 'STATE_DESKTOP_FULLSCREEN';
+		const STATE_LIVING_ROOM_IDLE = 'STATE_LIVING_ROOM_IDLE';
+		const STATE_LIVING_ROOM_PLAYING = 'STATE_LIVING_ROOM_PLAYING';
+		const LIVING_ROOM_TRANSITION_SECONDS = 0.9;
 		const livingRoomState = {
+			mode: STATE_DESKTOP_FULLSCREEN,
 			blend: 0,
 			targetBlend: 0,
 			hoverIndex: -1,
 			activeTapeId: null,
+			insertedTapeId: null,
 			inserting: null,
-			returnToRoomOnPlaybackExit: false,
+			playingMix: 0,
+			staticBurst: 0,
 		};
 		const livingRoomLayer = new PIXI.Container();
 		livingRoomLayer.zIndex = 180;
 		livingRoomLayer.visible = false;
 		livingRoomLayer.eventMode = 'none';
+		const roomBg = new PIXI.Container();
 		const livingRoomBackdrop = new PIXI.Graphics();
 		const livingRoomWallGlow = new PIXI.Graphics();
 		const livingRoomFloor = new PIXI.Graphics();
-		const livingRoomShelf = new PIXI.Graphics();
-		const livingRoomForeground = new PIXI.Graphics();
+		roomBg.addChild(livingRoomBackdrop, livingRoomWallGlow, livingRoomFloor);
+		const leftShelf = new PIXI.Graphics();
+		const rightShelf = new PIXI.Graphics();
 		const livingRoomTv = new PIXI.Container();
 		const livingRoomTvFrame = new PIXI.Graphics();
 		const livingRoomTvArt = new PIXI.Sprite(PIXI.Texture.WHITE);
-		const livingRoomTvGlass = new PIXI.Graphics();
-		const livingRoomTvStatic = new PIXI.Graphics();
-		const livingRoomTvSlot = new PIXI.Graphics();
-		const livingRoomTitle = new PIXI.Text('LIVING ROOM', {
+		const tvScreenGroup = new PIXI.Container();
+		const tvScreenMask = new PIXI.Graphics();
+		const tvContentContainer = new PIXI.Container();
+		const tvBroScreen = new PIXI.Container();
+		const tvBroBg = new PIXI.Graphics();
+		const tvBroTitle = new PIXI.Text('BRO MEME FEED', {
 			fontFamily: 'Minecraft, monospace',
-			fontSize: 14,
-			fill: 0xf3e0c0,
+			fontSize: 13,
+			fill: 0xf5ecdb,
 			letterSpacing: 1,
 		});
-		livingRoomTitle.anchor.set(0.5, 0);
-		const livingRoomHint = new PIXI.Text('Pick a VHS and insert into TV', {
+		tvBroTitle.anchor.set(0.5, 0.5);
+		const tvBroSub = new PIXI.Text('placeholder playback', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 9,
+			fill: 0xd4c0a4,
+			letterSpacing: 1,
+		});
+		tvBroSub.anchor.set(0.5, 0.5);
+		let tvBroTitleBaseY = 0;
+		let tvBroSubBaseY = 0;
+		tvBroScreen.addChild(tvBroBg, tvBroTitle, tvBroSub);
+		tvContentContainer.addChild(tvBroScreen);
+		tvContentContainer.mask = tvScreenMask;
+		const tvCrtOverlay = new PIXI.Graphics();
+		tvCrtOverlay.mask = tvScreenMask;
+		const tvSlotForeground = new PIXI.Graphics();
+		const livingRoomForeground = new PIXI.Graphics();
+		const placard = new PIXI.Container();
+		const placardBg = new PIXI.Graphics();
+		const placardStand = new PIXI.Graphics();
+		const placardLed = new PIXI.Graphics();
+		const placardLedLabel = new PIXI.Text('NO TAPE', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 8,
+			fill: 0xe9dfcf,
+			letterSpacing: 1,
+		});
+		placardLedLabel.anchor.set(0, 0.5);
+		const placardTitle = new PIXI.Text('NO TAPE SELECTED', {
 			fontFamily: 'Minecraft, monospace',
 			fontSize: 10,
-			fill: 0xc9b6a0,
-			letterSpacing: 1,
-		});
-		livingRoomHint.anchor.set(0.5, 0);
-		const livingRoomDetailsPanel = new PIXI.Graphics();
-		const livingRoomDetailsTitle = new PIXI.Text('NO TAPE SELECTED', {
-			fontFamily: 'Minecraft, monospace',
-			fontSize: 11,
 			fill: 0xf4e5cc,
 			letterSpacing: 1,
 		});
-		const livingRoomDetailsStatus = new PIXI.Text('STATUS: WIP', {
+		const placardStatus = new PIXI.Text('STATUS: IDLE', {
 			fontFamily: 'Minecraft, monospace',
-			fontSize: 9,
+			fontSize: 8,
 			fill: 0xd9c6a8,
 			letterSpacing: 1,
 		});
-		const livingRoomDetailsBody = new PIXI.Text('Choose a tape to preview metadata.', {
+		const placardBody = new PIXI.Text('Hover a tape to inspect metadata.', {
 			fontFamily: 'Minecraft, monospace',
-			fontSize: 9,
+			fontSize: 8,
 			fill: 0xbca98d,
 			wordWrap: true,
-			wordWrapWidth: 220,
-			lineHeight: 14,
+			wordWrapWidth: 170,
+			lineHeight: 12,
 		});
+		placard.addChild(placardStand, placardBg, placardLed, placardLedLabel, placardTitle, placardStatus, placardBody);
 		const livingRoomBackBtn = new PIXI.Container();
 		const livingRoomBackBg = new PIXI.Graphics();
 		const livingRoomBackLabel = new PIXI.Text('BACK', {
@@ -2835,6 +2866,60 @@ async function boot() {
 			tex?.baseTexture?.once?.('loaded', useTexture);
 		};
 		applyWipSpriteTexture(livingRoomTvArt, LIVING_ROOM_ASSETS.tvSpritePath);
+		const setPlacardDetails = ({ title, status, body, ledText, ledColor }) => {
+			placardTitle.text = title;
+			placardStatus.text = status;
+			placardStatus.style.fill = ledColor;
+			placardBody.text = body;
+			placardLedLabel.text = ledText;
+			placardLed.clear();
+			placardLed.beginFill(ledColor, 0.82);
+			placardLed.drawCircle(0, 0, 4.5);
+			placardLed.endFill();
+		};
+		const getTapeById = (tapeId) => VHS_TAPE_LIBRARY.find((tape) => tape.id === tapeId) || null;
+		const refreshPlacard = () => {
+			const playingTape = getTapeById(livingRoomState.activeTapeId);
+			const hoveredTape = VHS_TAPE_LIBRARY[livingRoomState.hoverIndex] || null;
+			if (livingRoomState.mode === STATE_LIVING_ROOM_PLAYING && playingTape) {
+				setPlacardDetails({
+					title: `NOW PLAYING: ${playingTape.title}`,
+					status: `STATUS: ${(playingTape.status || 'wip').toUpperCase()}`,
+					body: playingTape.summary || 'Playback in progress.',
+					ledText: 'PLAYING',
+					ledColor: 0x7fe39f,
+				});
+				return;
+			}
+			if (livingRoomState.inserting?.tape) {
+				const tape = livingRoomState.inserting.tape;
+				setPlacardDetails({
+					title: `INSERTING: ${tape.title}`,
+					status: `STATUS: ${(tape.status || 'wip').toUpperCase()}`,
+					body: 'Routing tape to slot...',
+					ledText: 'LOADING',
+					ledColor: 0xffd56b,
+				});
+				return;
+			}
+			if (hoveredTape) {
+				setPlacardDetails({
+					title: `${hoveredTape.title} VHS`,
+					status: `STATUS: ${(hoveredTape.status || 'wip').toUpperCase()}`,
+					body: `${hoveredTape.summary || 'Placeholder tape.'} Click to insert.`,
+					ledText: 'READY',
+					ledColor: statusColorForTape(hoveredTape.status),
+				});
+				return;
+			}
+			setPlacardDetails({
+				title: 'NO TAPE SELECTED',
+				status: 'STATUS: IDLE',
+				body: 'Hover a tape to inspect metadata.',
+				ledText: 'NO TAPE',
+				ledColor: 0xd9c6a8,
+			});
+		};
 		const createTapeNode = (tape, index) => {
 			const node = new PIXI.Container();
 			const shadow = new PIXI.Graphics();
@@ -2856,29 +2941,21 @@ async function boot() {
 				letterSpacing: 1,
 			});
 			status.anchor.set(0.5, 0.5);
+			const side = index < 3 ? 'left' : 'right';
 			applyWipSpriteTexture(art, LIVING_ROOM_ASSETS.tapeLabelById[tape.id] || LIVING_ROOM_ASSETS.tapeSpritePath);
 			art.alpha = 0.6;
 			node.addChild(shadow, body, art, labelStrip, statusLed, title, status);
 			node.eventMode = 'static';
 			node.cursor = 'pointer';
 			node.on('pointerover', () => {
-				if (livingRoomState.inserting) return;
+				if (livingRoomState.mode !== STATE_LIVING_ROOM_IDLE || livingRoomState.inserting || livingRoomState.targetBlend < 1) return;
 				livingRoomState.hoverIndex = index;
 			});
 			node.on('pointerout', () => {
 				if (livingRoomState.hoverIndex === index) livingRoomState.hoverIndex = -1;
 			});
 			node.on('pointertap', () => {
-				if (livingRoomState.inserting) return;
-				livingRoomState.inserting = {
-					tape,
-					node,
-					index,
-					progress: 0,
-					startX: node.position.x,
-					startY: node.position.y,
-				};
-				livingRoomState.activeTapeId = tape.id;
+				playTape(tape.id);
 			});
 			return {
 				tape,
@@ -2890,47 +2967,52 @@ async function boot() {
 				statusLed,
 				title,
 				status,
+				side,
 				hoverMix: 0,
 				baseX: 0,
 				baseY: 0,
 			};
 		};
 		const livingRoomTapes = VHS_TAPE_LIBRARY.map((tape, index) => createTapeNode(tape, index));
+		const tapeNodeById = new Map(livingRoomTapes.map((entry) => [entry.tape.id, entry]));
+		const playTape = (tapeId) => {
+			if (livingRoomState.mode !== STATE_LIVING_ROOM_IDLE || livingRoomState.inserting || livingRoomState.blend < 0.98) return;
+			const tapeEntry = tapeNodeById.get(tapeId);
+			if (!tapeEntry) return;
+			livingRoomState.hoverIndex = -1;
+			livingRoomState.inserting = {
+				tape: tapeEntry.tape,
+				node: tapeEntry.node,
+				progress: 0,
+				startX: tapeEntry.node.position.x,
+				startY: tapeEntry.node.position.y,
+			};
+		};
+		const enterLivingRoom = () => {
+			livingRoomState.mode = STATE_LIVING_ROOM_IDLE;
+			livingRoomState.activeTapeId = null;
+			livingRoomState.insertedTapeId = null;
+			livingRoomState.inserting = null;
+			livingRoomState.hoverIndex = -1;
+			livingRoomState.targetBlend = 1;
+			livingRoomLayer.visible = true;
+			layoutLivingRoom();
+			refreshPlacard();
+		};
+		const exitLivingRoom = () => {
+			livingRoomState.hoverIndex = -1;
+			livingRoomState.inserting = null;
+			livingRoomState.targetBlend = 0;
+		};
+		tvScreenGroup.addChild(tvContentContainer, tvScreenMask, tvCrtOverlay);
+		livingRoomTv.addChild(livingRoomTvFrame, livingRoomTvArt, tvScreenGroup, tvSlotForeground);
+		livingRoomLayer.addChild(roomBg, leftShelf, rightShelf);
 		for (const tape of livingRoomTapes) livingRoomLayer.addChild(tape.node);
-		livingRoomTv.addChild(livingRoomTvFrame, livingRoomTvArt, livingRoomTvGlass, livingRoomTvStatic, livingRoomTvSlot);
-		livingRoomLayer.addChild(
-			livingRoomBackdrop,
-			livingRoomWallGlow,
-			livingRoomFloor,
-			livingRoomShelf,
-			livingRoomTv,
-			livingRoomForeground,
-			livingRoomTitle,
-			livingRoomHint,
-			livingRoomDetailsPanel,
-			livingRoomDetailsTitle,
-			livingRoomDetailsStatus,
-			livingRoomDetailsBody,
-			livingRoomBackBtn,
-		);
+		livingRoomLayer.addChild(livingRoomTv, livingRoomForeground, placard, livingRoomBackBtn);
 		app.stage.addChild(livingRoomLayer);
 		let livingRoomTvSlotX = 0;
 		let livingRoomTvSlotY = 0;
 		const livingRoomTvScreenRect = { x: 0, y: 0, w: 0, h: 0, r: 0 };
-		const applyLivingRoomTapeDetails = (tape) => {
-			if (!tape) {
-				livingRoomDetailsTitle.text = 'NO TAPE SELECTED';
-				livingRoomDetailsStatus.text = 'STATUS: WIP';
-				livingRoomDetailsStatus.style.fill = statusColorForTape('wip');
-				livingRoomDetailsBody.text = 'Choose a tape to preview metadata.';
-				return;
-			}
-			const status = (tape.status || 'wip').toUpperCase();
-			livingRoomDetailsTitle.text = `${tape.title} VHS`;
-			livingRoomDetailsStatus.text = `STATUS: ${status}`;
-			livingRoomDetailsStatus.style.fill = statusColorForTape(tape.status);
-			livingRoomDetailsBody.text = tape.summary || 'WIP tape sprite. Content will be added later.';
-		};
 		const drawLivingRoomBackdrop = (blend) => {
 			const sw = app.renderer.width;
 			const sh = app.renderer.height;
@@ -2958,31 +3040,36 @@ async function boot() {
 			livingRoomLayer.hitArea = new PIXI.Rectangle(0, 0, sw, sh);
 
 			livingRoomWallGlow.clear();
-			livingRoomWallGlow.beginFill(0x231925, 0.36);
+			livingRoomWallGlow.beginFill(0x221822, 0.42);
 			livingRoomWallGlow.drawRect(0, 0, sw, sh * 0.64);
 			livingRoomWallGlow.endFill();
-			livingRoomWallGlow.beginFill(0x1b131f, 0.28);
-			livingRoomWallGlow.drawRect(sw * 0.05, sh * 0.1, sw * 0.32, sh * 0.28);
+			livingRoomWallGlow.beginFill(0x181118, 0.24);
+			livingRoomWallGlow.drawRect(sw * 0.05, sh * 0.08, sw * 0.28, sh * 0.25);
 			livingRoomWallGlow.endFill();
 
 			livingRoomFloor.clear();
-			livingRoomFloor.beginFill(0x2b1f16, 0.9);
+			livingRoomFloor.beginFill(0x2a1f17, 0.92);
 			livingRoomFloor.drawRect(0, sh * 0.62, sw, sh * 0.38);
 			livingRoomFloor.endFill();
 
-			const tvW = sw * 0.44;
+			const tvW = sw * 0.4;
 			const tvH = sh * 0.42;
 			const tvX = sw * 0.5;
-			const tvY = sh * 0.38;
+			const tvY = sh * 0.4;
 			livingRoomTv.position.set(tvX, tvY);
 
 			livingRoomTvFrame.clear();
-			livingRoomTvFrame.beginFill(0x141820, 0.98);
-			livingRoomTvFrame.lineStyle(3, 0x2d3a4f, 0.95);
+			livingRoomTvFrame.beginFill(0x161c24, 0.98);
+			livingRoomTvFrame.lineStyle(3, 0x394a63, 0.95);
 			livingRoomTvFrame.drawRoundedRect(-tvW * 0.5, -tvH * 0.5, tvW, tvH, 14);
 			livingRoomTvFrame.endFill();
 
-			const screenW = tvW * 0.76;
+			livingRoomTvArt.position.set(-tvW * 0.5, -tvH * 0.5);
+			livingRoomTvArt.width = tvW;
+			livingRoomTvArt.height = tvH;
+			livingRoomTvArt.alpha = LIVING_ROOM_ASSETS.tvSpritePath ? 0.92 : 0.08;
+
+			const screenW = tvW * 0.74;
 			const screenH = tvH * 0.62;
 			const screenX = tvX - screenW * 0.5;
 			const screenY = tvY - tvH * 0.32;
@@ -2990,60 +3077,87 @@ async function boot() {
 			livingRoomTvScreenRect.y = screenY;
 			livingRoomTvScreenRect.w = screenW;
 			livingRoomTvScreenRect.h = screenH;
-			livingRoomTvScreenRect.r = 9;
+			livingRoomTvScreenRect.r = 10;
 
-			livingRoomTvArt.position.set(-tvW * 0.5, -tvH * 0.5);
-			livingRoomTvArt.width = tvW;
-			livingRoomTvArt.height = tvH;
-			livingRoomTvArt.alpha = LIVING_ROOM_ASSETS.tvSpritePath ? 0.95 : 0.08;
-			livingRoomTvGlass.clear();
-			livingRoomTvGlass.beginFill(0x0a1220, 0.95);
-			livingRoomTvGlass.lineStyle(2, 0x30465d, 0.8);
-			livingRoomTvGlass.drawRoundedRect(-screenW * 0.5, -tvH * 0.32, screenW, screenH, 9);
-			livingRoomTvGlass.endFill();
+			tvScreenGroup.position.set(-tvW * 0.5, -tvH * 0.5);
+			tvScreenMask.clear();
+			tvScreenMask.beginFill(0xffffff, 1);
+			tvScreenMask.drawRoundedRect(tvW * 0.13, tvH * 0.18, screenW, screenH, 10);
+			tvScreenMask.endFill();
 
-			livingRoomTvStatic.clear();
-			livingRoomTvStatic.beginFill(0x9ad8ff, 0.06 + livingRoomState.blend * 0.03);
-			livingRoomTvStatic.drawRoundedRect(-screenW * 0.5 + 4, -tvH * 0.32 + 4, screenW - 8, screenH - 8, 7);
-			livingRoomTvStatic.endFill();
+			tvContentContainer.position.set(0, 0);
+			tvBroBg.clear();
+			tvBroBg.beginFill(0x1a1010, 0.98);
+			tvBroBg.drawRect(tvW * 0.13, tvH * 0.18, screenW, screenH);
+			tvBroBg.endFill();
+			tvBroTitle.position.set(tvW * 0.5, tvH * 0.46);
+			tvBroSub.position.set(tvW * 0.5, tvH * 0.58);
+			tvBroTitleBaseY = tvBroTitle.y;
+			tvBroSubBaseY = tvBroSub.y;
 
-			livingRoomTvSlot.clear();
-			livingRoomTvSlot.beginFill(0x06080d, 0.95);
-			livingRoomTvSlot.lineStyle(1.5, 0x3a4b66, 0.85);
-			livingRoomTvSlot.drawRoundedRect(-tvW * 0.18, tvH * 0.2, tvW * 0.36, tvH * 0.08, 4);
-			livingRoomTvSlot.endFill();
+			tvCrtOverlay.clear();
+			tvCrtOverlay.beginFill(0x05070b, 0.2);
+			tvCrtOverlay.drawRoundedRect(tvW * 0.13, tvH * 0.18, screenW, screenH, 10);
+			tvCrtOverlay.endFill();
+			tvCrtOverlay.lineStyle(1, 0xc6d6ff, 0.05);
+			for (let y = tvH * 0.2; y < tvH * 0.78; y += 4) {
+				tvCrtOverlay.moveTo(tvW * 0.14, y);
+				tvCrtOverlay.lineTo(tvW * 0.86, y);
+			}
+
+			tvSlotForeground.clear();
+			tvSlotForeground.beginFill(0x06080d, 0.95);
+			tvSlotForeground.lineStyle(1.5, 0x3a4b66, 0.85);
+			tvSlotForeground.drawRoundedRect(-tvW * 0.18, tvH * 0.2, tvW * 0.36, tvH * 0.08, 4);
+			tvSlotForeground.endFill();
 			livingRoomTvSlotX = tvX;
 			livingRoomTvSlotY = tvY + tvH * 0.24;
 
-			livingRoomTitle.position.set(sw * 0.5, sh * 0.08);
-			livingRoomHint.position.set(sw * 0.5, sh * 0.12);
+			leftShelf.clear();
+			leftShelf.beginFill(0x4a3324, 0.95);
+			leftShelf.drawRoundedRect(sw * 0.1, sh * 0.34, sw * 0.18, sh * 0.42, 8);
+			leftShelf.endFill();
+			leftShelf.lineStyle(2, 0x7c573d, 0.75);
+			leftShelf.moveTo(sw * 0.115, sh * 0.46);
+			leftShelf.lineTo(sw * 0.265, sh * 0.46);
+			leftShelf.moveTo(sw * 0.115, sh * 0.58);
+			leftShelf.lineTo(sw * 0.265, sh * 0.58);
+			leftShelf.moveTo(sw * 0.115, sh * 0.7);
+			leftShelf.lineTo(sw * 0.265, sh * 0.7);
 
-			livingRoomShelf.clear();
-			livingRoomShelf.lineStyle(3, 0x5b4532, 0.9);
-			livingRoomShelf.moveTo(sw * 0.11, sh * 0.7);
-			livingRoomShelf.lineTo(sw * 0.63, sh * 0.7);
-			livingRoomShelf.lineStyle(1.5, 0xa07c5a, 0.42);
-			livingRoomShelf.moveTo(sw * 0.11, sh * 0.696);
-			livingRoomShelf.lineTo(sw * 0.63, sh * 0.696);
+			rightShelf.clear();
+			rightShelf.beginFill(0x4a3324, 0.95);
+			rightShelf.drawRoundedRect(sw * 0.72, sh * 0.34, sw * 0.18, sh * 0.42, 8);
+			rightShelf.endFill();
+			rightShelf.lineStyle(2, 0x7c573d, 0.75);
+			rightShelf.moveTo(sw * 0.735, sh * 0.46);
+			rightShelf.lineTo(sw * 0.885, sh * 0.46);
+			rightShelf.moveTo(sw * 0.735, sh * 0.58);
+			rightShelf.lineTo(sw * 0.885, sh * 0.58);
+			rightShelf.moveTo(sw * 0.735, sh * 0.7);
+			rightShelf.lineTo(sw * 0.885, sh * 0.7);
 
 			livingRoomForeground.clear();
-			livingRoomForeground.beginFill(0x14110f, 0.8);
-			livingRoomForeground.drawRoundedRect(sw * 0.08, sh * 0.79, sw * 0.58, sh * 0.18, 14);
+			livingRoomForeground.beginFill(0x14110f, 0.84);
+			livingRoomForeground.drawRoundedRect(sw * 0.26, sh * 0.78, sw * 0.48, sh * 0.17, 12);
 			livingRoomForeground.endFill();
 
-			const detailX = sw * 0.69;
-			const detailY = sh * 0.22;
-			const detailW = sw * 0.24;
-			const detailH = sh * 0.5;
-			livingRoomDetailsPanel.clear();
-			livingRoomDetailsPanel.beginFill(0x1b1720, 0.82);
-			livingRoomDetailsPanel.lineStyle(2, 0x3b2f47, 0.8);
-			livingRoomDetailsPanel.drawRoundedRect(detailX, detailY, detailW, detailH, 10);
-			livingRoomDetailsPanel.endFill();
-			livingRoomDetailsTitle.position.set(detailX + 12, detailY + 14);
-			livingRoomDetailsStatus.position.set(detailX + 12, detailY + 38);
-			livingRoomDetailsBody.style.wordWrapWidth = Math.max(120, detailW - 24);
-			livingRoomDetailsBody.position.set(detailX + 12, detailY + 62);
+			placard.position.set(sw * 0.64, sh * 0.28);
+			placardStand.clear();
+			placardStand.beginFill(0x3d3a36, 0.9);
+			placardStand.drawRoundedRect(10, 145, 36, 60, 6);
+			placardStand.endFill();
+			placardBg.clear();
+			placardBg.beginFill(0x1d2228, 0.95);
+			placardBg.lineStyle(2, 0x444e58, 0.9);
+			placardBg.drawRoundedRect(0, 0, 210, 150, 10);
+			placardBg.endFill();
+			placardLed.position.set(18, 16);
+			placardLedLabel.position.set(30, 16);
+			placardTitle.position.set(14, 34);
+			placardStatus.position.set(14, 52);
+			placardBody.style.wordWrapWidth = 180;
+			placardBody.position.set(14, 70);
 
 			livingRoomBackBg.clear();
 			livingRoomBackBg.beginFill(0x3a2430, 0.92);
@@ -3053,100 +3167,106 @@ async function boot() {
 			livingRoomBackBtn.position.set(sw * 0.06, sh * 0.08);
 			livingRoomBackLabel.position.set(44, 15);
 
-			const tapeStartX = sw * 0.16;
-			const tapeGapX = sw * 0.095;
-			const tapeRowY = sh * 0.74;
 			for (let i = 0; i < livingRoomTapes.length; i++) {
 				const tape = livingRoomTapes[i];
-				tape.baseX = tapeStartX + i * tapeGapX;
-				tape.baseY = tapeRowY;
+				const row = i % 3;
+				if (tape.side === 'left') {
+					tape.baseX = sw * 0.19;
+					tape.baseY = sh * (0.42 + row * 0.12);
+				} else {
+					tape.baseX = sw * 0.81;
+					tape.baseY = sh * (0.42 + row * 0.12);
+				}
 			}
 
 			drawLivingRoomBackdrop(livingRoomState.blend);
 		};
 		layoutLivingRoom();
-		const setLivingRoomTarget = (next) => {
-			livingRoomState.targetBlend = next ? 1 : 0;
-			if (next) {
-				livingRoomLayer.visible = true;
-				layoutLivingRoom();
-			}
-		};
 		openLivingRoomScene = () => {
-			setLivingRoomTarget(true);
+			if (desktopTwoActive) return;
+			enterLivingRoom();
 		};
 		closeLivingRoomScene = () => {
-			livingRoomState.returnToRoomOnPlaybackExit = false;
-			livingRoomState.hoverIndex = -1;
-			livingRoomState.inserting = null;
-			livingRoomState.activeTapeId = null;
-			applyLivingRoomTapeDetails(null);
-			setLivingRoomTarget(false);
+			exitLivingRoom();
 		};
-		onDesktopTwoExitRequested = () => {
-			if (!livingRoomState.returnToRoomOnPlaybackExit) return;
-			setLivingRoomTarget(true);
-		};
+		onDesktopTwoExitRequested = () => {};
 		livingRoomBackBtn.on('pointertap', () => {
-			livingRoomState.returnToRoomOnPlaybackExit = false;
-			closeLivingRoomScene();
+			exitLivingRoom();
 		});
 		livingRoomBackBtn.on('pointerover', () => { livingRoomBackBtn.scale.set(1.04); });
 		livingRoomBackBtn.on('pointerout', () => { livingRoomBackBtn.scale.set(1); });
 		const updateLivingRoomScene = (dtSeconds) => {
-			livingRoomState.blend += (livingRoomState.targetBlend - livingRoomState.blend) * Math.min(1, dtSeconds * 8.5);
-			if (livingRoomState.blend < 0.01 && livingRoomState.targetBlend < 0.01) {
+			const step = dtSeconds / LIVING_ROOM_TRANSITION_SECONDS;
+			if (livingRoomState.targetBlend > livingRoomState.blend) {
+				livingRoomState.blend = Math.min(livingRoomState.targetBlend, livingRoomState.blend + step);
+			} else if (livingRoomState.targetBlend < livingRoomState.blend) {
+				livingRoomState.blend = Math.max(livingRoomState.targetBlend, livingRoomState.blend - step);
+			}
+			if (livingRoomState.blend < 0.001 && livingRoomState.targetBlend <= 0) {
 				livingRoomLayer.visible = false;
 				livingRoomLayer.eventMode = 'none';
+				livingRoomState.mode = STATE_DESKTOP_FULLSCREEN;
+				livingRoomState.activeTapeId = null;
+				livingRoomState.insertedTapeId = null;
+				livingRoomState.playingMix = 0;
+				livingRoomState.staticBurst = 0;
 				livingRoomActive = false;
 				return;
 			}
 			const blend = Math.max(0, Math.min(1, livingRoomState.blend));
 			const reveal = 1 - Math.pow(1 - blend, 3);
-			const interactionsReady = reveal > 0.94 && !livingRoomState.inserting;
 			livingRoomActive = true;
 			livingRoomLayer.visible = true;
 			livingRoomLayer.eventMode = blend > 0.02 ? 'static' : 'none';
 			livingRoomLayer.alpha = 1;
 			drawLivingRoomBackdrop(blend);
-			livingRoomWallGlow.alpha = 0.12 + reveal * 0.88;
-			livingRoomFloor.alpha = 0.2 + reveal * 0.8;
-			livingRoomForeground.alpha = 0.1 + reveal * 0.9;
-			livingRoomTv.alpha = Math.max(0, (reveal - 0.08) / 0.92);
-			livingRoomTv.scale.set(1.18 - Math.max(0, (reveal - 0.08) / 0.92) * 0.18);
-			livingRoomTitle.alpha = reveal;
-			livingRoomHint.alpha = 0.6 * reveal;
-			livingRoomShelf.alpha = 0.15 + reveal * 0.85;
-			livingRoomDetailsPanel.alpha = 0.18 + reveal * 0.82;
-			livingRoomDetailsTitle.alpha = reveal;
-			livingRoomDetailsStatus.alpha = reveal;
-			livingRoomDetailsBody.alpha = 0.2 + reveal * 0.8;
-			livingRoomBackBtn.alpha = Math.max(0, (reveal - 0.6) / 0.4);
-			livingRoomBackBtn.eventMode = reveal > 0.78 ? 'static' : 'none';
-			const activeTape = livingRoomState.inserting?.tape
-				|| VHS_TAPE_LIBRARY.find((t) => t.id === livingRoomState.activeTapeId)
-				|| VHS_TAPE_LIBRARY[livingRoomState.hoverIndex]
-				|| null;
-			applyLivingRoomTapeDetails(activeTape);
 
+			livingRoomWallGlow.alpha = 0.12 + reveal * 0.88;
+			livingRoomFloor.alpha = 0.22 + reveal * 0.78;
+			leftShelf.alpha = 0.1 + reveal * 0.9;
+			rightShelf.alpha = 0.1 + reveal * 0.9;
+			livingRoomForeground.alpha = 0.12 + reveal * 0.88;
+			placard.alpha = Math.max(0, (reveal - 0.2) / 0.8);
+			livingRoomBackBtn.alpha = Math.max(0, (reveal - 0.62) / 0.38);
+			livingRoomBackBtn.eventMode = reveal > 0.82 ? 'static' : 'none';
+
+			const tvReveal = Math.max(0, (reveal - 0.06) / 0.94);
+			livingRoomTv.alpha = tvReveal;
+			livingRoomTv.scale.set(1.16 - tvReveal * 0.16);
+
+			const playingTarget = livingRoomState.mode === STATE_LIVING_ROOM_PLAYING ? 1 : 0;
+			livingRoomState.playingMix += (playingTarget - livingRoomState.playingMix) * Math.min(1, dtSeconds * 8);
+			tvBroScreen.alpha = livingRoomState.playingMix;
+
+			const pulseTime = (performance.now ? performance.now() : Date.now()) * 0.003;
+			tvBroTitle.y = tvBroTitleBaseY + Math.sin(pulseTime) * 1.2;
+			tvBroSub.y = tvBroSubBaseY + Math.cos(pulseTime * 0.9) * 0.9;
+			livingRoomState.staticBurst = Math.max(0, livingRoomState.staticBurst - dtSeconds);
+			const idleStatic = 0.03 + 0.02 * Math.sin((performance.now ? performance.now() : Date.now()) * 0.004);
+			const burstStatic = livingRoomState.staticBurst > 0 ? (0.18 + (livingRoomState.staticBurst / 0.3) * 0.44) : 0;
+			tvCrtOverlay.alpha = Math.max(idleStatic, burstStatic);
+
+			const interactionsReady = reveal > 0.95 && livingRoomState.mode === STATE_LIVING_ROOM_IDLE && !livingRoomState.inserting;
 			for (let i = 0; i < livingRoomTapes.length; i++) {
 				const tape = livingRoomTapes[i];
-				tape.node.eventMode = interactionsReady ? 'static' : 'none';
-				tape.node.alpha = 0.08 + reveal * 0.92;
-				const targetHover = (livingRoomState.hoverIndex === i && !livingRoomState.inserting) ? 1 : 0;
+				const inserted = livingRoomState.insertedTapeId && livingRoomState.insertedTapeId === tape.tape.id;
+				tape.node.eventMode = interactionsReady && !inserted ? 'static' : 'none';
+				tape.node.cursor = interactionsReady && !inserted ? 'pointer' : 'default';
+				const targetHover = interactionsReady && livingRoomState.hoverIndex === i ? 1 : 0;
 				tape.hoverMix += (targetHover - tape.hoverMix) * Math.min(1, dtSeconds * 12);
 				const h = Math.max(0, Math.min(1, tape.hoverMix));
-				tape.node.position.set(tape.baseX + h * 6, tape.baseY - h * 14);
+				const hoverOffsetX = tape.side === 'left' ? h * 12 : -h * 12;
+				tape.node.position.set(tape.baseX + hoverOffsetX, tape.baseY - h * 2);
 				tape.node.scale.set(1 + h * 0.06);
 				const tw = 72;
 				const th = 42;
 				tape.shadow.clear();
-				tape.shadow.beginFill(0x000000, 0.16 + h * 0.1);
+				tape.shadow.beginFill(0x000000, 0.16 + h * 0.14);
 				tape.shadow.drawRoundedRect(-tw * 0.52 + 4, -th * 0.5 + 7, tw * 1.04, th, 7);
 				tape.shadow.endFill();
 				tape.body.clear();
 				tape.body.beginFill(0x261b14, 0.97);
-				tape.body.lineStyle(2, tape.tape.accent, 0.86);
+				tape.body.lineStyle(2 + h * 0.8, tape.tape.accent, 0.82 + h * 0.16);
 				tape.body.drawRoundedRect(-tw * 0.5, -th * 0.5, tw, th, 6);
 				tape.body.endFill();
 				tape.art.position.set(-tw * 0.38, -th * 0.38);
@@ -3163,29 +3283,29 @@ async function boot() {
 				tape.statusLed.endFill();
 				tape.title.position.set(0, th * 0.08);
 				tape.status.position.set(0, th * 0.29);
+				tape.node.alpha = (0.1 + reveal * 0.9) * (inserted ? 0.12 : 1);
 			}
 
 			if (livingRoomState.inserting) {
 				const ins = livingRoomState.inserting;
-				ins.progress = Math.min(1, ins.progress + dtSeconds * 2.1);
+				ins.progress = Math.min(1, ins.progress + dtSeconds / 0.36);
 				const eased = 1 - Math.pow(1 - ins.progress, 3);
 				ins.node.position.x = ins.startX + (livingRoomTvSlotX - ins.startX) * eased;
 				ins.node.position.y = ins.startY + (livingRoomTvSlotY - ins.startY) * eased;
 				const s = 1 + (0.38 - 1) * eased;
 				ins.node.scale.set(s);
-				livingRoomTvStatic.alpha = 0.08 + 0.14 * eased;
 				if (ins.progress >= 1) {
 					const selectedTape = ins.tape;
 					livingRoomState.activeTapeId = selectedTape.id;
+					livingRoomState.insertedTapeId = selectedTape.id;
 					livingRoomState.inserting = null;
-					livingRoomState.returnToRoomOnPlaybackExit = true;
+					livingRoomState.mode = STATE_LIVING_ROOM_PLAYING;
+					livingRoomState.staticBurst = 0.2 + Math.random() * 0.1;
 					setDesktopTwoLoadedTape(selectedTape);
-					setLivingRoomTarget(false);
-					setDesktopTwoActive(true);
 				}
-			} else {
-				livingRoomTvStatic.alpha = 0.06 + 0.02 * Math.sin((performance.now ? performance.now() : Date.now()) * 0.004);
 			}
+
+			refreshPlacard();
 		};
 
 		const ENABLE_CLICK_AUDIO = false;
