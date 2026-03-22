@@ -22,6 +22,11 @@ import {
 	updateLoop as updateSfxLoop,
 	stopLoop as stopSfxLoop,
 } from './sfx.js';
+import {
+	initMusic,
+	loadMusic,
+	setMusicTrack,
+} from './music.js';
 
 const THEMES = {
 	light: {
@@ -1468,6 +1473,7 @@ async function boot() {
 				throw: 'throwIcon',
 				wallHit: 'iconWallHit',
 				breakTarget: 'breakTarget',
+				countdown: 'countdown',
 			};
 			const RING_SPIN_LOOP_KEY = 'ring-spin-loop';
 			const SFX_ASSETS = {
@@ -1479,16 +1485,57 @@ async function boot() {
 				[ICON_SFX.throw]: './assets/audio/sounds/Throw_Icon.mp3',
 				[ICON_SFX.wallHit]: './assets/audio/sounds/Icon_Hit_Wall.wav',
 				[ICON_SFX.breakTarget]: './assets/audio/sounds/Break_Target.wav',
+				[ICON_SFX.countdown]: './assets/audio/sounds/Countdown.wav',
+			};
+			const MUSIC_TRACKS = {
+				menu: 'menu',
+				lab: 'lab',
+				targetTest: 'targetTest',
+			};
+			const MUSIC_ASSETS = {
+				[MUSIC_TRACKS.menu]: { url: './assets/audio/music/Menu.mp3' },
+				[MUSIC_TRACKS.lab]: { url: './assets/audio/music/The_Lab.mp3' },
+				[MUSIC_TRACKS.targetTest]: { url: './assets/audio/music/Target_Test.mp3' },
 			};
 			let sfxLoadWarned = false;
+			let musicLoadWarned = false;
+			let musicSwitchWarned = false;
+			let musicUnlocked = false;
+			let activeMusicTrack = null;
 			const sfxLoadPromise = loadSfx(SFX_ASSETS).catch((err) => {
 				if (sfxLoadWarned) return;
 				sfxLoadWarned = true;
 				console.warn('SFX preload failed:', err);
 			});
+			const musicLoadPromise = loadMusic(MUSIC_ASSETS).catch((err) => {
+				if (musicLoadWarned) return;
+				musicLoadWarned = true;
+				console.warn('Music preload failed:', err);
+			});
 			const primeSfxContext = () => {
 				initSfx().catch(() => {});
 				return sfxLoadPromise;
+			};
+			const primeMusicContext = () => {
+				musicUnlocked = true;
+				initMusic().catch(() => {});
+				return musicLoadPromise;
+			};
+			const resolveMusicTrack = () => {
+				if (basketballMode && dragEnabled) return MUSIC_TRACKS.targetTest;
+				if (vineLabActive) return MUSIC_TRACKS.lab;
+				return MUSIC_TRACKS.menu;
+			};
+			const syncMusicTrack = () => {
+				if (!musicUnlocked) return;
+				const nextTrack = resolveMusicTrack();
+				if (nextTrack === activeMusicTrack) return;
+				activeMusicTrack = nextTrack;
+				setMusicTrack(nextTrack, { crossfade: 0.75 }).catch((err) => {
+					if (musicSwitchWarned) return;
+					musicSwitchWarned = true;
+					console.warn('Music switch failed:', err);
+				});
 			};
 			const playSfxSafe = (id, options = {}) => {
 				if (!id) return;
@@ -2216,7 +2263,23 @@ async function boot() {
 			});
 			arcadePopupText.anchor.set(0.5, 0.5);
 			arcadePopupText.visible = false;
-			arcadeLayer.addChild(arcadeDividerGlow, arcadeTargetLayer, arcadeShardLayer, arcadeHintText, arcadeScoreText, arcadePopupText, arcadeSweepControl);
+			const arcadeCountdownText = new PIXI.Text('3', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 132,
+				fill: 0xe8faff,
+				stroke: 0x07111a,
+				strokeThickness: 14,
+				dropShadow: true,
+				dropShadowColor: 0x04080d,
+				dropShadowBlur: 0,
+				dropShadowAngle: Math.PI / 3,
+				dropShadowDistance: 10,
+				align: 'center',
+				letterSpacing: 2,
+			});
+			arcadeCountdownText.anchor.set(0.5, 0.5);
+			arcadeCountdownText.visible = false;
+			arcadeLayer.addChild(arcadeDividerGlow, arcadeTargetLayer, arcadeShardLayer, arcadeHintText, arcadeScoreText, arcadePopupText, arcadeCountdownText, arcadeSweepControl);
 
 			const arcadeTargetTypes = [
 				{ points: 1, radiusPx: 33, ringColor: 0xff86bb, coreColor: 0x2a1223, shardColor: 0xffa6d0, respawnMin: 0.65, respawnMax: 1.25 },
@@ -2228,6 +2291,53 @@ async function boot() {
 			let arcadeTargetSeed = 0;
 			const arcadeState = {
 				dividerWorldX: 0,
+			};
+			const arcadeCountdownSteps = [
+				{ label: '3', rate: 1.0, tint: 0xe8faff },
+				{ label: '2', rate: 1.0, tint: 0xe8faff },
+				{ label: '1', rate: 1.0, tint: 0xe8faff },
+				{ label: 'GO', rate: 1.15, tint: 0x93ffd9 },
+			];
+			const arcadeCountdown = {
+				active: false,
+				stepIndex: -1,
+				stepElapsed: 0,
+				stepDuration: 0.74,
+			};
+			const stopArcadeCountdown = () => {
+				arcadeCountdown.active = false;
+				arcadeCountdown.stepIndex = -1;
+				arcadeCountdown.stepElapsed = 0;
+				arcadeCountdownText.visible = false;
+			};
+			const triggerArcadeCountdownStep = () => {
+				arcadeCountdown.stepIndex += 1;
+				arcadeCountdown.stepElapsed = 0;
+				if (arcadeCountdown.stepIndex >= arcadeCountdownSteps.length) {
+					stopArcadeCountdown();
+					return;
+				}
+				const step = arcadeCountdownSteps[arcadeCountdown.stepIndex];
+				arcadeCountdownText.text = step.label;
+				arcadeCountdownText.tint = step.tint;
+				arcadeCountdownText.visible = true;
+				playSfxSafe(ICON_SFX.countdown, {
+					volume: step.label === 'GO' ? 0.8 : 0.66,
+					rate: step.rate,
+				});
+			};
+			const startArcadeCountdown = () => {
+				arcadeCountdown.active = true;
+				arcadeCountdown.stepIndex = -1;
+				arcadeCountdown.stepElapsed = 0;
+				triggerArcadeCountdownStep();
+			};
+			const updateArcadeCountdown = (dtSeconds) => {
+				if (!arcadeCountdown.active) return;
+				arcadeCountdown.stepElapsed += dtSeconds;
+				if (arcadeCountdown.stepElapsed >= arcadeCountdown.stepDuration) {
+					triggerArcadeCountdownStep();
+				}
 			};
 			const arcadeRand = (min, max) => min + Math.random() * (max - min);
 			const getArcadeTargetTypeIndex = () => {
@@ -2395,6 +2505,7 @@ async function boot() {
 				arcadeFeedback.noGoVoided = false;
 				arcadeFeedback.cursorWasRight = false;
 				arcadePopupText.visible = false;
+				stopArcadeCountdown();
 				iconScoreState.clear();
 				arcadeShards.length = 0;
 				seedArcadeTargets();
@@ -2463,6 +2574,7 @@ async function boot() {
 					ringSpinVel = 0;
 					ringSpin = 0;
 					stopSfxLoopSafe(RING_SPIN_LOOP_KEY, { fadeOut: 0.08 });
+					stopArcadeCountdown();
 					resetArcadeRound();
 					basketballHoverTarget = 0;
 					basketballHover = 0;
@@ -2500,9 +2612,11 @@ async function boot() {
 				arcadeLayer.visible = basketballMode;
 				if (basketballMode) {
 					resetArcadeRound();
+					startArcadeCountdown();
 					arcadeFeedback.cursorWasRight = mouse.x >= app.renderer.width * 0.5;
 					arcadeFeedback.noGoVoided = arcadeFeedback.cursorWasRight;
 				} else {
+					stopArcadeCountdown();
 					arcadePopupText.visible = false;
 				}
 			});
@@ -4368,6 +4482,8 @@ async function boot() {
 			cursorContainer.visible = true;
 			pointerPressedIcon = findHoveredIconBody()?.container || null;
 			primeSfxContext();
+			primeMusicContext();
+			syncMusicTrack();
 			try {
 				await ensureClickAudio();
 				playClickSlice(0.0, 0.5, 0.85);
@@ -4516,6 +4632,7 @@ async function boot() {
 			if (!keepLivingRoomJitter) {
 				livingRoomLayer.position.x = 0;
 			}
+			syncMusicTrack();
 			if (transitionWipePhase > 0.001) drawTransitionWipe(transitionWipePhase);
 			else if (transitionWipe.visible) drawTransitionWipe(0);
 			updateLivingRoomScene(seconds);
@@ -4754,6 +4871,24 @@ async function boot() {
 				arcadeSweepControl.lineStyle(1.5, 0xd8f5ff, 0.45 + sweepBoost * 0.45);
 				arcadeSweepControl.drawPolygon([p0x, p0y, p1x, p1y, p2x, p2y]);
 				arcadeSweepControl.hitArea = new PIXI.Polygon([p0x, p0y, p1x, p1y, p2x, p2y]);
+				updateArcadeCountdown(seconds);
+				const countdownActive = arcadeCountdown.active;
+				if (countdownActive) {
+					const tStep = Math.max(0, Math.min(1, arcadeCountdown.stepElapsed / arcadeCountdown.stepDuration));
+					const popT = Math.max(0, Math.min(1, tStep / 0.26));
+					const popEase = 1 - Math.pow(1 - popT, 3);
+					const stepScale = 1 + (1 - popEase) * 0.58;
+					const fadeIn = Math.max(0, Math.min(1, tStep / 0.08));
+					const fadeOut = tStep > 0.58 ? Math.max(0, 1 - (tStep - 0.58) / 0.42) : 1;
+					const alpha = Math.max(0, Math.min(1, fadeIn * fadeOut));
+					const center = toWorldFromScreen(app.renderer.width * 0.5, app.renderer.height * 0.5);
+					arcadeCountdownText.visible = true;
+					arcadeCountdownText.position.set(center.x, center.y);
+					arcadeCountdownText.scale.set(stepScale);
+					arcadeCountdownText.alpha = 0.15 + alpha * 0.85;
+				} else if (arcadeCountdownText.visible) {
+					arcadeCountdownText.visible = false;
+				}
 
 				arcadeTargetLayer.clear();
 				for (const target of arcadeTargets) {
@@ -4783,9 +4918,11 @@ async function boot() {
 					arcadeTargetLayer.drawCircle(center.x, center.y, radius * 0.34);
 				}
 
-				arcadeHintText.text = arcadeFeedback.noGoVoided
+				arcadeHintText.text = countdownActive
+					? 'TARGET TEST STARTING...'
+					: (arcadeFeedback.noGoVoided
 					? 'RIGHT SIDE BLOCKED: CURSOR LEFT TO SCORE'
-					: 'THROW MODE: HIT TARGETS (1 / 3 / 5)';
+					: 'THROW MODE: HIT TARGETS (1 / 3 / 5)');
 				arcadeHintText.position.set(toWorldFromScreen(24, 18).x, toWorldFromScreen(24, 18).y);
 				const scorePulse = 1 + Math.min(0.24, arcadeFeedback.combo * 0.035) + Math.sin(time * 5.2) * 0.02;
 				const scorePos = toWorldFromScreen(app.renderer.width * 0.5, app.renderer.height - 58);
@@ -4824,7 +4961,7 @@ async function boot() {
 						st.returnCooldown = 0.45;
 					}
 
-					if (arcadeFeedback.noGoVoided || st.cooldown > 0) continue;
+					if (countdownActive || arcadeFeedback.noGoVoided || st.cooldown > 0) continue;
 					const bodyRadius = (bodyState.radiusScaled ?? bodyState.radius ?? (24 / SCENE_SCALE)) * (c.scale?.x || 1);
 					const speed = Math.hypot(bodyState.vx ?? 0, bodyState.vy ?? 0);
 					if (speed < 56 / SCENE_SCALE) continue;
@@ -4936,8 +5073,10 @@ async function boot() {
 					arcadePopupText.visible = false;
 				}
 			} else {
+				stopArcadeCountdown();
 				arcadeLayer.visible = false;
 				arcadePopupText.visible = false;
+				arcadeCountdownText.visible = false;
 				arcadeTargetLayer.clear();
 				arcadeShardLayer.clear();
 				arcadeSweepControl.eventMode = 'none';
