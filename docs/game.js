@@ -2755,8 +2755,10 @@ async function boot() {
 		livingRoomLayer.visible = false;
 		livingRoomLayer.eventMode = 'none';
 		const livingRoomBackdrop = new PIXI.Graphics();
+		const livingRoomWallGlow = new PIXI.Graphics();
 		const livingRoomFloor = new PIXI.Graphics();
 		const livingRoomShelf = new PIXI.Graphics();
+		const livingRoomForeground = new PIXI.Graphics();
 		const livingRoomTv = new PIXI.Container();
 		const livingRoomTvFrame = new PIXI.Graphics();
 		const livingRoomTvArt = new PIXI.Sprite(PIXI.Texture.WHITE);
@@ -2898,9 +2900,11 @@ async function boot() {
 		livingRoomTv.addChild(livingRoomTvFrame, livingRoomTvArt, livingRoomTvGlass, livingRoomTvStatic, livingRoomTvSlot);
 		livingRoomLayer.addChild(
 			livingRoomBackdrop,
+			livingRoomWallGlow,
 			livingRoomFloor,
 			livingRoomShelf,
 			livingRoomTv,
+			livingRoomForeground,
 			livingRoomTitle,
 			livingRoomHint,
 			livingRoomDetailsPanel,
@@ -2909,9 +2913,10 @@ async function boot() {
 			livingRoomDetailsBody,
 			livingRoomBackBtn,
 		);
-		world.addChild(livingRoomLayer);
+		app.stage.addChild(livingRoomLayer);
 		let livingRoomTvSlotX = 0;
 		let livingRoomTvSlotY = 0;
+		const livingRoomTvScreenRect = { x: 0, y: 0, w: 0, h: 0, r: 0 };
 		const applyLivingRoomTapeDetails = (tape) => {
 			if (!tape) {
 				livingRoomDetailsTitle.text = 'NO TAPE SELECTED';
@@ -2926,28 +2931,49 @@ async function boot() {
 			livingRoomDetailsStatus.style.fill = statusColorForTape(tape.status);
 			livingRoomDetailsBody.text = tape.summary || 'WIP tape sprite. Content will be added later.';
 		};
+		const drawLivingRoomBackdrop = (blend) => {
+			const sw = app.renderer.width;
+			const sh = app.renderer.height;
+			const t = Math.max(0, Math.min(1, blend));
+			const eased = 1 - Math.pow(1 - t, 3);
+			const holeX = livingRoomTvScreenRect.x * eased;
+			const holeY = livingRoomTvScreenRect.y * eased;
+			const holeW = sw + (livingRoomTvScreenRect.w - sw) * eased;
+			const holeH = sh + (livingRoomTvScreenRect.h - sh) * eased;
+			const holeR = livingRoomTvScreenRect.r * eased;
+
+			livingRoomBackdrop.clear();
+			livingRoomBackdrop.beginFill(0x0b090d, 0.86 * eased);
+			livingRoomBackdrop.drawRect(0, 0, sw, sh);
+			livingRoomBackdrop.beginHole();
+			livingRoomBackdrop.drawRoundedRect(holeX, holeY, holeW, holeH, holeR);
+			livingRoomBackdrop.endHole();
+			livingRoomBackdrop.endFill();
+		};
+
 		const layoutLivingRoom = () => {
 			const sw = app.renderer.width;
 			const sh = app.renderer.height;
-			const ww = screenToWorldSize(sw);
-			const wh = screenToWorldSize(sh);
-			livingRoomLayer.position.set(screenToWorldX(0), screenToWorldY(0));
-			livingRoomLayer.hitArea = new PIXI.Rectangle(0, 0, ww, wh);
+			livingRoomLayer.position.set(0, 0);
+			livingRoomLayer.hitArea = new PIXI.Rectangle(0, 0, sw, sh);
 
-			livingRoomBackdrop.clear();
-			livingRoomBackdrop.beginFill(0x0b090d, 0.92);
-			livingRoomBackdrop.drawRect(0, 0, ww, wh);
-			livingRoomBackdrop.endFill();
+			livingRoomWallGlow.clear();
+			livingRoomWallGlow.beginFill(0x231925, 0.36);
+			livingRoomWallGlow.drawRect(0, 0, sw, sh * 0.64);
+			livingRoomWallGlow.endFill();
+			livingRoomWallGlow.beginFill(0x1b131f, 0.28);
+			livingRoomWallGlow.drawRect(sw * 0.05, sh * 0.1, sw * 0.32, sh * 0.28);
+			livingRoomWallGlow.endFill();
 
 			livingRoomFloor.clear();
 			livingRoomFloor.beginFill(0x2b1f16, 0.9);
-			livingRoomFloor.drawRect(0, wh * 0.62, ww, wh * 0.38);
+			livingRoomFloor.drawRect(0, sh * 0.62, sw, sh * 0.38);
 			livingRoomFloor.endFill();
 
-			const tvW = ww * 0.44;
-			const tvH = wh * 0.42;
-			const tvX = ww * 0.5;
-			const tvY = wh * 0.36;
+			const tvW = sw * 0.44;
+			const tvH = sh * 0.42;
+			const tvX = sw * 0.5;
+			const tvY = sh * 0.38;
 			livingRoomTv.position.set(tvX, tvY);
 
 			livingRoomTvFrame.clear();
@@ -2958,6 +2984,14 @@ async function boot() {
 
 			const screenW = tvW * 0.76;
 			const screenH = tvH * 0.62;
+			const screenX = tvX - screenW * 0.5;
+			const screenY = tvY - tvH * 0.32;
+			livingRoomTvScreenRect.x = screenX;
+			livingRoomTvScreenRect.y = screenY;
+			livingRoomTvScreenRect.w = screenW;
+			livingRoomTvScreenRect.h = screenH;
+			livingRoomTvScreenRect.r = 9;
+
 			livingRoomTvArt.position.set(-tvW * 0.5, -tvH * 0.5);
 			livingRoomTvArt.width = tvW;
 			livingRoomTvArt.height = tvH;
@@ -2981,21 +3015,26 @@ async function boot() {
 			livingRoomTvSlotX = tvX;
 			livingRoomTvSlotY = tvY + tvH * 0.24;
 
-			livingRoomTitle.position.set(ww * 0.5, wh * 0.08);
-			livingRoomHint.position.set(ww * 0.5, wh * 0.12);
+			livingRoomTitle.position.set(sw * 0.5, sh * 0.08);
+			livingRoomHint.position.set(sw * 0.5, sh * 0.12);
 
 			livingRoomShelf.clear();
 			livingRoomShelf.lineStyle(3, 0x5b4532, 0.9);
-			livingRoomShelf.moveTo(ww * 0.11, wh * 0.7);
-			livingRoomShelf.lineTo(ww * 0.63, wh * 0.7);
+			livingRoomShelf.moveTo(sw * 0.11, sh * 0.7);
+			livingRoomShelf.lineTo(sw * 0.63, sh * 0.7);
 			livingRoomShelf.lineStyle(1.5, 0xa07c5a, 0.42);
-			livingRoomShelf.moveTo(ww * 0.11, wh * 0.696);
-			livingRoomShelf.lineTo(ww * 0.63, wh * 0.696);
+			livingRoomShelf.moveTo(sw * 0.11, sh * 0.696);
+			livingRoomShelf.lineTo(sw * 0.63, sh * 0.696);
 
-			const detailX = ww * 0.69;
-			const detailY = wh * 0.22;
-			const detailW = ww * 0.24;
-			const detailH = wh * 0.5;
+			livingRoomForeground.clear();
+			livingRoomForeground.beginFill(0x14110f, 0.8);
+			livingRoomForeground.drawRoundedRect(sw * 0.08, sh * 0.79, sw * 0.58, sh * 0.18, 14);
+			livingRoomForeground.endFill();
+
+			const detailX = sw * 0.69;
+			const detailY = sh * 0.22;
+			const detailW = sw * 0.24;
+			const detailH = sh * 0.5;
 			livingRoomDetailsPanel.clear();
 			livingRoomDetailsPanel.beginFill(0x1b1720, 0.82);
 			livingRoomDetailsPanel.lineStyle(2, 0x3b2f47, 0.8);
@@ -3011,17 +3050,19 @@ async function boot() {
 			livingRoomBackBg.lineStyle(2, 0x8f5a73, 0.86);
 			livingRoomBackBg.drawRoundedRect(0, 0, 88, 30, 8);
 			livingRoomBackBg.endFill();
-			livingRoomBackBtn.position.set(ww * 0.06, wh * 0.08);
+			livingRoomBackBtn.position.set(sw * 0.06, sh * 0.08);
 			livingRoomBackLabel.position.set(44, 15);
 
-			const tapeStartX = ww * 0.16;
-			const tapeGapX = ww * 0.095;
-			const tapeRowY = wh * 0.74;
+			const tapeStartX = sw * 0.16;
+			const tapeGapX = sw * 0.095;
+			const tapeRowY = sh * 0.74;
 			for (let i = 0; i < livingRoomTapes.length; i++) {
 				const tape = livingRoomTapes[i];
 				tape.baseX = tapeStartX + i * tapeGapX;
 				tape.baseY = tapeRowY;
 			}
+
+			drawLivingRoomBackdrop(livingRoomState.blend);
 		};
 		layoutLivingRoom();
 		const setLivingRoomTarget = (next) => {
@@ -3060,10 +3101,28 @@ async function boot() {
 				livingRoomActive = false;
 				return;
 			}
+			const blend = Math.max(0, Math.min(1, livingRoomState.blend));
+			const reveal = 1 - Math.pow(1 - blend, 3);
+			const interactionsReady = reveal > 0.94 && !livingRoomState.inserting;
 			livingRoomActive = true;
 			livingRoomLayer.visible = true;
-			livingRoomLayer.eventMode = 'static';
-			livingRoomLayer.alpha = Math.max(0, Math.min(1, livingRoomState.blend));
+			livingRoomLayer.eventMode = blend > 0.02 ? 'static' : 'none';
+			livingRoomLayer.alpha = 1;
+			drawLivingRoomBackdrop(blend);
+			livingRoomWallGlow.alpha = 0.12 + reveal * 0.88;
+			livingRoomFloor.alpha = 0.2 + reveal * 0.8;
+			livingRoomForeground.alpha = 0.1 + reveal * 0.9;
+			livingRoomTv.alpha = Math.max(0, (reveal - 0.08) / 0.92);
+			livingRoomTv.scale.set(1.18 - Math.max(0, (reveal - 0.08) / 0.92) * 0.18);
+			livingRoomTitle.alpha = reveal;
+			livingRoomHint.alpha = 0.6 * reveal;
+			livingRoomShelf.alpha = 0.15 + reveal * 0.85;
+			livingRoomDetailsPanel.alpha = 0.18 + reveal * 0.82;
+			livingRoomDetailsTitle.alpha = reveal;
+			livingRoomDetailsStatus.alpha = reveal;
+			livingRoomDetailsBody.alpha = 0.2 + reveal * 0.8;
+			livingRoomBackBtn.alpha = Math.max(0, (reveal - 0.6) / 0.4);
+			livingRoomBackBtn.eventMode = reveal > 0.78 ? 'static' : 'none';
 			const activeTape = livingRoomState.inserting?.tape
 				|| VHS_TAPE_LIBRARY.find((t) => t.id === livingRoomState.activeTapeId)
 				|| VHS_TAPE_LIBRARY[livingRoomState.hoverIndex]
@@ -3072,13 +3131,15 @@ async function boot() {
 
 			for (let i = 0; i < livingRoomTapes.length; i++) {
 				const tape = livingRoomTapes[i];
+				tape.node.eventMode = interactionsReady ? 'static' : 'none';
+				tape.node.alpha = 0.08 + reveal * 0.92;
 				const targetHover = (livingRoomState.hoverIndex === i && !livingRoomState.inserting) ? 1 : 0;
 				tape.hoverMix += (targetHover - tape.hoverMix) * Math.min(1, dtSeconds * 12);
 				const h = Math.max(0, Math.min(1, tape.hoverMix));
 				tape.node.position.set(tape.baseX + h * 6, tape.baseY - h * 14);
 				tape.node.scale.set(1 + h * 0.06);
-				const tw = screenToWorldSize(72);
-				const th = screenToWorldSize(42);
+				const tw = 72;
+				const th = 42;
 				tape.shadow.clear();
 				tape.shadow.beginFill(0x000000, 0.16 + h * 0.1);
 				tape.shadow.drawRoundedRect(-tw * 0.52 + 4, -th * 0.5 + 7, tw * 1.04, th, 7);
