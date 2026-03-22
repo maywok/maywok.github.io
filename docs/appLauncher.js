@@ -489,6 +489,18 @@ export function createAppLauncher(app, world, options = {}) {
 				glyph.style.dropShadowDistance = Math.max(1, Math.round(size * 0.03));
 				glyph.style.dropShadowBlur = 0;
 			}
+			if (item.ornament === 'lab-beaker') {
+				glyph.style.fill = 0xf4fffb;
+				glyph.style.stroke = 0x0c2230;
+				glyph.style.strokeThickness = Math.max(2, Math.round(size * 0.055));
+				glyph.style.dropShadow = true;
+				glyph.style.dropShadowColor = '#041018';
+				glyph.style.dropShadowAlpha = 0.86;
+				glyph.style.dropShadowDistance = Math.max(1, Math.round(size * 0.026));
+				glyph.style.dropShadowBlur = 0;
+				glyph.style.fontSize = Math.max(20, Math.round(size * 0.46));
+				glyph.position.set(0, size * 0.03);
+			}
 			label.style.fontSize = Math.max(10, Math.round(size * 0.18));
 			label.position.set(0, size / 2 + 8);
 
@@ -528,7 +540,7 @@ export function createAppLauncher(app, world, options = {}) {
 			} else if (item.ornament === 'mountains') {
 				glyph.visible = true;
 			} else if (item.ornament === 'lab-beaker') {
-				glyph.visible = false;
+				glyph.visible = true;
 			} else {
 				glyph.visible = true;
 			}
@@ -803,7 +815,7 @@ export function createAppLauncher(app, world, options = {}) {
 			icon.container.scale.set(scale);
 			if (icon.state.hovered || icon.state.dragging || icon.state.grabbed) launcherHovered = true;
 			const baseZ = 100 + icon.state.index;
-			icon.container.zIndex = (icon.state.dragging || icon.state.grabbed) ? 1200 : (icon.state.hovered ? 1000 : baseZ);
+			icon.container.zIndex = (icon.state.dragging || icon.state.grabbed) ? 1200 : (icon.state.hovered ? 999 : baseZ);
 			if (icon.glow) {
 				const hoverGlow = icon.item?.glowHoverAlpha ?? 0.24;
 				const idleGlow = icon.item?.glowAlpha ?? 0.08;
@@ -881,7 +893,7 @@ export function createAppLauncher(app, world, options = {}) {
 			if (icon.hoverSprite?.playing && icon.hoverSprite.visible) icon.hoverSprite.update(dtSeconds * 60);
 			icon.container._updatePlatformRect?.();
 		});
-		container.zIndex = launcherHovered ? 1000 : 80;
+		container.zIndex = launcherHovered ? 999 : 80;
 		container.parent?.sortChildren?.();
 		container.sortChildren?.();
 

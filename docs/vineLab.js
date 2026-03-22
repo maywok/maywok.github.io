@@ -69,12 +69,16 @@ export function createVineLab(app, options = {}) {
 	const ui = new PIXI.Container();
 	ui.zIndex = 120;
 	const panelBg = new PIXI.Graphics();
-	const panelTitle = new PIXI.Text('VINE LAB // SANDBOX', {
+	const panelTitle = new PIXI.Text('LAB // SANDBOX', {
 		fontFamily: 'Minecraft, monospace',
 		fontSize: 12,
 		fill: 0xe8fffa,
 		letterSpacing: 1,
 	});
+	const terminalFrame = new PIXI.Graphics();
+	const terminalViewport = new PIXI.Container();
+	const terminalContent = new PIXI.Container();
+	const terminalMask = new PIXI.Graphics();
 	const controlsText = new PIXI.Text('', {
 		fontFamily: 'Minecraft, monospace',
 		fontSize: 10,
@@ -82,25 +86,30 @@ export function createVineLab(app, options = {}) {
 		letterSpacing: 0.5,
 		lineHeight: 14,
 	});
-	const logText = new PIXI.Text('', {
+	const logLineStyle = {
 		fontFamily: 'Minecraft, monospace',
 		fontSize: 10,
 		fill: 0x9fffd8,
 		letterSpacing: 0.4,
-		lineHeight: 13,
-	});
+	};
+	const labCursor = new PIXI.Container();
+	const labCursorOuter = new PIXI.Graphics();
+	const labCursorDot = new PIXI.Graphics();
+	labCursor.zIndex = 220;
+	labCursor.eventMode = 'none';
+	labCursor.addChild(labCursorOuter, labCursorDot);
 	panelTitle.anchor.set(0, 0);
 	controlsText.anchor.set(0, 0);
-	logText.anchor.set(0, 0);
-	ui.addChild(panelBg, panelTitle, controlsText, logText);
+	terminalViewport.addChild(terminalContent, terminalMask);
+	terminalViewport.mask = terminalMask;
+	ui.addChild(panelBg, panelTitle, controlsText, terminalFrame, terminalViewport);
 
 	world.addChild(vineLightLayer, platformLayer, spawnLayer);
-	layer.addChild(background, grid, world, ui);
+	layer.addChild(background, grid, world, ui, labCursor);
 
 	const lampTexture = makeLampLightTexture('#38ffd0');
 	const lampSprites = [];
-	const logs = [];
-	const maxLogs = 7;
+	const terminalLines = [];
 	const gravityModes = [
 		{ key: 'normal', label: 'normal', value: 820 },
 		{ key: 'low', label: 'low', value: 540 },
@@ -125,6 +134,18 @@ export function createVineLab(app, options = {}) {
 		platforms: [],
 		spawnables: [],
 		nextSpawnId: 1,
+		cursor: {
+			x: app.renderer.width * 0.5,
+			y: app.renderer.height * 0.55,
+			active: false,
+		},
+		terminal: {
+			x: 0,
+			y: 0,
+			w: 0,
+			h: 0,
+			lineH: 13,
+		},
 	};
 
 	const SWING_ACCEL = 9.8;
@@ -132,17 +153,81 @@ export function createVineLab(app, options = {}) {
 	const SWING_GRAVITY = 18.0;
 	const SPAWN_LANES = [0.14, 0.27, 0.42, 0.58, 0.73, 0.86];
 
+	function drawLabCursor() {
+		labCursorOuter.clear();
+		labCursorOuter.lineStyle(1.6, accentColor, 0.9);
+		labCursorOuter.drawCircle(0, 0, 10);
+		labCursorOuter.moveTo(-14, 0);
+		labCursorOuter.lineTo(-5, 0);
+		labCursorOuter.moveTo(14, 0);
+		labCursorOuter.lineTo(5, 0);
+		labCursorOuter.moveTo(0, -14);
+		labCursorOuter.lineTo(0, -5);
+		labCursorOuter.moveTo(0, 14);
+		labCursorOuter.lineTo(0, 5);
+		labCursorDot.clear();
+		labCursorDot.beginFill(0xdffff6, 0.95);
+		labCursorDot.drawCircle(0, 0, 2.1);
+		labCursorDot.endFill();
+	}
+
+	function setCursorPosition(x, y) {
+		const w = app.renderer.width;
+		const h = app.renderer.height;
+		const nx = Math.max(0, Math.min(w, x));
+		const ny = Math.max(0, Math.min(h, y));
+		labState.cursor.x = nx;
+		labState.cursor.y = ny;
+		labState.cursor.active = true;
+		labCursor.position.set(nx, ny);
+	}
+
+	function getCursorAnchor() {
+		if (!labState.cursor.active) {
+			return { x: app.renderer.width * 0.5, y: app.renderer.height * 0.55 };
+		}
+		return { x: labState.cursor.x, y: labState.cursor.y };
+	}
+
+	function layoutTerminalLines() {
+		const lineH = labState.terminal.lineH;
+		const maxH = labState.terminal.h;
+		for (let i = 0; i < terminalLines.length; i++) {
+			terminalLines[i].position.set(0, i * lineH);
+		}
+		let totalH = terminalLines.length * lineH;
+		while (totalH > maxH && terminalLines.length > 1) {
+			const oldest = terminalLines.shift();
+			if (oldest) {
+				terminalContent.removeChild(oldest);
+				oldest.destroy?.();
+			}
+			for (let i = 0; i < terminalLines.length; i++) terminalLines[i].position.set(0, i * lineH);
+			totalH = terminalLines.length * lineH;
+		}
+	}
+
+	function clearTerminalLines() {
+		while (terminalLines.length) {
+			const node = terminalLines.pop();
+			node?.destroy?.();
+		}
+		terminalContent.removeChildren();
+	}
+
 	function pushLog(line) {
-		logs.unshift(`> ${line}`);
-		if (logs.length > maxLogs) logs.length = maxLogs;
-		logText.text = logs.join('\n');
+		const node = new PIXI.Text(`> ${line}`, logLineStyle);
+		node.anchor.set(0, 0);
+		terminalContent.addChild(node);
+		terminalLines.push(node);
+		layoutTerminalLines();
 	}
 
 	function setControlsText() {
 		controlsText.text = [
 			'WASD/Arrows: move',
 			'Space: jump / release vine',
-			'E: attach nearest vine',
+			'E: attach swing point',
 			'1 crate  2 bouncy pad  3 wind zone',
 			'G gravity  L lamp mode  M level A/B',
 			`ESC exit lab   gravity=${statusText}  lamps=${lampMode ? 'on' : 'off'}`,
@@ -171,6 +256,7 @@ export function createVineLab(app, options = {}) {
 		vineGrab = null;
 		grabRequested = false;
 		releaseRequested = false;
+		clearTerminalLines();
 	}
 
 	function applyGravityMode() {
@@ -229,33 +315,50 @@ export function createVineLab(app, options = {}) {
 		platformBias = 0.4,
 		groundYOffset = 0,
 		platformYOffset = 0,
+		preferredX = null,
+		preferredY = null,
+		allowFreeY = false,
 		pad = 12,
 	}) {
+		const anchorX = Number.isFinite(preferredX) ? preferredX : (app.renderer.width * 0.5);
+		const anchorY = Number.isFinite(preferredY) ? preferredY : (groundY - 36);
 		const attempts = 24;
 		for (let i = 0; i < attempts; i++) {
 			const usePlatform = allowPlatform && labState.platforms.length > 0 && Math.random() < platformBias;
 			let x = 0;
 			let y = 0;
+			if (i < 16) {
+				x = anchorX - w * 0.5 + (Math.random() - 0.5) * Math.max(8, w * 0.35);
+			} else {
+				x = pickLaneX(w);
+			}
 			if (usePlatform) {
-				const surface = labState.platforms[Math.floor(Math.random() * labState.platforms.length)];
+				const sorted = [...labState.platforms].sort((a, b) => {
+					const ac = a.x + a.w * 0.5;
+					const bc = b.x + b.w * 0.5;
+					return Math.abs(ac - anchorX) - Math.abs(bc - anchorX);
+				});
+				const surface = sorted.find((p) => anchorX >= p.x - 20 && anchorX <= p.x + p.w + 20) || sorted[0];
 				const minX = surface.x + 6;
 				const maxX = surface.x + surface.w - w - 6;
 				if (maxX > minX) {
-					x = minX + Math.random() * (maxX - minX);
+					x = Math.max(minX, Math.min(maxX, x));
 					y = surface.y - h + platformYOffset;
 				} else {
-					x = pickLaneX(w);
 					y = groundY - h + groundYOffset;
 				}
+			} else if (allowFreeY) {
+				y = Math.max(88, Math.min(groundY - h - 6, anchorY - h * 0.5 + (Math.random() - 0.5) * h * 0.45));
 			} else {
-				x = pickLaneX(w);
 				y = groundY - h + groundYOffset;
 			}
 			if (canPlaceSpawn(x, y, w, h, pad)) return { x, y };
 		}
 		return {
-			x: pickLaneX(w, 0.15),
-			y: groundY - h + groundYOffset,
+			x: Math.max(10, Math.min(app.renderer.width - w - 10, anchorX - w * 0.5)),
+			y: allowFreeY
+				? Math.max(88, Math.min(groundY - h - 6, anchorY - h * 0.5))
+				: (groundY - h + groundYOffset),
 		};
 	}
 
@@ -306,6 +409,7 @@ export function createVineLab(app, options = {}) {
 	function rebuildLayout() {
 		const w = app.renderer.width;
 		const h = app.renderer.height;
+		layer.hitArea = new PIXI.Rectangle(0, 0, w, h);
 		background.clear();
 		background.beginFill(0x05080f, 0.98);
 		background.drawRect(0, 0, w, h);
@@ -325,11 +429,31 @@ export function createVineLab(app, options = {}) {
 		panelBg.clear();
 		panelBg.beginFill(0x07111b, 0.9);
 		panelBg.lineStyle(1, accentColor, 0.58);
-		panelBg.drawRoundedRect(12, 12, 348, 182, 8);
+		panelBg.drawRoundedRect(12, 12, 396, 286, 8);
 		panelBg.endFill();
 		panelTitle.position.set(24, 22);
 		controlsText.position.set(24, 46);
-		logText.position.set(24, 134);
+		labState.terminal.x = 24;
+		labState.terminal.y = 126;
+		labState.terminal.w = 372;
+		labState.terminal.h = 160;
+		labState.terminal.lineH = 13;
+		terminalFrame.clear();
+		terminalFrame.beginFill(0x051018, 0.94);
+		terminalFrame.lineStyle(1, accentColor, 0.46);
+		terminalFrame.drawRoundedRect(labState.terminal.x - 2, labState.terminal.y - 2, labState.terminal.w + 4, labState.terminal.h + 4, 6);
+		terminalFrame.endFill();
+		terminalViewport.position.set(labState.terminal.x, labState.terminal.y);
+		terminalMask.clear();
+		terminalMask.beginFill(0xffffff, 1);
+		terminalMask.drawRoundedRect(0, 0, labState.terminal.w, labState.terminal.h, 5);
+		terminalMask.endFill();
+		layoutTerminalLines();
+		if (!labState.cursor.active) {
+			setCursorPosition(w * 0.5, h * 0.55);
+		} else {
+			setCursorPosition(labState.cursor.x, labState.cursor.y);
+		}
 
 		buildBasePlatforms();
 		platformLayer.clear();
@@ -350,11 +474,14 @@ export function createVineLab(app, options = {}) {
 	function spawnCrate() {
 		const w = 44;
 		const h = 36;
+		const cursor = getCursorAnchor();
 		const at = findSpawnPosition({
 			w,
 			h,
 			allowPlatform: true,
 			platformBias: 0.52,
+			preferredX: cursor.x,
+			preferredY: cursor.y,
 			groundYOffset: 0,
 			platformYOffset: 0,
 			pad: 12,
@@ -366,11 +493,14 @@ export function createVineLab(app, options = {}) {
 	function spawnBouncePad() {
 		const w = 70;
 		const h = 14;
+		const cursor = getCursorAnchor();
 		const at = findSpawnPosition({
 			w,
 			h,
 			allowPlatform: true,
 			platformBias: 0.22,
+			preferredX: cursor.x,
+			preferredY: cursor.y,
 			groundYOffset: 0,
 			platformYOffset: 0,
 			pad: 18,
@@ -382,11 +512,15 @@ export function createVineLab(app, options = {}) {
 	function spawnWindZone() {
 		const w = 120;
 		const h = 120;
+		const cursor = getCursorAnchor();
 		const at = findSpawnPosition({
 			w,
 			h,
 			allowPlatform: true,
 			platformBias: 0.7,
+			preferredX: cursor.x,
+			preferredY: cursor.y,
+			allowFreeY: true,
 			groundYOffset: -18,
 			platformYOffset: -22,
 			pad: 20,
@@ -695,13 +829,13 @@ export function createVineLab(app, options = {}) {
 		time = 0;
 		layer.visible = true;
 		layer.eventMode = 'static';
+		app.view.style.cursor = 'none';
 		clearWorld();
 		rebuildLayout();
 		buildVines();
 		resetPlayer();
-		logs.length = 0;
 		setControlsText();
-		pushLog('vine lab booted');
+		pushLog('lab booted');
 		pushLog('spawn with 1/2/3');
 		window.addEventListener('keydown', onKeyDown);
 		window.addEventListener('keyup', onKeyUp);
@@ -714,6 +848,7 @@ export function createVineLab(app, options = {}) {
 		window.removeEventListener('keyup', onKeyUp);
 		layer.visible = false;
 		layer.eventMode = 'none';
+		app.view.style.cursor = 'none';
 		clearWorld();
 	}
 
@@ -742,10 +877,32 @@ export function createVineLab(app, options = {}) {
 	function update(dt) {
 		if (!active) return;
 		time += dt;
+		const cursorPulse = 1 + Math.sin(time * 7.4) * 0.06;
+		labCursor.scale.set(cursorPulse);
 		drawSpawnables(time);
 		updateSwing(dt);
 		updateVines(dt);
 	}
+
+	layer.on('pointermove', (event) => {
+		if (!active) return;
+		const p = event.data?.getLocalPosition?.(layer) || event.getLocalPosition?.(layer);
+		if (!p) return;
+		setCursorPosition(p.x, p.y);
+	});
+	layer.on('pointerdown', (event) => {
+		if (!active) return;
+		const p = event.data?.getLocalPosition?.(layer) || event.getLocalPosition?.(layer);
+		if (!p) return;
+		setCursorPosition(p.x, p.y);
+	});
+	layer.on('pointerenter', (event) => {
+		if (!active) return;
+		const p = event.data?.getLocalPosition?.(layer) || event.getLocalPosition?.(layer);
+		if (!p) return;
+		setCursorPosition(p.x, p.y);
+	});
+	drawLabCursor();
 
 	return {
 		open,

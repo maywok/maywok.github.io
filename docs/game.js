@@ -1172,61 +1172,39 @@ async function boot() {
 				scene.position.set(cx, cy);
 				scene.scale.set(SCENE_SCALE);
 			}
-			const { filter: crtFisheyeFilter, uniforms: crtFisheyeUniforms } = createCRTFisheyeFilter(app, {
-				intensity: 0.08,
-				brightness: 0.06,
-				scanStrength: 0.85,
-				curve: 0.008,
-				vignette: 0.0,
-			});
 			const { filter: crtScanlinesFilter, uniforms: crtScanlinesUniforms } = createCRTScanlinesFilter(app, {
-				strength: 0.42,
-				speed: 0.25,
-				noise: 0.03,
-				mask: 0.14,
+				strength: 0.5,
+				speed: 0.2,
+				noise: 0.022,
+				mask: 0.2,
 			});
-			crtFisheyeFilter.padding = 16;
-			scene.filters = [crtFisheyeFilter, crtScanlinesFilter];
-
-			const inverseFisheye = (nx, ny, curve) => {
-				if (!curve || curve <= 0) return { x: nx, y: ny };
-				const px = nx * 2 - 1;
-				const py = ny * 2 - 1;
-				const r2p = px * px + py * py;
-				if (r2p <= 1e-6) return { x: nx, y: ny };
-				const rp = Math.sqrt(r2p);
-				let r = rp;
-				for (let i = 0; i < 6; i++) {
-					const f = r + curve * r * r * r - rp;
-					const df = 1 + 3 * curve * r * r;
-					r = r - f / df;
-				}
-				const scale = (r > 0) ? (r / rp) : 1;
-				const ux = (px * scale + 1) * 0.5;
-				const uy = (py * scale + 1) * 0.5;
-				return { x: ux, y: uy };
+			const crtOverlay = new PIXI.Container();
+			crtOverlay.sortableChildren = true;
+			crtOverlay.eventMode = 'none';
+			crtOverlay.zIndex = 4500;
+			const crtOverlayPlate = new PIXI.Sprite(PIXI.Texture.WHITE);
+			crtOverlayPlate.tint = 0xd8eef4;
+			crtOverlayPlate.alpha = 0.12;
+			const crtOverlayVignette = new PIXI.Graphics();
+			crtOverlay.addChild(crtOverlayPlate, crtOverlayVignette);
+			crtOverlay.filters = [crtScanlinesFilter];
+			uiTopLayer.addChild(crtOverlay);
+			const drawCrtOverlay = () => {
+				const sw = app.renderer.width;
+				const sh = app.renderer.height;
+				const edge = Math.max(24, Math.round(Math.min(sw, sh) * 0.06));
+				crtOverlayPlate.position.set(0, 0);
+				crtOverlayPlate.width = sw;
+				crtOverlayPlate.height = sh;
+				crtOverlayVignette.clear();
+				crtOverlayVignette.beginFill(0x02060c, 0.16);
+				crtOverlayVignette.drawRect(0, 0, sw, edge);
+				crtOverlayVignette.drawRect(0, sh - edge, sw, edge);
+				crtOverlayVignette.drawRect(0, edge, edge, sh - edge * 2);
+				crtOverlayVignette.drawRect(sw - edge, edge, edge, sh - edge * 2);
+				crtOverlayVignette.endFill();
 			};
-			const interaction = app.renderer?.plugins?.interaction || app.renderer?.events;
-			const defaultMapPositionToPoint = interaction?.mapPositionToPoint?.bind?.(interaction);
-			if (defaultMapPositionToPoint) interaction.mapPositionToPoint = (point, x, y) => {
-				const w = app.renderer.width || 0;
-				const h = app.renderer.height || 0;
-				if (w <= 0 || h <= 0) {
-					defaultMapPositionToPoint(point, x, y);
-					return;
-				}
-				const nx = x / w;
-				const ny = y / h;
-				const { x: ux, y: uy } = inverseFisheye(nx, ny, crtFisheyeUniforms?.u_curve ?? 0);
-				const mx = ux * w;
-				const my = uy * h;
-				if (!Number.isFinite(mx) || !Number.isFinite(my)) {
-					defaultMapPositionToPoint(point, x, y);
-					return;
-				}
-				point.x = Math.max(0, Math.min(w, mx));
-				point.y = Math.max(0, Math.min(h, my));
-			};
+			drawCrtOverlay();
 			let themeKey = loadThemeKey();
 			let theme = THEMES[themeKey];
 
@@ -1464,7 +1442,7 @@ async function boot() {
 					waveMotion: 1.06,
 					lampBoost: 0.13,
 				},
-				VineLab: {
+				Lab: {
 					waveTint: 0x2b8675,
 					waveMix: 0.21,
 					lampTint: 0x38ffd0,
@@ -1691,8 +1669,9 @@ async function boot() {
 			let dragEnabled = false;
 			let ringSpin = 0;
 			let ringSpinVel = 0;
-			const ringSlotCount = 7;
-			const ringSlotStep = (Math.PI * 2) / ringSlotCount;
+			let launcherWheelItemCount = 4;
+			const WHEEL_EXTERNAL_ICON_COUNT = 4;
+			const getRingIconCount = () => Math.max(1, launcherWheelItemCount + WHEEL_EXTERNAL_ICON_COUNT);
 			const ringStartAngle = -Math.PI * 0.62;
 			const CORE_CLOCK_SCALE = 1.3;
 			const CORE_BASE_HALF_SIZE = 49;
@@ -1709,7 +1688,9 @@ async function boot() {
 			const getClockHalfScreenSize = () => CORE_BASE_HALF_SIZE * CORE_CLOCK_SCALE;
 			const getRingIconSize = () => Math.max(58, Math.min(84, app.renderer.height * 0.108));
 			const getRingRadius = () => {
-				const baseRadius = Math.max(132, Math.min(250, Math.min(app.renderer.width, app.renderer.height) * 0.285));
+				const ringCount = getRingIconCount();
+				const countBoost = Math.max(0, ringCount - 6) * getRingIconSize() * 0.14;
+				const baseRadius = Math.max(132, Math.min(286, Math.min(app.renderer.width, app.renderer.height) * 0.285 + countBoost));
 				const clockHalf = getClockHalfScreenSize();
 				const iconHalf = getRingIconSize() * 0.5;
 				const collisionClearance = clockHalf * 0.64;
@@ -1723,9 +1704,11 @@ async function boot() {
 			const RING_MAX_SPIN_VEL = 10.5;
 			const getRingSlotScreenPos = (slotIndex) => {
 				const core = getCoreScreenPos();
-				const slot = ((slotIndex % ringSlotCount) + ringSlotCount) % ringSlotCount;
+				const ringCount = getRingIconCount();
+				const step = (Math.PI * 2) / ringCount;
+				const slot = ((slotIndex % ringCount) + ringCount) % ringCount;
 				const radius = getRingSlotRadius();
-				const angle = ringStartAngle + slot * ringSlotStep + ringSpin;
+				const angle = ringStartAngle + slot * step + ringSpin;
 				return {
 					x: core.x + Math.cos(angle) * radius,
 					y: core.y + Math.sin(angle) * radius,
@@ -1908,8 +1891,7 @@ async function boot() {
 			drawSystemCore(0);
 			placeAmbientDebris();
 
-			const appLauncher = createAppLauncher(app, world, {
-				items: [
+			const launcherItems = [
 					{
 						label: 'Resume',
 						moodKey: 'Resume',
@@ -1946,11 +1928,12 @@ async function boot() {
 						ornamentColor: 0x665881,
 					},
 					{
-						displayName: 'Vine Lab',
-						label: 'Vine Lab',
-						moodKey: 'VineLab',
-						tooltip: 'Open Vine Lab',
-						hoverActionText: 'Open Vine Lab',
+						displayName: 'Lab',
+						label: 'Lab',
+						moodKey: 'Lab',
+						glyph: 'L',
+						tooltip: 'Open Lab',
+						hoverActionText: 'Open Lab',
 						onTap: () => {
 							openVineLabNow();
 						},
@@ -1960,7 +1943,7 @@ async function boot() {
 						accentColor: 0x38ffd0,
 						panelBorderAlpha: 0.95,
 						glyphColor: 0xe8fffa,
-						labelColor: 0xb8ffea,
+						labelColor: 0xffffff,
 						glowAlpha: 0.08,
 						glowHoverAlpha: 0.24,
 						ornament: 'lab-beaker',
@@ -1988,7 +1971,10 @@ async function boot() {
 						ornament: 'mountains',
 						ornamentColor: 0x6ec6f7,
 					},
-				],
+				];
+			launcherWheelItemCount = launcherItems.length;
+			const appLauncher = createAppLauncher(app, world, {
+				items: launcherItems,
 				screenToWorldX,
 				screenToWorldY,
 				screenToWorldSize,
@@ -1996,9 +1982,7 @@ async function boot() {
 					setMoodHover(key, hovered, container);
 				},
 				layoutProvider: ({ index }) => {
-					const slots = [5, 1, 3, 6];
-					const slot = slots[index] ?? 5;
-					return getIntroPoseForSlot(slot);
+					return getIntroPoseForSlot(index);
 				},
 			});
 			appLauncher.layout();
@@ -2424,13 +2408,14 @@ async function boot() {
 			const getSlotPose = (slotIndex) => getIntroPoseForSlot(slotIndex);
 			const getSlotX = (slotIndex) => getSlotPose(slotIndex).x;
 			const getSlotY = (slotIndex) => getSlotPose(slotIndex).y;
+			const getExternalSlotIndex = (externalOrdinal) => launcherWheelItemCount + externalOrdinal;
 			try {
 				const blogIconResult = await withTimeout(createBlogIcon(app, world, {
 					url: '/blog',
 					screenScale: SCENE_SCALE,
 					onHoverChange: ({ hovered, key, container }) => setMoodHover(key, hovered, container),
-					dockScreenX: () => getSlotX(2),
-					dockScreenY: () => getSlotY(2),
+					dockScreenX: () => getSlotX(getExternalSlotIndex(0)),
+					dockScreenY: () => getSlotY(getExternalSlotIndex(0)),
 					panelFill: 0x2a1b12,
 					panelFillAlpha: 0.94,
 					panelBorder: 0xffb66d,
@@ -2453,8 +2438,8 @@ async function boot() {
 					url: 'https://www.linkedin.com/in/mason--walker/',
 					screenScale: SCENE_SCALE,
 					onHoverChange: ({ hovered, key, container }) => setMoodHover(key, hovered, container),
-					dockScreenX: () => getSlotX(0),
-					dockScreenY: () => getSlotY(0),
+					dockScreenX: () => getSlotX(getExternalSlotIndex(1)),
+					dockScreenY: () => getSlotY(getExternalSlotIndex(1)),
 					panelFill: 0x0c1c3a,
 					panelFillAlpha: 0.96,
 					panelBorder: 0x62bbff,
@@ -2476,8 +2461,8 @@ async function boot() {
 				const reflexIconResult = await withTimeout(createReflexIcon(app, world, {
 					screenScale: SCENE_SCALE,
 					onHoverChange: ({ hovered, key, container }) => setMoodHover(key, hovered, container),
-					dockScreenX: () => getSlotX(3),
-					dockScreenY: () => getSlotY(3),
+					dockScreenX: () => getSlotX(getExternalSlotIndex(2)),
+					dockScreenY: () => getSlotY(getExternalSlotIndex(2)),
 					panelFill: 0x2a1119,
 					panelFillAlpha: 0.95,
 					panelBorder: 0xff7f9d,
@@ -2499,8 +2484,8 @@ async function boot() {
 				const walklatroIconResult = await withTimeout(createWalklatroIcon(app, world, {
 					screenScale: SCENE_SCALE,
 					onHoverChange: ({ hovered, key, container }) => setMoodHover(key, hovered, container),
-					dockScreenX: () => getSlotX(4),
-					dockScreenY: () => getSlotY(4),
+					dockScreenX: () => getSlotX(getExternalSlotIndex(3)),
+					dockScreenY: () => getSlotY(getExternalSlotIndex(3)),
 					panelFill: 0x1c1208,
 					panelFillAlpha: 0.96,
 					panelBorder: 0xf2c46f,
@@ -2646,6 +2631,7 @@ async function boot() {
 
 		const transitionWipe = new PIXI.Graphics();
 		transitionWipe.eventMode = 'none';
+		transitionWipe.zIndex = 4700;
 		transitionWipe.visible = false;
 		app.stage.addChild(transitionWipe);
 
@@ -2670,6 +2656,14 @@ async function boot() {
 			phase: 0,
 			duration: 0.28,
 			surge: 0,
+			direction: 1,
+			action: null,
+			actionTriggered: false,
+		};
+		const vineLabTransition = {
+			active: false,
+			phase: 0,
+			duration: 0.34,
 			direction: 1,
 			action: null,
 			actionTriggered: false,
@@ -3756,26 +3750,44 @@ async function boot() {
 			vineLabApp.resize();
 		};
 		openVineLabNow = () => {
-			if (vineLabActive || livingRoomActive || desktopTwoActive || desktopTwoEntryTransition.active) return;
-			vineLabActive = true;
-			livingRoomState.targetBlend = 0;
-			livingRoomState.blend = 0;
-			livingRoomState.viewMode = VIEW_FULLSCREEN;
-			livingRoomLayer.visible = false;
-			livingRoomLayer.eventMode = 'none';
-			fullscreenTvContentLayer.visible = false;
-			setDesktopTwoActive(false);
-			scene.visible = false;
-			vineLabApp.open();
+			if (vineLabActive || vineLabTransition.active || livingRoomActive || desktopTwoActive || desktopTwoEntryTransition.active) return;
+			vineLabTransition.active = true;
+			vineLabTransition.phase = 0;
+			vineLabTransition.duration = 0.34;
+			vineLabTransition.direction = 1;
+			vineLabTransition.actionTriggered = false;
+			vineLabTransition.action = () => {
+				vineLabActive = true;
+				livingRoomState.targetBlend = 0;
+				livingRoomState.blend = 0;
+				livingRoomState.viewMode = VIEW_FULLSCREEN;
+				livingRoomLayer.visible = false;
+				livingRoomLayer.eventMode = 'none';
+				fullscreenTvContentLayer.visible = false;
+				setDesktopTwoActive(false);
+				scene.visible = false;
+				vineLabApp.open();
+			};
+			drawTransitionWipe(0.01);
 		};
 		closeVineLabNow = () => {
-			if (!vineLabActive) return;
-			vineLabActive = false;
-			vineLabApp.close();
-			scene.visible = true;
-			livingRoomLayer.visible = false;
-			livingRoomLayer.eventMode = 'none';
-			fullscreenTvContentLayer.visible = false;
+			if ((!vineLabActive && !vineLabTransition.active) || vineLabTransition.active) return;
+			vineLabTransition.active = true;
+			vineLabTransition.phase = 0;
+			vineLabTransition.duration = 0.3;
+			vineLabTransition.direction = -1;
+			vineLabTransition.actionTriggered = false;
+			vineLabTransition.action = () => {
+				if (vineLabActive) {
+					vineLabActive = false;
+					vineLabApp.close();
+				}
+				scene.visible = true;
+				livingRoomLayer.visible = false;
+				livingRoomLayer.eventMode = 'none';
+				fullscreenTvContentLayer.visible = false;
+			};
+			drawTransitionWipe(0.01);
 		};
 		onDesktopTwoExitRequested = () => {};
 		tvScreenHitArea.on('pointertap', () => {
@@ -4274,21 +4286,6 @@ async function boot() {
 			return best;
 		}
 
-		function invertFisheyeUV(uv, curve, iterations = 5) {
-			if (!curve || curve <= 0) return uv;
-			let px = uv.x * 2 - 1;
-			let py = uv.y * 2 - 1;
-			const tx = px;
-			const ty = py;
-			for (let i = 0; i < iterations; i++) {
-				const r2 = px * px + py * py;
-				const k = 1 + curve * r2;
-				px = tx / k;
-				py = ty / k;
-			}
-			return { x: (px + 1) * 0.5, y: (py + 1) * 0.5 };
-		}
-
 		app.ticker.add((dt) => {
 			if (!Number.isFinite(mouse.x) || !Number.isFinite(mouse.y)) {
 				mouse.x = app.renderer.width * 0.5;
@@ -4304,7 +4301,6 @@ async function boot() {
 					`renderer: ${app.renderer.width}x${app.renderer.height}\n` +
 					`dpr: ${dpr.toFixed(2)}`;
 			}
-			updateCRTFisheyeFilter({ uniforms: crtFisheyeUniforms }, app, dt / 60);
 			updateCRTScanlinesFilter({ uniforms: crtScanlinesUniforms }, app, dt / 60);
 			updateCursorPixelate();
 			const seconds = dt / 60;
@@ -4322,6 +4318,8 @@ async function boot() {
 				drawBasketballToggle();
 			}
 			desktopTwoEntryTransition.surge = Math.max(0, desktopTwoEntryTransition.surge - seconds / 0.32);
+			let transitionWipePhase = 0;
+			let keepLivingRoomJitter = false;
 			if (desktopTwoEntryTransition.active) {
 				desktopTwoEntryTransition.phase += seconds / desktopTwoEntryTransition.duration;
 				const triggerAt = desktopTwoEntryTransition.direction > 0 ? 0.78 : 0.16;
@@ -4329,10 +4327,11 @@ async function boot() {
 					desktopTwoEntryTransition.action?.();
 					desktopTwoEntryTransition.actionTriggered = true;
 				}
-				drawTransitionWipe(desktopTwoEntryTransition.phase);
+				transitionWipePhase = Math.max(transitionWipePhase, desktopTwoEntryTransition.phase);
 				if (desktopTwoEntryTransition.direction > 0 && desktopTwoEntryTransition.actionTriggered && livingRoomLayer.visible) {
 					const jitterScale = Math.max(0, 1 - desktopTwoEntryTransition.phase);
 					livingRoomLayer.position.x = (Math.random() - 0.5) * 6 * jitterScale;
+					keepLivingRoomJitter = true;
 				}
 				if (desktopTwoEntryTransition.phase >= 1) {
 					desktopTwoEntryTransition.active = false;
@@ -4344,13 +4343,32 @@ async function boot() {
 					if (desktopTwoEntryTransition.direction > 0) {
 						terminalTypingHold = false;
 					}
-					livingRoomLayer.position.x = 0;
-					drawTransitionWipe(0);
+					desktopTwoEntryTransition.phase = 0;
 				}
-			} else if (transitionWipe.visible) {
-				drawTransitionWipe(0);
+			}
+			if (vineLabTransition.active) {
+				vineLabTransition.phase += seconds / vineLabTransition.duration;
+				const triggerAt = vineLabTransition.direction > 0 ? 0.56 : 0.22;
+				if (!vineLabTransition.actionTriggered && vineLabTransition.phase >= triggerAt) {
+					vineLabTransition.action?.();
+					vineLabTransition.actionTriggered = true;
+				}
+				transitionWipePhase = Math.max(transitionWipePhase, vineLabTransition.phase);
+				if (vineLabTransition.phase >= 1) {
+					vineLabTransition.active = false;
+					if (!vineLabTransition.actionTriggered) {
+						vineLabTransition.action?.();
+					}
+					vineLabTransition.actionTriggered = false;
+					vineLabTransition.action = null;
+					vineLabTransition.phase = 0;
+				}
+			}
+			if (!keepLivingRoomJitter) {
 				livingRoomLayer.position.x = 0;
 			}
+			if (transitionWipePhase > 0.001) drawTransitionWipe(transitionWipePhase);
+			else if (transitionWipe.visible) drawTransitionWipe(0);
 			updateLivingRoomScene(seconds);
 			if (vineLabActive) {
 				scene.visible = false;
@@ -4443,9 +4461,8 @@ async function boot() {
 				density: FLOW_BASE.density * (1 + (moodCurrent.waveMotion - 1) * 0.45 + transitionSurge * 0.14),
 				glowAlpha: clamp01(FLOW_BASE.glowAlpha + moodCurrent.glowStrength * 0.16 + transitionSurge * 0.2),
 			});
-			crtFisheyeUniforms.u_vignette = clamp01(moodCurrent.vignette);
-			crtFisheyeUniforms.u_brightness = 0.06 + moodCurrent.contrast;
 			crtScanlinesUniforms.u_strength = 0.42 + moodCurrent.contrast * 0.45;
+			crtScanlinesUniforms.u_noise = 0.02 + moodCurrent.glowStrength * 0.03;
 			window.moodCurrent = {
 				key: activeMoodEntry?.key || 'default',
 				locked: Boolean(moodLockTarget),
@@ -4494,15 +4511,8 @@ async function boot() {
 				updateFlowBackground(time, cameraOffset);
 			const cx = app.renderer.width / 2;
 			const cy = app.renderer.height / 2;
-			const uv = { x: mouse.x / app.renderer.width, y: mouse.y / app.renderer.height };
-			let undistortedUV = invertFisheyeUV(uv, crtFisheyeUniforms?.u_curve ?? 0);
-			if (!Number.isFinite(undistortedUV.x) || !Number.isFinite(undistortedUV.y)) {
-				undistortedUV = { x: uv.x, y: uv.y };
-			}
-			undistortedUV.x = Math.max(0, Math.min(1, undistortedUV.x));
-			undistortedUV.y = Math.max(0, Math.min(1, undistortedUV.y));
-			const screenX = undistortedUV.x * app.renderer.width;
-			const screenY = undistortedUV.y * app.renderer.height;
+			const screenX = Math.max(0, Math.min(app.renderer.width, mouse.x));
+			const screenY = Math.max(0, Math.min(app.renderer.height, mouse.y));
 			const mouseWorldX = (screenX - cx - cameraOffset.x) / SCENE_SCALE + cx;
 			const mouseWorldY = (screenY - cy - cameraOffset.y) / SCENE_SCALE + cy;
 			cursorContainer.position.set(screenX, screenY);
@@ -4958,7 +4968,10 @@ async function boot() {
 			layoutScene();
 			layoutLeftPortal();
 			layoutLivingRoom();
-			if (desktopTwoEntryTransition.active) drawTransitionWipe(desktopTwoEntryTransition.phase);
+			drawCrtOverlay();
+			if (desktopTwoEntryTransition.active || vineLabTransition.active) {
+				drawTransitionWipe(Math.max(desktopTwoEntryTransition.phase, vineLabTransition.phase));
+			}
 			else drawTransitionWipe(0);
 			resizeFlowBackground();
 			placeAmbientDebris();
