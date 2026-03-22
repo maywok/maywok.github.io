@@ -3000,124 +3000,89 @@ async function boot() {
 		app.stage.addChild(fullscreenTvContentLayer);
 		applyWipSpriteTexture(livingRoomTvArt, LIVING_ROOM_ASSETS.tvSpritePath);
 		applyWipSpriteTexture(tvEmptySprite, LIVING_ROOM_ASSETS.tapeSpritePath);
-		const setPlacardDetails = ({ title, status, body, ledText, ledColor }) => {
-			placardTitle.text = title;
-			placardStatus.text = status;
-			placardStatus.style.fill = ledColor;
-			placardBody.text = body;
-			placardLedLabel.text = ledText;
-			placardLed.clear();
-			placardLed.beginFill(ledColor, 0.82);
-			placardLed.drawCircle(0, 0, 4.5);
-			placardLed.endFill();
-		};
+		let terminalFullText = '';
+		let terminalTypedIndex = 0;
+		let terminalTypeTimer = 0;
+		let terminalSourceKey = '';
+		let previewSourceKey = '';
+		let previewUsesDesktopFeed = false;
+		const TERMINAL_TYPE_RATE = 54;
+		const DEFAULT_TERMINAL_TEXT = [
+			'boot sequence complete...',
+			'loading jokes.bro',
+			'> why did bro cross the terminal?',
+			'> to escape the null zone, bro',
+		].join('\n');
 		const getTapeById = (tapeId) => VHS_TAPE_LIBRARY.find((tape) => tape.id === tapeId) || null;
+		const getTerminalTextForTape = (tape) => {
+			if (!tape) return 'No cartridge selected.';
+			if (tape.id === 'default-home') return DEFAULT_TERMINAL_TEXT;
+			return `Nothing here yet ${livingRoomState.emptyPreviewWord}`;
+		};
+		const setTerminalText = (nextText, sourceKey = nextText) => {
+			if (terminalSourceKey === sourceKey && terminalFullText === nextText) return;
+			terminalSourceKey = sourceKey;
+			terminalFullText = nextText;
+			terminalTypedIndex = 0;
+			terminalTypeTimer = 0;
+			tvBroSub.text = '';
+		};
+		const setPreviewForTape = (tape) => {
+			const nextPreviewKey = tape?.id || 'none';
+			if (previewSourceKey === nextPreviewKey) return;
+			previewSourceKey = nextPreviewKey;
+			if (tape?.id === 'default-home') {
+				previewUsesDesktopFeed = true;
+				tvDesktopContentSprite.texture = tvDesktopRenderTexture;
+				tvDesktopContentSprite.tint = 0xffffff;
+				return;
+			}
+			previewUsesDesktopFeed = false;
+			const previewPath = LIVING_ROOM_ASSETS.tapeLabelById[tape?.id] || LIVING_ROOM_ASSETS.tapeSpritePath;
+			applyWipSpriteTexture(tvDesktopContentSprite, previewPath);
+		};
 		const refreshPlacard = () => {
-			if (livingRoomState.contentMode === CONTENT_SCREENSAVER) {
-				setPlacardDetails({
-					title: 'NO TAPE SELECTED',
-					status: 'STATUS: IDLE',
-					body: 'Screensaver active. Insert a VHS to play.',
-					ledText: 'IDLE',
-					ledColor: 0x9ec0ff,
-				});
-				return;
-			}
-			if (livingRoomState.contentMode === CONTENT_EMPTY) {
-				setPlacardDetails({
-					title: 'EMPTY TAPE',
-					status: 'STATUS: EMPTY',
-					body: `Nothing here yet ${livingRoomState.emptyPreviewWord}`,
-					ledText: 'EMPTY',
-					ledColor: 0xffc57a,
-				});
-				return;
-			}
-			if (livingRoomState.contentMode === CONTENT_BRO_MEME && livingRoomState.insertedTapeId === 'default-home') {
-				setPlacardDetails({
-					title: 'DEFAULT TAPE',
-					status: 'STATUS: INSERTED',
-					body: 'Bro jokes terminal loaded. Press EJECT for screensaver.',
-					ledText: 'INSERTED',
-					ledColor: 0x88d9ff,
-				});
-				return;
-			}
-			const playingTape = getTapeById(livingRoomState.activeTapeId);
 			const hoveredTape = VHS_TAPE_LIBRARY[livingRoomState.hoverIndex] || null;
-			if (livingRoomState.mode === STATE_LIVING_ROOM_PLAYING && playingTape) {
-				setPlacardDetails({
-					title: `NOW PLAYING: ${playingTape.title}`,
-					status: `STATUS: ${(playingTape.status || 'wip').toUpperCase()}`,
-					body: playingTape.summary || 'Playback in progress.',
-					ledText: 'PLAYING',
-					ledColor: 0x7fe39f,
-				});
-				return;
-			}
-			if (livingRoomState.inserting?.tape) {
-				const tape = livingRoomState.inserting.tape;
-				setPlacardDetails({
-					title: `INSERTING: ${tape.title}`,
-					status: `STATUS: ${(tape.status || 'wip').toUpperCase()}`,
-					body: 'Routing tape to slot...',
-					ledText: 'LOADING',
-					ledColor: 0xffd56b,
-				});
-				return;
-			}
-			if (hoveredTape) {
-				setPlacardDetails({
-					title: `${hoveredTape.title} VHS`,
-					status: `STATUS: ${(hoveredTape.status || 'wip').toUpperCase()}`,
-					body: `${hoveredTape.summary || 'Placeholder tape.'} Click to insert.`,
-					ledText: 'READY',
-					ledColor: statusColorForTape(hoveredTape.status),
-				});
-				return;
-			}
-			setPlacardDetails({
-				title: 'NO TAPE SELECTED',
-				status: 'STATUS: IDLE',
-				body: 'Hover a tape to inspect metadata.',
-				ledText: 'NO TAPE',
-				ledColor: 0xd9c6a8,
-			});
+			const selectedTape = getTapeById(livingRoomState.activeTapeId) || getTapeById('default-home');
+			const focusTape = hoveredTape || selectedTape;
+			if (!focusTape) return;
+			setPreviewForTape(focusTape);
+			const sourceKey = `${hoveredTape ? 'hover' : 'selected'}:${focusTape.id}:${livingRoomState.emptyPreviewWord}`;
+			setTerminalText(getTerminalTextForTape(focusTape), sourceKey);
 		};
 		const createTapeNode = (tape, index) => {
 			const node = new PIXI.Container();
 			const shadow = new PIXI.Graphics();
 			const body = new PIXI.Graphics();
+			const notch = new PIXI.Graphics();
+			const shellHighlight = new PIXI.Graphics();
+			const shellShadow = new PIXI.Graphics();
+			const screws = new PIXI.Graphics();
 			const art = new PIXI.Sprite(PIXI.Texture.WHITE);
 			const labelStrip = new PIXI.Graphics();
-			const statusLed = new PIXI.Graphics();
 			const title = new PIXI.Text('EMPTY', {
 				fontFamily: 'Minecraft, monospace',
-				fontSize: 9,
+				fontSize: 10,
 				fill: 0xefe1cb,
 				letterSpacing: 1,
 			});
 			title.anchor.set(0.5, 0.5);
-			const status = new PIXI.Text((tape.status || 'wip').toUpperCase(), {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 8,
-				fill: statusColorForTape(tape.status),
-				letterSpacing: 1,
-			});
-			status.anchor.set(0.5, 0.5);
-			status.visible = false;
-			const side = index < 3 ? 'left' : 'right';
 			applyWipSpriteTexture(art, LIVING_ROOM_ASSETS.tapeLabelById[tape.id] || LIVING_ROOM_ASSETS.tapeSpritePath);
 			art.alpha = 0.6;
-			node.addChild(shadow, body, art, labelStrip, statusLed, title, status);
+			node.addChild(shadow, body, notch, labelStrip, art, screws, shellHighlight, shellShadow, title);
 			node.eventMode = 'static';
 			node.cursor = 'pointer';
 			node.on('pointerover', () => {
 				if (livingRoomState.viewMode !== VIEW_TV_AREA || livingRoomState.inserting || livingRoomState.targetBlend < 1) return;
+				if (!tape.hasContent || tape.contentType === CONTENT_EMPTY) {
+					livingRoomState.emptyPreviewWord = pickBroPlaceholderWord();
+				}
 				livingRoomState.hoverIndex = index;
+				refreshPlacard();
 			});
 			node.on('pointerout', () => {
 				if (livingRoomState.hoverIndex === index) livingRoomState.hoverIndex = -1;
+				refreshPlacard();
 			});
 			node.on('pointertap', () => {
 				playTape(tape.id);
@@ -3127,12 +3092,14 @@ async function boot() {
 				node,
 				shadow,
 				body,
+				notch,
+				shellHighlight,
+				shellShadow,
+				screws,
 				art,
 				labelStrip,
-				statusLed,
 				title,
-				status,
-				side,
+				side: 'left',
 				hoverMix: 0,
 				baseX: 0,
 				baseY: 0,
@@ -3146,23 +3113,23 @@ async function boot() {
 			const tapeEntry = tapeNodeById.get(tapeId);
 			if (!tapeEntry) return;
 			livingRoomState.hoverIndex = -1;
+			livingRoomState.activeTapeId = tapeEntry.tape.id;
+			livingRoomState.insertedTapeId = tapeEntry.tape.id;
+			livingRoomState.inserting = null;
+			livingRoomState.staticBurst = 0.05 + Math.random() * 0.04;
 			if (!tapeEntry.tape.hasContent || tapeEntry.tape.contentType === CONTENT_EMPTY) {
 				livingRoomState.mode = STATE_LIVING_ROOM_IDLE;
-				livingRoomState.activeTapeId = tapeEntry.tape.id;
 				livingRoomState.contentMode = CONTENT_EMPTY;
 				livingRoomState.emptyPreviewWord = pickBroPlaceholderWord();
 				livingRoomState.playingMix = 0;
 				refreshPlacard();
 				return;
 			}
-			livingRoomState.mode = STATE_LIVING_ROOM_IDLE;
-			livingRoomState.inserting = {
-				tape: tapeEntry.tape,
-				node: tapeEntry.node,
-				progress: 0,
-				startX: tapeEntry.node.position.x,
-				startY: tapeEntry.node.position.y,
-			};
+			livingRoomState.mode = STATE_LIVING_ROOM_PLAYING;
+			livingRoomState.contentMode = CONTENT_BRO_MEME;
+			livingRoomState.playingMix = 1;
+			setDesktopTwoLoadedTape(tapeEntry.tape);
+			refreshPlacard();
 		};
 		const enterLivingRoom = ({ preserveContent = false } = {}) => {
 			livingRoomState.viewMode = VIEW_TV_AREA;
@@ -3171,6 +3138,7 @@ async function boot() {
 				livingRoomState.contentMode = CONTENT_BRO_MEME;
 				livingRoomState.activeTapeId = 'default-home';
 				livingRoomState.insertedTapeId = 'default-home';
+				livingRoomState.emptyPreviewWord = pickBroPlaceholderWord();
 				livingRoomState.playingMix = 1;
 			}
 			livingRoomState.inserting = null;
@@ -3226,25 +3194,21 @@ async function boot() {
 		livingRoomTv.addChild(
 			tvBodyShadow,
 			tvBody,
-			tvBezelRimLight,
-			tvBezelRimShade,
 			tvInnerFrame,
 			livingRoomTvFrame,
 			tvScreenGroup,
 			tvGlassReflection,
 			tvSlotForeground,
-			tvScreenHitArea,
-			tvEjectBtn,
 		);
 		for (const tape of livingRoomTapes) {
-			if (tape.side === 'left') vhsTapesLeft.addChild(tape.node);
-			else vhsTapesRight.addChild(tape.node);
+			vhsTapesLeft.addChild(tape.node);
 		}
-		livingRoomLayer.addChild(roomBg, leftShelf, rightShelf, vhsTapesLeft, vhsTapesRight, livingRoomTv, livingRoomForeground, placard, tvDesktopTransitionLayer, livingRoomBackBtn);
+		livingRoomLayer.addChild(roomBg, leftShelf, vhsTapesLeft, livingRoomTv, tvDesktopTransitionLayer, livingRoomBackBtn);
 		app.stage.addChild(livingRoomLayer);
 		let livingRoomTvSlotX = 0;
 		let livingRoomTvSlotY = 0;
 		const livingRoomTvScreenRect = { x: 0, y: 0, w: 0, h: 0, r: 0 };
+		const holoPanelLocalRect = { x: 0, y: 0, w: 0, h: 0 };
 		let livingRoomTapeW = 108;
 		let livingRoomTapeH = 62;
 		const drawLivingRoomBackdrop = (blend) => {
@@ -3262,235 +3226,196 @@ async function boot() {
 		const layoutLivingRoom = () => {
 			const sw = app.renderer.width;
 			const sh = app.renderer.height;
-			const cx = sw * 0.5;
-			const cy = sh * 0.5;
+			const margin = Math.max(20, Math.round(sw * 0.028));
+			const colGap = Math.max(14, Math.round(sw * 0.02));
+			const rackW = Math.max(220, Math.min(Math.round(sw * 0.3), Math.round(sw * 0.32)));
+			const panelW = Math.max(320, sw - margin * 2 - colGap - rackW);
+			const panelH = Math.max(300, Math.min(Math.round(sh * 0.8), Math.round(sw * 0.62)));
+			const rackX = margin;
+			const rackY = Math.round((sh - panelH) * 0.5);
+			const panelX = rackX + rackW + colGap;
+			const panelY = Math.round((sh - panelH) * 0.5);
+
 			livingRoomLayer.position.set(0, 0);
 			livingRoomLayer.hitArea = new PIXI.Rectangle(0, 0, sw, sh);
 
 			livingRoomWallGlow.clear();
-			livingRoomWallGlow.beginFill(0x1f1713, 0.22);
-			livingRoomWallGlow.drawRect(0, 0, sw, sh * 0.6);
+			livingRoomWallGlow.beginFill(0x15111b, 0.36);
+			livingRoomWallGlow.drawRect(0, 0, sw, sh);
 			livingRoomWallGlow.endFill();
 			roomVignette.clear();
-			roomVignette.alpha = 0;
+			roomVignette.beginFill(0x05050a, 0.28);
+			roomVignette.drawRect(0, 0, sw, sh);
+			roomVignette.endFill();
 
 			livingRoomFloor.clear();
-			livingRoomFloor.beginFill(0x2a211a, 0.84);
-			livingRoomFloor.drawRect(0, sh * 0.62, sw, sh * 0.38);
+			livingRoomFloor.beginFill(0x0b121a, 0.35);
+			livingRoomFloor.drawRect(0, sh * 0.7, sw, sh * 0.3);
 			livingRoomFloor.endFill();
 
-			const tvW = sw * 0.52;
-			const tvH = tvW * 0.95;
-			const tvX = cx;
-			const tvY = cy - 20;
-			livingRoomTv.position.set(tvX, tvY);
+			leftShelf.clear();
+			leftShelf.beginFill(0x0f1720, 0.88);
+			leftShelf.lineStyle(2, 0x39556f, 0.85);
+			leftShelf.drawRoundedRect(rackX, rackY, rackW, panelH, 10);
+			leftShelf.endFill();
+			leftShelf.lineStyle(1, 0x7ab2cf, 0.16);
+			for (let y = rackY + 22; y < rackY + panelH - 20; y += 14) {
+				leftShelf.moveTo(rackX + 10, y);
+				leftShelf.lineTo(rackX + rackW - 10, y);
+			}
 
+			rightShelf.clear();
+			rightShelf.alpha = 0;
+
+			livingRoomTv.position.set(panelX, panelY);
 			tvBodyShadow.clear();
-			tvBodyShadow.beginFill(0x000000, 0.34);
-			tvBodyShadow.drawRoundedRect(-tvW * 0.51 + 10, -tvH * 0.5 + 14, tvW, tvH, 8);
+			tvBodyShadow.beginFill(0x000000, 0.28);
+			tvBodyShadow.drawRoundedRect(10, 12, panelW, panelH, 12);
 			tvBodyShadow.endFill();
 			tvBody.clear();
-			tvBody.beginFill(0x171b22, 0.99);
-			tvBody.drawRoundedRect(-tvW * 0.5, -tvH * 0.5, tvW, tvH, 8);
+			tvBody.beginFill(0x08131f, 0.92);
+			tvBody.lineStyle(2, 0x6ac8ff, 0.65);
+			tvBody.drawRoundedRect(0, 0, panelW, panelH, 12);
 			tvBody.endFill();
-			tvBezelRimLight.clear();
-			tvBezelRimLight.lineStyle(3, 0x4a5566, 0.52);
-			tvBezelRimLight.moveTo(-tvW * 0.49, tvH * -0.49);
-			tvBezelRimLight.lineTo(tvW * 0.49, tvH * -0.49);
-			tvBezelRimLight.lineTo(tvW * 0.49, tvH * -0.46);
-			tvBezelRimLight.moveTo(-tvW * 0.49, tvH * -0.49);
-			tvBezelRimLight.lineTo(-tvW * 0.49, tvH * 0.49);
-			tvBezelRimShade.clear();
-			tvBezelRimShade.lineStyle(4, 0x090c11, 0.52);
-			tvBezelRimShade.moveTo(-tvW * 0.49, tvH * 0.49);
-			tvBezelRimShade.lineTo(tvW * 0.49, tvH * 0.49);
-			tvBezelRimShade.lineTo(tvW * 0.49, tvH * -0.49);
-
-			const screenInsetX = tvW * 0.2;
-			const screenInsetY = tvH * 0.2;
-			const screenW = tvW * 0.6;
-			const screenH = tvH * 0.6;
-			const screenX = tvX - tvW * 0.5 + screenInsetX;
-			const screenY = tvY - tvH * 0.5 + screenInsetY;
-			livingRoomTvScreenRect.x = screenX;
-			livingRoomTvScreenRect.y = screenY;
-			livingRoomTvScreenRect.w = screenW;
-			livingRoomTvScreenRect.h = screenH;
-			livingRoomTvScreenRect.r = 6;
 			tvInnerFrame.clear();
-			tvInnerFrame.beginFill(0x0b0f14, 0.95);
-			tvInnerFrame.drawRoundedRect(screenInsetX - tvW * 0.06, screenInsetY - tvH * 0.06, screenW + tvW * 0.12, screenH + tvH * 0.12, 8);
+			tvInnerFrame.beginFill(0x0d1e2f, 0.84);
+			tvInnerFrame.lineStyle(1, 0x9fdefc, 0.38);
+			tvInnerFrame.drawRoundedRect(10, 10, panelW - 20, panelH - 20, 10);
 			tvInnerFrame.endFill();
 			livingRoomTvFrame.clear();
-			livingRoomTvFrame.beginFill(0x05070b, 0.76);
-			livingRoomTvFrame.drawRoundedRect(screenInsetX - 6, screenInsetY - 6, screenW + 12, screenH + 12, 7);
-			livingRoomTvFrame.endFill();
 
-			tvScreenGroup.position.set(-tvW * 0.5, -tvH * 0.5);
+			const innerPad = Math.max(14, Math.round(panelW * 0.03));
+			const contentX = innerPad;
+			const contentY = innerPad;
+			const contentW = panelW - innerPad * 2;
+			const contentH = panelH - innerPad * 2;
+			const paneGap = Math.max(10, Math.round(contentW * 0.02));
+			const previewW = Math.round(contentW * 0.58);
+			const terminalW = contentW - previewW - paneGap;
+			const previewX = contentX;
+			const terminalX = previewX + previewW + paneGap;
+
+			holoPanelLocalRect.x = contentX;
+			holoPanelLocalRect.y = contentY;
+			holoPanelLocalRect.w = contentW;
+			holoPanelLocalRect.h = contentH;
+
+			livingRoomTvScreenRect.x = panelX + previewX;
+			livingRoomTvScreenRect.y = panelY + contentY;
+			livingRoomTvScreenRect.w = previewW;
+			livingRoomTvScreenRect.h = contentH;
+			livingRoomTvScreenRect.r = 8;
+
+			tvScreenGroup.position.set(0, 0);
 			tvScreenMask.clear();
 			tvScreenMask.beginFill(0xffffff, 1);
-			tvScreenMask.drawRoundedRect(screenInsetX, screenInsetY, screenW, screenH, 8);
+			tvScreenMask.drawRoundedRect(contentX, contentY, contentW, contentH, 10);
 			tvScreenMask.endFill();
 			tvScreenHitArea.clear();
-			tvScreenHitArea.beginFill(0xffffff, 0.001);
-			tvScreenHitArea.drawRoundedRect(screenInsetX, screenInsetY, screenW, screenH, 8);
-			tvScreenHitArea.endFill();
+			tvScreenHitArea.eventMode = 'none';
+			tvScreenHitArea.cursor = 'default';
 
 			tvContentContainer.position.set(0, 0);
 			tvScreenBaseBg.clear();
-			tvScreenBaseBg.beginFill(0x020406, 1);
-			tvScreenBaseBg.drawRect(screenInsetX, screenInsetY, screenW, screenH);
+			tvScreenBaseBg.beginFill(0x07101a, 1);
+			tvScreenBaseBg.drawRoundedRect(previewX, contentY, previewW, contentH, 8);
 			tvScreenBaseBg.endFill();
+
 			const desktopSrcW = Math.max(1, tvDesktopRenderTexture.width);
 			const desktopSrcH = Math.max(1, tvDesktopRenderTexture.height);
-			const targetW = screenW * 0.94;
-			const targetH = screenH * 0.94;
-			const desktopScale = Math.min(targetW / desktopSrcW, targetH / desktopSrcH);
+			const previewTargetW = previewW * 0.94;
+			const previewTargetH = contentH * 0.94;
+			const desktopScale = Math.min(previewTargetW / desktopSrcW, previewTargetH / desktopSrcH);
 			const desktopFitW = desktopSrcW * desktopScale;
 			const desktopFitH = desktopSrcH * desktopScale;
-			tvDesktopContentSprite.position.set(screenInsetX + (screenW - desktopFitW) * 0.5, screenInsetY + (screenH - desktopFitH) * 0.5);
+			tvDesktopContentSprite.position.set(previewX + (previewW - desktopFitW) * 0.5, contentY + (contentH - desktopFitH) * 0.5);
 			tvDesktopContentSprite.width = desktopFitW;
 			tvDesktopContentSprite.height = desktopFitH;
+
 			tvBroBg.clear();
-			tvBroBg.beginFill(0x130d0d, 0.98);
-			tvBroBg.drawRect(screenInsetX, screenInsetY, screenW, screenH);
+			tvBroBg.beginFill(0x060e18, 0.96);
+			tvBroBg.lineStyle(1, 0x6ec6f7, 0.48);
+			tvBroBg.drawRoundedRect(terminalX, contentY, terminalW, contentH, 8);
 			tvBroBg.endFill();
-			tvBroTitle.position.set(screenInsetX + screenW * 0.5, screenInsetY + screenH * 0.48);
-			tvBroSub.position.set(screenInsetX + screenW * 0.5, screenInsetY + screenH * 0.62);
-			tvEmptyBg.clear();
-			tvEmptyBg.beginFill(0x130d0d, 0.98);
-			tvEmptyBg.drawRect(screenInsetX, screenInsetY, screenW, screenH);
-			tvEmptyBg.endFill();
-			tvEmptySprite.width = screenW * 0.54;
-			tvEmptySprite.height = screenH * 0.54;
-			tvEmptySprite.anchor.set(0.5);
-			tvEmptySprite.position.set(screenInsetX + screenW * 0.5, screenInsetY + screenH * 0.42);
-			tvEmptyText.style.wordWrap = true;
-			tvEmptyText.style.wordWrapWidth = Math.max(80, screenW * 0.92);
-			tvEmptyText.position.set(screenInsetX + screenW * 0.5, screenInsetY + screenH * 0.82);
+			tvBroTitle.anchor.set(0, 0);
+			tvBroTitle.style.fontSize = Math.max(11, Math.round(Math.min(16, terminalW * 0.07)));
+			tvBroTitle.style.fill = 0x9fdfff;
+			tvBroTitle.text = 'TERMINAL';
+			tvBroTitle.position.set(terminalX + 12, contentY + 10);
+			tvBroSub.anchor.set(0, 0);
+			tvBroSub.style.fill = 0xf4d06d;
+			tvBroSub.style.wordWrap = true;
+			tvBroSub.style.wordWrapWidth = Math.max(110, terminalW - 24);
+			tvBroSub.style.lineHeight = 15;
+			tvBroSub.style.fontSize = Math.max(10, Math.round(Math.min(13, terminalW * 0.058)));
+			tvBroSub.position.set(terminalX + 12, contentY + 34);
 			tvBroTitleBaseY = tvBroTitle.y;
 			tvBroSubBaseY = tvBroSub.y;
+
+			tvEmptyBg.clear();
+			tvEmptyScreen.alpha = 0;
+			tvEmptySprite.visible = false;
+			tvEmptyText.visible = false;
+
 			tvScreensaverBg.clear();
-			tvScreensaverBg.beginFill(0x050816, 1);
-			tvScreensaverBg.drawRect(screenInsetX, screenInsetY, screenW, screenH);
-			tvScreensaverBg.endFill();
 			tvScreensaverNoise.clear();
-			tvScreensaverNoise.lineStyle(1, 0x7ca6ff, 0.06);
-			for (let y = screenInsetY + 2; y < screenInsetY + screenH; y += 5) {
-				tvScreensaverNoise.moveTo(screenInsetX + 1, y);
-				tvScreensaverNoise.lineTo(screenInsetX + screenW - 2, y);
+			tvScreensaverNoise.beginFill(0xc8e8ff, 0.06);
+			const noiseDotCount = Math.max(80, Math.round((contentW * contentH) / 6000));
+			for (let i = 0; i < noiseDotCount; i++) {
+				const nx = contentX + Math.random() * contentW;
+				const ny = contentY + Math.random() * contentH;
+				tvScreensaverNoise.drawRect(nx, ny, 1, 1);
 			}
+			tvScreensaverNoise.endFill();
 
 			tvCrtOverlay.clear();
-			tvCrtOverlay.beginFill(0x05070b, 0.08);
-			tvCrtOverlay.drawRoundedRect(screenInsetX, screenInsetY, screenW, screenH, 8);
+			tvCrtOverlay.beginFill(0x0e1e2f, 0.14);
+			tvCrtOverlay.drawRoundedRect(contentX, contentY, contentW, contentH, 10);
 			tvCrtOverlay.endFill();
-			tvCrtOverlay.lineStyle(1, 0xc6d6ff, 0.03);
-			for (let y = screenInsetY + 4; y < screenInsetY + screenH - 4; y += 5) {
-				tvCrtOverlay.moveTo(screenInsetX + 3, y);
-				tvCrtOverlay.lineTo(screenInsetX + screenW - 3, y);
+			tvCrtOverlay.lineStyle(1, 0x8ed3fb, 0.1);
+			for (let d = -contentH; d < contentW; d += 16) {
+				tvCrtOverlay.moveTo(contentX + Math.max(0, d), contentY + Math.max(0, -d));
+				tvCrtOverlay.lineTo(contentX + Math.min(contentW, d + contentH), contentY + Math.min(contentH, contentH - d));
 			}
+
 			tvGlassReflection.clear();
-			tvGlassReflection.beginFill(0xffffff, 0.07);
-			tvGlassReflection.drawRoundedRect(screenInsetX + screenW * 0.06, screenInsetY + screenH * 0.06, screenW * 0.28, screenH * 0.2, 8);
-			tvGlassReflection.endFill();
-			tvGlassReflection.beginFill(0xffffff, 0.035);
-			tvGlassReflection.drawRoundedRect(screenInsetX + screenW * 0.48, screenInsetY + screenH * 0.12, screenW * 0.12, screenH * 0.56, 6);
+			tvGlassReflection.beginFill(0xb0e6ff, 0.12);
+			tvGlassReflection.drawRoundedRect(contentX + 10, contentY + 8, contentW - 20, Math.max(16, contentH * 0.08), 6);
 			tvGlassReflection.endFill();
 
 			tvSlotForeground.clear();
-			tvSlotForeground.beginFill(0x06080d, 0.95);
-			tvSlotForeground.lineStyle(1.5, 0x3a4b66, 0.85);
-			tvSlotForeground.drawRoundedRect(-tvW * 0.2, tvH * 0.22, tvW * 0.4, tvH * 0.08, 4);
+			tvSlotForeground.beginFill(0x8bd9ff, 0.14);
+			tvSlotForeground.drawRoundedRect(contentX + 10, contentY + 8, contentW - 20, 3, 2);
 			tvSlotForeground.endFill();
-			tvEjectBtnBg.clear();
-			tvEjectBtnBg.beginFill(0x272428, 0.95);
-			tvEjectBtnBg.lineStyle(1.5, 0x55525a, 0.88);
-			tvEjectBtnBg.drawRoundedRect(0, 0, 58, 20, 4);
-			tvEjectBtnBg.endFill();
-			tvEjectBtn.position.set(tvW * 0.5 - 70, tvH * 0.5 - 28);
-			tvEjectBtnLabel.position.set(29, 10);
-			livingRoomTvSlotX = tvX;
-			livingRoomTvSlotY = tvY + tvH * 0.24;
 
-			const gap = sw * 0.03;
-			const shelfW = sw * 0.18;
-			const shelfH = tvH * 0.8;
-			const leftShelfCenterX = cx - tvW * 0.5 - shelfW * 0.5 - gap;
-			const rightShelfCenterX = cx + tvW * 0.5 + shelfW * 0.5 + gap;
-			const leftShelfX = leftShelfCenterX - shelfW * 0.5;
-			const rightShelfX = rightShelfCenterX - shelfW * 0.5;
-			const shelfY = tvY - shelfH * 0.5;
-			leftShelf.clear();
-			leftShelf.beginFill(0x2f241d, 0.76);
-			leftShelf.drawRoundedRect(leftShelfX, shelfY, shelfW, shelfH, 6);
-			leftShelf.endFill();
-			leftShelf.lineStyle(2, 0x7c573d, 0.75);
-			leftShelf.moveTo(leftShelfX + shelfW * 0.1, shelfY + shelfH * 0.28);
-			leftShelf.lineTo(leftShelfX + shelfW * 0.9, shelfY + shelfH * 0.28);
-			leftShelf.moveTo(leftShelfX + shelfW * 0.1, shelfY + shelfH * 0.52);
-			leftShelf.lineTo(leftShelfX + shelfW * 0.9, shelfY + shelfH * 0.52);
-			leftShelf.moveTo(leftShelfX + shelfW * 0.1, shelfY + shelfH * 0.76);
-			leftShelf.lineTo(leftShelfX + shelfW * 0.9, shelfY + shelfH * 0.76);
-
-			rightShelf.clear();
-			rightShelf.beginFill(0x2f241d, 0.76);
-			rightShelf.drawRoundedRect(rightShelfX, shelfY, shelfW, shelfH, 6);
-			rightShelf.endFill();
-			rightShelf.lineStyle(2, 0x7c573d, 0.75);
-			rightShelf.moveTo(rightShelfX + shelfW * 0.1, shelfY + shelfH * 0.28);
-			rightShelf.lineTo(rightShelfX + shelfW * 0.9, shelfY + shelfH * 0.28);
-			rightShelf.moveTo(rightShelfX + shelfW * 0.1, shelfY + shelfH * 0.52);
-			rightShelf.lineTo(rightShelfX + shelfW * 0.9, shelfY + shelfH * 0.52);
-			rightShelf.moveTo(rightShelfX + shelfW * 0.1, shelfY + shelfH * 0.76);
-			rightShelf.lineTo(rightShelfX + shelfW * 0.9, shelfY + shelfH * 0.76);
-
+			tvEjectBtn.visible = false;
+			tvEjectBtn.eventMode = 'none';
+			placard.visible = false;
 			livingRoomForeground.clear();
-			livingRoomForeground.beginFill(0x221a14, 0.36);
-			livingRoomForeground.drawRoundedRect(tvX - tvW * 0.26, tvY + tvH * 0.53, tvW * 0.52, Math.max(20, tvH * 0.08), 8);
-			livingRoomForeground.endFill();
-
-			placard.position.set(tvX - 110, tvY + tvH * 0.62);
-			placardStand.clear();
-			placardStand.beginFill(0x3d3a36, 0.74);
-			placardStand.drawRoundedRect(8, 96, 32, 36, 5);
-			placardStand.endFill();
-			placardBg.clear();
-			placardBg.beginFill(0x1d2228, 0.82);
-			placardBg.lineStyle(2, 0x444e58, 0.9);
-			placardBg.drawRoundedRect(0, 0, 220, 96, 8);
-			placardBg.endFill();
-			placardLed.position.set(14, 14);
-			placardLedLabel.position.set(24, 14);
-			placardTitle.position.set(12, 30);
-			placardStatus.position.set(12, 46);
-			placardBody.style.wordWrapWidth = 194;
-			placardBody.position.set(12, 60);
 
 			livingRoomBackBg.clear();
-			livingRoomBackBg.beginFill(0x3a2430, 0.92);
-			livingRoomBackBg.lineStyle(2, 0x8f5a73, 0.86);
+			livingRoomBackBg.beginFill(0x142334, 0.95);
+			livingRoomBackBg.lineStyle(2, 0x7ed1ff, 0.82);
 			livingRoomBackBg.drawRoundedRect(0, 0, 88, 30, 8);
 			livingRoomBackBg.endFill();
-			livingRoomBackBtn.position.set(sw * 0.06, sh * 0.08);
+			livingRoomBackBtn.position.set(margin, margin);
 			livingRoomBackLabel.position.set(44, 15);
 
-			livingRoomTapeW = shelfW * 0.82;
-			livingRoomTapeH = livingRoomTapeW * 0.58;
-			const tapeSpacing = 14;
-			const tapesStackH = livingRoomTapeH * 3 + tapeSpacing * 2;
-			const tapesTop = shelfY + Math.max(8, (shelfH - tapesStackH) * 0.5);
+			livingRoomTapeW = Math.max(160, rackW * 0.8);
+			livingRoomTapeH = Math.max(64, livingRoomTapeW * 0.44);
+			const tapeSpacing = Math.max(10, Math.round(livingRoomTapeH * 0.12));
+			const totalTapeH = livingRoomTapes.length * livingRoomTapeH + (livingRoomTapes.length - 1) * tapeSpacing;
+			const tapesTop = rackY + Math.max(12, Math.round((panelH - totalTapeH) * 0.5));
+			const rackCenterX = rackX + rackW * 0.5;
 			for (let i = 0; i < livingRoomTapes.length; i++) {
 				const tape = livingRoomTapes[i];
-				const row = i % 3;
-				if (tape.side === 'left') {
-					tape.baseX = leftShelfCenterX;
-					tape.baseY = tapesTop + livingRoomTapeH * 0.5 + row * (livingRoomTapeH + tapeSpacing);
-				} else {
-					tape.baseX = rightShelfCenterX;
-					tape.baseY = tapesTop + livingRoomTapeH * 0.5 + row * (livingRoomTapeH + tapeSpacing);
-				}
+				tape.baseX = rackCenterX;
+				tape.baseY = tapesTop + livingRoomTapeH * 0.5 + i * (livingRoomTapeH + tapeSpacing);
 			}
+
+			livingRoomTvSlotX = rackCenterX;
+			livingRoomTvSlotY = panelY + panelH * 0.5;
+
 			tvDesktopTransitionSprite.position.set(0, 0);
 			tvDesktopTransitionSprite.width = sw;
 			tvDesktopTransitionSprite.height = sh;
@@ -3522,25 +3447,11 @@ async function boot() {
 		tvScreenHitArea.on('pointertap', () => {
 			if (livingRoomState.viewMode !== VIEW_TV_AREA) return;
 			if (livingRoomState.blend < 0.95) return;
-			exitLivingRoom();
-		});
-		tvEjectBtn.on('pointertap', () => {
-			if (livingRoomState.viewMode !== VIEW_TV_AREA) return;
-			if (livingRoomState.contentMode === CONTENT_SCREENSAVER) {
-				livingRoomState.staticBurst = 0.08;
-				return;
-			}
-			livingRoomState.mode = STATE_LIVING_ROOM_IDLE;
-			livingRoomState.contentMode = CONTENT_SCREENSAVER;
-			livingRoomState.activeTapeId = null;
-			livingRoomState.insertedTapeId = null;
-			livingRoomState.playingMix = 0;
-			livingRoomState.inserting = null;
-			livingRoomState.staticBurst = 0.18;
 			refreshPlacard();
 		});
-		tvEjectBtn.on('pointerover', () => { tvEjectBtn.scale.set(1.05); });
-		tvEjectBtn.on('pointerout', () => { tvEjectBtn.scale.set(1); });
+		tvEjectBtn.on('pointertap', () => {});
+		tvEjectBtn.on('pointerover', () => {});
+		tvEjectBtn.on('pointerout', () => {});
 		fullscreenExitBtn.on('pointertap', () => {
 			if (livingRoomState.viewMode !== VIEW_FULLSCREEN) return;
 			if (!livingRoomState.fullscreenFromTv) return;
@@ -3577,7 +3488,7 @@ async function boot() {
 			const blend = Math.max(0, Math.min(1, livingRoomState.blend));
 			const reveal = 1 - Math.pow(1 - blend, 3);
 			const desktopProxyMix = 1 - Math.pow(1 - blend, 2.35);
-			const shouldRefreshDesktopFeed = livingRoomState.contentMode === CONTENT_DESKTOP && (blend < 1 || livingRoomState.targetBlend < 1 || livingRoomState.viewMode === VIEW_TV_AREA);
+			const shouldRefreshDesktopFeed = previewUsesDesktopFeed && (blend < 1 || livingRoomState.targetBlend < 1 || livingRoomState.viewMode === VIEW_TV_AREA);
 			if (shouldRefreshDesktopFeed) {
 				refreshDesktopTvTexture();
 			}
@@ -3611,36 +3522,47 @@ async function boot() {
 			tvDesktopTransitionSprite.height = app.renderer.height + (livingRoomTvScreenRect.h - app.renderer.height) * desktopProxyMix;
 			tvDesktopTransitionSprite.alpha = Math.max(0, 1 - Math.max(0, (desktopProxyMix - 0.92) / 0.08));
 
-			livingRoomWallGlow.alpha = 0.12 + reveal * 0.88;
-			livingRoomFloor.alpha = 0.22 + reveal * 0.78;
-			leftShelf.alpha = 0.14 + reveal * 0.5;
-			rightShelf.alpha = 0.14 + reveal * 0.5;
-			livingRoomForeground.alpha = 0.08 + reveal * 0.24;
-			placard.alpha = 0.28 + reveal * 0.52;
-			livingRoomBackBtn.alpha = Math.max(0, (reveal - 0.62) / 0.38);
-			livingRoomBackBtn.eventMode = reveal > 0.82 ? 'static' : 'none';
-			tvScreenHitArea.alpha = Math.max(0.001, reveal);
-			tvScreenHitArea.eventMode = reveal > 0.95 && livingRoomState.viewMode === VIEW_TV_AREA ? 'static' : 'none';
-			tvEjectBtn.alpha = reveal > 0.9 ? 1 : 0;
-			tvEjectBtn.eventMode = reveal > 0.95 && livingRoomState.viewMode === VIEW_TV_AREA ? 'static' : 'none';
+			livingRoomWallGlow.alpha = 0.2 + reveal * 0.8;
+			livingRoomFloor.alpha = 0.24 + reveal * 0.62;
+			leftShelf.alpha = 0.24 + reveal * 0.76;
+			rightShelf.alpha = 0;
+			livingRoomForeground.alpha = 0;
+			placard.alpha = 0;
+			livingRoomBackBtn.alpha = Math.max(0, (reveal - 0.32) / 0.68);
+			livingRoomBackBtn.eventMode = reveal > 0.55 ? 'static' : 'none';
+			tvScreenHitArea.alpha = 0;
+			tvScreenHitArea.eventMode = 'none';
+			tvEjectBtn.alpha = 0;
+			tvEjectBtn.eventMode = 'none';
 
-			const tvReveal = Math.max(0, (reveal - 0.06) / 0.94);
-			livingRoomTv.alpha = tvReveal;
-			livingRoomTv.scale.set(1.16 - tvReveal * 0.16);
+			const panelReveal = Math.max(0, (reveal - 0.04) / 0.96);
+			livingRoomTv.alpha = panelReveal;
+			livingRoomTv.scale.set(1);
 
-			const broTarget = livingRoomState.contentMode === CONTENT_BRO_MEME ? 1 : 0;
-			livingRoomState.playingMix += (broTarget - livingRoomState.playingMix) * Math.min(1, dtSeconds * 8);
-			const emptyTarget = livingRoomState.contentMode === CONTENT_EMPTY ? 1 : 0;
-			tvEmptyScreen.alpha += (emptyTarget - tvEmptyScreen.alpha) * Math.min(1, dtSeconds * 8);
+			tvDesktopContentSprite.alpha = 1;
+			tvBroScreen.alpha = 1;
+			tvEmptyScreen.alpha = 0;
 			const screensaverTarget = livingRoomState.contentMode === CONTENT_SCREENSAVER ? 1 : 0;
 			tvScreensaverLayer.alpha += (screensaverTarget - tvScreensaverLayer.alpha) * Math.min(1, dtSeconds * 6);
-			tvDesktopContentSprite.alpha = livingRoomState.contentMode === CONTENT_DESKTOP ? 1 : 0;
-			tvBroScreen.alpha = livingRoomState.playingMix;
-			tvEmptyText.text = `Nothing here yet ${livingRoomState.emptyPreviewWord}`;
+
+			terminalTypeTimer += dtSeconds * TERMINAL_TYPE_RATE;
+			if (terminalTypedIndex < terminalFullText.length) {
+				const charsToAdd = Math.floor(terminalTypeTimer);
+				if (charsToAdd > 0) {
+					terminalTypeTimer -= charsToAdd;
+					terminalTypedIndex = Math.min(terminalFullText.length, terminalTypedIndex + charsToAdd);
+					tvBroSub.text = terminalFullText.slice(0, terminalTypedIndex);
+				}
+			}
 
 			const pulseTime = (performance.now ? performance.now() : Date.now()) * 0.003;
-			tvBroTitle.y = tvBroTitleBaseY + Math.sin(pulseTime) * 1.2;
-			tvBroSub.y = tvBroSubBaseY + Math.cos(pulseTime * 0.9) * 0.9;
+			tvBroTitle.y = tvBroTitleBaseY + Math.sin(pulseTime) * 0.8;
+			tvBroSub.y = tvBroSubBaseY + Math.cos(pulseTime * 0.9) * 0.4;
+			const shimmerY = holoPanelLocalRect.y + ((pulseTime * 42) % (holoPanelLocalRect.h + 26)) - 12;
+			tvSlotForeground.clear();
+			tvSlotForeground.beginFill(0x8bd9ff, 0.18);
+			tvSlotForeground.drawRoundedRect(holoPanelLocalRect.x + 10, shimmerY, Math.max(24, holoPanelLocalRect.w - 20), 3, 2);
+			tvSlotForeground.endFill();
 			if (tvScreensaverLayer.alpha > 0.001) {
 				const wave = 0.5 + 0.5 * Math.sin(pulseTime * 0.7);
 				tvScreensaverBg.tint = (Math.floor(90 + wave * 80) << 16) | (Math.floor(30 + wave * 110) << 8) | Math.floor(150 + wave * 80);
@@ -3675,61 +3597,63 @@ async function boot() {
 			const burstStatic = livingRoomState.staticBurst > 0 ? (0.03 + (livingRoomState.staticBurst / 0.3) * 0.06) : 0;
 			tvCrtOverlay.alpha = Math.max(idleStatic, burstStatic);
 
-			const interactionsReady = reveal > 0.95 && livingRoomState.viewMode === VIEW_TV_AREA && !livingRoomState.inserting;
+			const interactionsReady = reveal > 0.95 && livingRoomState.viewMode === VIEW_TV_AREA;
 			for (let i = 0; i < livingRoomTapes.length; i++) {
 				const tape = livingRoomTapes[i];
-				const inserted = livingRoomState.insertedTapeId && livingRoomState.insertedTapeId === tape.tape.id;
-				tape.node.eventMode = interactionsReady && !inserted ? 'static' : 'none';
-				tape.node.cursor = interactionsReady && !inserted ? 'pointer' : 'default';
+				const selected = livingRoomState.insertedTapeId && livingRoomState.insertedTapeId === tape.tape.id;
+				tape.node.eventMode = interactionsReady ? 'static' : 'none';
+				tape.node.cursor = interactionsReady ? 'pointer' : 'default';
 				const targetHover = interactionsReady && livingRoomState.hoverIndex === i ? 1 : 0;
-				tape.hoverMix += (targetHover - tape.hoverMix) * Math.min(1, dtSeconds * 12);
+				const targetMix = Math.max(targetHover, selected ? 0.7 : 0);
+				tape.hoverMix += (targetMix - tape.hoverMix) * Math.min(1, dtSeconds * 12);
 				const h = Math.max(0, Math.min(1, tape.hoverMix));
-				const hoverOffsetX = tape.side === 'left' ? h * 10 : -h * 10;
-				tape.node.position.set(tape.baseX + hoverOffsetX, tape.baseY - h * 2);
+				tape.node.position.set(tape.baseX + targetHover * 8, tape.baseY - h * 1.5);
 				tape.node.scale.set(1 + h * 0.03);
 				const tw = livingRoomTapeW;
 				const th = livingRoomTapeH;
 				tape.shadow.clear();
-				tape.shadow.beginFill(0x000000, 0.14 + h * 0.08);
-				tape.shadow.drawRoundedRect(-tw * 0.52 + 4, -th * 0.5 + 7, tw * 1.04, th, 7);
+				tape.shadow.beginFill(0x000000, 0.16 + h * 0.08);
+				tape.shadow.drawRoundedRect(-tw * 0.5 + 4, -th * 0.5 + 7, tw, th, 9);
 				tape.shadow.endFill();
 				tape.body.clear();
-				tape.body.beginFill(0x2b2018, 0.97);
-				tape.body.lineStyle(2, tape.tape.accent, 0.78 + h * 0.12);
-				tape.body.drawRoundedRect(-tw * 0.5, -th * 0.5, tw, th, 6);
+				tape.body.beginFill(0x1a2633, 0.98);
+				tape.body.lineStyle(2, tape.tape.accent, 0.78 + h * 0.18);
+				tape.body.drawRoundedRect(-tw * 0.5, -th * 0.5, tw, th, 9);
 				tape.body.endFill();
-				tape.art.position.set(-tw * 0.35, -th * 0.33);
-				tape.art.width = tw * 0.7;
-				tape.art.height = th * 0.5;
-				tape.art.alpha = (LIVING_ROOM_ASSETS.tapeLabelById[tape.tape.id] || LIVING_ROOM_ASSETS.tapeSpritePath) ? (0.68 + h * 0.12) : 0.12;
+				tape.notch.clear();
+				tape.notch.beginFill(0x2d3b4a, 0.95);
+				tape.notch.drawRoundedRect(-tw * 0.15, -th * 0.5, tw * 0.3, th * 0.14, 4);
+				tape.notch.endFill();
 				tape.labelStrip.clear();
-				tape.labelStrip.beginFill(0x3b2a1d, 0.96);
-				tape.labelStrip.drawRoundedRect(-tw * 0.44, th * 0.08, tw * 0.88, th * 0.3, 4);
+				tape.labelStrip.beginFill(0x22394b, 0.96);
+				tape.labelStrip.lineStyle(1, 0x89d5ff, 0.34);
+				tape.labelStrip.drawRoundedRect(-tw * 0.42, -th * 0.06, tw * 0.84, th * 0.38, 4);
 				tape.labelStrip.endFill();
-				tape.statusLed.clear();
-				tape.title.position.set(0, th * 0.22);
-				tape.status.visible = false;
-				tape.node.alpha = (0.1 + reveal * 0.9) * (inserted ? 0.12 : 1);
-			}
-
-			if (livingRoomState.inserting) {
-				const ins = livingRoomState.inserting;
-				ins.progress = Math.min(1, ins.progress + dtSeconds / 0.36);
-				const eased = 1 - Math.pow(1 - ins.progress, 3);
-				ins.node.position.x = ins.startX + (livingRoomTvSlotX - ins.startX) * eased;
-				ins.node.position.y = ins.startY + (livingRoomTvSlotY - ins.startY) * eased;
-				const s = 1 + (0.38 - 1) * eased;
-				ins.node.scale.set(s);
-				if (ins.progress >= 1) {
-					const selectedTape = ins.tape;
-					livingRoomState.activeTapeId = selectedTape.id;
-					livingRoomState.insertedTapeId = selectedTape.id;
-					livingRoomState.inserting = null;
-					livingRoomState.contentMode = selectedTape.contentType === CONTENT_DESKTOP ? CONTENT_DESKTOP : CONTENT_BRO_MEME;
-					livingRoomState.mode = livingRoomState.contentMode === CONTENT_BRO_MEME ? STATE_LIVING_ROOM_PLAYING : STATE_LIVING_ROOM_IDLE;
-					livingRoomState.staticBurst = 0.2 + Math.random() * 0.1;
-					setDesktopTwoLoadedTape(selectedTape);
-				}
+				tape.art.position.set(-tw * 0.34, -th * 0.015);
+				tape.art.width = th * 0.28;
+				tape.art.height = th * 0.28;
+				tape.art.alpha = 0.85;
+				tape.screws.clear();
+				tape.screws.beginFill(0x7da1bb, 0.92);
+				tape.screws.drawCircle(-tw * 0.41, -th * 0.39, 2.1);
+				tape.screws.drawCircle(tw * 0.41, -th * 0.39, 2.1);
+				tape.screws.drawCircle(-tw * 0.41, th * 0.39, 2.1);
+				tape.screws.drawCircle(tw * 0.41, th * 0.39, 2.1);
+				tape.screws.endFill();
+				tape.shellHighlight.clear();
+				tape.shellHighlight.lineStyle(1.5, 0xb5e7ff, 0.65);
+				tape.shellHighlight.moveTo(-tw * 0.46, -th * 0.45);
+				tape.shellHighlight.lineTo(tw * 0.46, -th * 0.45);
+				tape.shellHighlight.moveTo(-tw * 0.46, -th * 0.45);
+				tape.shellHighlight.lineTo(-tw * 0.46, th * 0.45);
+				tape.shellShadow.clear();
+				tape.shellShadow.lineStyle(1.5, 0x081018, 0.75);
+				tape.shellShadow.moveTo(-tw * 0.46, th * 0.45);
+				tape.shellShadow.lineTo(tw * 0.46, th * 0.45);
+				tape.shellShadow.moveTo(tw * 0.46, -th * 0.45);
+				tape.shellShadow.lineTo(tw * 0.46, th * 0.45);
+				tape.title.position.set(tw * 0.08, th * 0.12);
+				tape.node.alpha = 0.16 + reveal * 0.84;
 			}
 
 			refreshPlacard();
