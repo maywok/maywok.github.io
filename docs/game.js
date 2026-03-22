@@ -80,6 +80,14 @@ async function boot() {
 		let desktopTwoApp = null;
 		let desktopTwoActive = false;
 		let onDesktopTwoActivated = null;
+		let onDesktopTwoExitRequested = null;
+		let pendingDesktopTwoTape = null;
+		let setDesktopTwoLoadedTape = (tape) => {
+			pendingDesktopTwoTape = tape ? { ...tape } : null;
+		};
+		let livingRoomActive = false;
+		let closeLivingRoomScene = () => {};
+		let openLivingRoomScene = () => {};
 		const ensureDesktopTwoBackground = () => {
 			if (!desktopTwoRoot || desktopTwoApp) return;
 			const DESKTOP_TWO_BG = 0x090b10;
@@ -334,6 +342,34 @@ async function boot() {
 				{ label: 'LINKEDIN', tint: 0x4f80bf, rare: false },
 				{ label: 'GITHUB', tint: 0x7a659d, rare: true },
 			];
+			const DEFAULT_PORTFOLIO_SUB_LABEL = 'Select a cartridge to load';
+			const DEFAULT_PORTFOLIO_STATUS_LABEL = 'EMPTY BAY : 6 SLOTS';
+			const DEFAULT_PORTFOLIO_WINDOW_TITLE = 'PROJECT VIEWER';
+			const DEFAULT_PORTFOLIO_WINDOW_HINT = 'Nothing here yet.';
+			let desktopTwoLoadedTape = null;
+			const applyDesktopTwoLoadedTape = () => {
+				if (desktopTwoLoadedTape) {
+					const statusLabel = (desktopTwoLoadedTape.status || 'wip').toUpperCase();
+					portfolioSub.text = `Loaded tape: ${desktopTwoLoadedTape.label}`;
+					portfolioStatusText.text = `${statusLabel} TAPE`;
+					portfolioWindowTitle.text = `${desktopTwoLoadedTape.label} PLAYBACK`;
+					portfolioWindowHint.text = desktopTwoLoadedTape.hasContent
+						? 'Playback ready.'
+						: 'Nothing here yet.';
+					return;
+				}
+				portfolioSub.text = DEFAULT_PORTFOLIO_SUB_LABEL;
+				portfolioStatusText.text = DEFAULT_PORTFOLIO_STATUS_LABEL;
+				portfolioWindowTitle.text = DEFAULT_PORTFOLIO_WINDOW_TITLE;
+				portfolioWindowHint.text = DEFAULT_PORTFOLIO_WINDOW_HINT;
+			};
+			setDesktopTwoLoadedTape = (tape) => {
+				desktopTwoLoadedTape = tape ? { ...tape } : null;
+				applyDesktopTwoLoadedTape();
+			};
+			if (pendingDesktopTwoTape) {
+				setDesktopTwoLoadedTape(pendingDesktopTwoTape);
+			}
 			const slotLabelStyle = {
 				fontFamily: 'Minecraft, monospace',
 				fontSize: 9,
@@ -444,9 +480,9 @@ async function boot() {
 			const openPortfolioWindow = () => {
 				portfolioWindowOpen = true;
 				portfolioWindowScanPhase = 0;
-				portfolioTypingPrefixSrc = 'Nothing here yet, ';
+				portfolioTypingPrefixSrc = desktopTwoLoadedTape?.hasContent ? 'Loading tape, ' : 'Nothing here yet, ';
 				portfolioTypingWordSrc = pickBroPlaceholderWord();
-				portfolioTypingSuffixSrc = '.';
+				portfolioTypingSuffixSrc = desktopTwoLoadedTape?.hasContent ? '...' : '.';
 				portfolioTypingChars = 0;
 				portfolioTypingTimer = 0;
 				portfolioCursorTimer = 0;
@@ -751,6 +787,7 @@ async function boot() {
 				applyPortfolioTypedLine();
 			};
 			layoutPortfolioPanel();
+			applyDesktopTwoLoadedTape();
 
 			const rightPortal = new PIXI.Container();
 			const rightGlowSoft = new PIXI.Graphics();
@@ -1010,7 +1047,10 @@ async function boot() {
 				desktopTwoOverlay.setAttribute('aria-hidden', next ? 'false' : 'true');
 			}
 			setPortfolioUiActive(false);
-			if (!next) tryCloseDesktopTwoPortfolioWindow();
+			if (!next) {
+				tryCloseDesktopTwoPortfolioWindow();
+				onDesktopTwoExitRequested?.();
+			}
 			if (next) {
 				try {
 					ensureDesktopTwoBackground();
@@ -1028,7 +1068,11 @@ async function boot() {
 			if (desktopTwoActive && tryCloseDesktopTwoPortfolioWindow()) {
 				return;
 			}
-			if (desktopTwoActive) setDesktopTwoActive(false);
+			if (desktopTwoActive) {
+				setDesktopTwoActive(false);
+				return;
+			}
+			if (livingRoomActive) closeLivingRoomScene();
 		});
 
 		if (document.fonts && document.fonts.load) {
@@ -2540,7 +2584,7 @@ async function boot() {
 			desktopTwoEntryTransition.phase = 1;
 			desktopTwoEntryTransition.surge = 0;
 			drawTransitionWipe(0);
-			setDesktopTwoActive(true);
+			openLivingRoomScene();
 		};
 
 		const leftPortal = new PIXI.Container();
@@ -2677,6 +2721,412 @@ async function boot() {
 		}
 		layoutLeftPortal();
 
+		// Scene B asset metadata: keep paths here so WIP placeholders are easy to swap later.
+		const LIVING_ROOM_ASSETS = {
+			tvSpritePath: '',
+			tapeSpritePath: '',
+			tapeLabelById: {
+				blog: './assets/images/wip-tape-blog.png',
+				reflex: './assets/images/wip-tape-reflex.png',
+				walklatro: './assets/images/wip-tape-walklatro.png',
+				resume: './assets/images/wip-tape-resume.png',
+				linkedin: './assets/images/wip-tape-linkedin.png',
+				github: './assets/images/wip-tape-github.png',
+			},
+		};
+		const VHS_TAPE_LIBRARY = [
+			{ id: 'blog', label: 'BLOG', title: 'Blog', status: 'wip', hasContent: false, accent: 0x5c9d6f, summary: 'WIP tape sprite. Content will be added later.' },
+			{ id: 'reflex', label: 'REFLEX', title: 'Reflex', status: 'wip', hasContent: false, accent: 0xcf5f8f, summary: 'WIP tape sprite. Content will be added later.' },
+			{ id: 'walklatro', label: 'WALKLATRO', title: 'Walklatro', status: 'wip', hasContent: false, accent: 0xd5a063, summary: 'WIP tape sprite. Content will be added later.' },
+			{ id: 'resume', label: 'RESUME', title: 'Resume', status: 'wip', hasContent: false, accent: 0xb58a59, summary: 'WIP tape sprite. Content will be added later.' },
+			{ id: 'linkedin', label: 'LINKEDIN', title: 'LinkedIn', status: 'wip', hasContent: false, accent: 0x4f80bf, summary: 'WIP tape sprite. Content will be added later.' },
+			{ id: 'github', label: 'GITHUB', title: 'GitHub', status: 'wip', hasContent: false, accent: 0x7a659d, summary: 'WIP tape sprite. Content will be added later.' },
+		];
+		const livingRoomState = {
+			blend: 0,
+			targetBlend: 0,
+			hoverIndex: -1,
+			activeTapeId: null,
+			inserting: null,
+			returnToRoomOnPlaybackExit: false,
+		};
+		const livingRoomLayer = new PIXI.Container();
+		livingRoomLayer.zIndex = 180;
+		livingRoomLayer.visible = false;
+		livingRoomLayer.eventMode = 'none';
+		const livingRoomBackdrop = new PIXI.Graphics();
+		const livingRoomFloor = new PIXI.Graphics();
+		const livingRoomShelf = new PIXI.Graphics();
+		const livingRoomTv = new PIXI.Container();
+		const livingRoomTvFrame = new PIXI.Graphics();
+		const livingRoomTvArt = new PIXI.Sprite(PIXI.Texture.WHITE);
+		const livingRoomTvGlass = new PIXI.Graphics();
+		const livingRoomTvStatic = new PIXI.Graphics();
+		const livingRoomTvSlot = new PIXI.Graphics();
+		const livingRoomTitle = new PIXI.Text('LIVING ROOM', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 14,
+			fill: 0xf3e0c0,
+			letterSpacing: 1,
+		});
+		livingRoomTitle.anchor.set(0.5, 0);
+		const livingRoomHint = new PIXI.Text('Pick a VHS and insert into TV', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 10,
+			fill: 0xc9b6a0,
+			letterSpacing: 1,
+		});
+		livingRoomHint.anchor.set(0.5, 0);
+		const livingRoomDetailsPanel = new PIXI.Graphics();
+		const livingRoomDetailsTitle = new PIXI.Text('NO TAPE SELECTED', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 11,
+			fill: 0xf4e5cc,
+			letterSpacing: 1,
+		});
+		const livingRoomDetailsStatus = new PIXI.Text('STATUS: WIP', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 9,
+			fill: 0xd9c6a8,
+			letterSpacing: 1,
+		});
+		const livingRoomDetailsBody = new PIXI.Text('Choose a tape to preview metadata.', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 9,
+			fill: 0xbca98d,
+			wordWrap: true,
+			wordWrapWidth: 220,
+			lineHeight: 14,
+		});
+		const livingRoomBackBtn = new PIXI.Container();
+		const livingRoomBackBg = new PIXI.Graphics();
+		const livingRoomBackLabel = new PIXI.Text('BACK', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 10,
+			fill: 0xf4e5cc,
+			letterSpacing: 1,
+		});
+		livingRoomBackLabel.anchor.set(0.5, 0.5);
+		livingRoomBackBtn.addChild(livingRoomBackBg, livingRoomBackLabel);
+		livingRoomBackBtn.eventMode = 'static';
+		livingRoomBackBtn.cursor = 'pointer';
+		const statusColorForTape = (status) => {
+			switch ((status || '').toLowerCase()) {
+				case 'released': return 0x6dff9a;
+				case 'empty': return 0xffc57a;
+				default: return 0xffd56b;
+			}
+		};
+		const applyWipSpriteTexture = (sprite, path) => {
+			sprite.texture = PIXI.Texture.WHITE;
+			sprite.tint = 0xffffff;
+			if (!path) return;
+			const tex = PIXI.Texture.from(path);
+			const useTexture = () => {
+				sprite.texture = tex;
+				sprite.tint = 0xffffff;
+			};
+			if (tex?.baseTexture?.valid) {
+				useTexture();
+				return;
+			}
+			tex?.baseTexture?.once?.('loaded', useTexture);
+		};
+		applyWipSpriteTexture(livingRoomTvArt, LIVING_ROOM_ASSETS.tvSpritePath);
+		const createTapeNode = (tape, index) => {
+			const node = new PIXI.Container();
+			const shadow = new PIXI.Graphics();
+			const body = new PIXI.Graphics();
+			const art = new PIXI.Sprite(PIXI.Texture.WHITE);
+			const labelStrip = new PIXI.Graphics();
+			const statusLed = new PIXI.Graphics();
+			const title = new PIXI.Text(tape.label, {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 9,
+				fill: 0xefe1cb,
+				letterSpacing: 1,
+			});
+			title.anchor.set(0.5, 0.5);
+			const status = new PIXI.Text((tape.status || 'wip').toUpperCase(), {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 8,
+				fill: statusColorForTape(tape.status),
+				letterSpacing: 1,
+			});
+			status.anchor.set(0.5, 0.5);
+			applyWipSpriteTexture(art, LIVING_ROOM_ASSETS.tapeLabelById[tape.id] || LIVING_ROOM_ASSETS.tapeSpritePath);
+			art.alpha = 0.6;
+			node.addChild(shadow, body, art, labelStrip, statusLed, title, status);
+			node.eventMode = 'static';
+			node.cursor = 'pointer';
+			node.on('pointerover', () => {
+				if (livingRoomState.inserting) return;
+				livingRoomState.hoverIndex = index;
+			});
+			node.on('pointerout', () => {
+				if (livingRoomState.hoverIndex === index) livingRoomState.hoverIndex = -1;
+			});
+			node.on('pointertap', () => {
+				if (livingRoomState.inserting) return;
+				livingRoomState.inserting = {
+					tape,
+					node,
+					index,
+					progress: 0,
+					startX: node.position.x,
+					startY: node.position.y,
+				};
+				livingRoomState.activeTapeId = tape.id;
+			});
+			return {
+				tape,
+				node,
+				shadow,
+				body,
+				art,
+				labelStrip,
+				statusLed,
+				title,
+				status,
+				hoverMix: 0,
+				baseX: 0,
+				baseY: 0,
+			};
+		};
+		const livingRoomTapes = VHS_TAPE_LIBRARY.map((tape, index) => createTapeNode(tape, index));
+		for (const tape of livingRoomTapes) livingRoomLayer.addChild(tape.node);
+		livingRoomTv.addChild(livingRoomTvFrame, livingRoomTvArt, livingRoomTvGlass, livingRoomTvStatic, livingRoomTvSlot);
+		livingRoomLayer.addChild(
+			livingRoomBackdrop,
+			livingRoomFloor,
+			livingRoomShelf,
+			livingRoomTv,
+			livingRoomTitle,
+			livingRoomHint,
+			livingRoomDetailsPanel,
+			livingRoomDetailsTitle,
+			livingRoomDetailsStatus,
+			livingRoomDetailsBody,
+			livingRoomBackBtn,
+		);
+		world.addChild(livingRoomLayer);
+		let livingRoomTvSlotX = 0;
+		let livingRoomTvSlotY = 0;
+		const applyLivingRoomTapeDetails = (tape) => {
+			if (!tape) {
+				livingRoomDetailsTitle.text = 'NO TAPE SELECTED';
+				livingRoomDetailsStatus.text = 'STATUS: WIP';
+				livingRoomDetailsStatus.style.fill = statusColorForTape('wip');
+				livingRoomDetailsBody.text = 'Choose a tape to preview metadata.';
+				return;
+			}
+			const status = (tape.status || 'wip').toUpperCase();
+			livingRoomDetailsTitle.text = `${tape.title} VHS`;
+			livingRoomDetailsStatus.text = `STATUS: ${status}`;
+			livingRoomDetailsStatus.style.fill = statusColorForTape(tape.status);
+			livingRoomDetailsBody.text = tape.summary || 'WIP tape sprite. Content will be added later.';
+		};
+		const layoutLivingRoom = () => {
+			const sw = app.renderer.width;
+			const sh = app.renderer.height;
+			const ww = screenToWorldSize(sw);
+			const wh = screenToWorldSize(sh);
+			livingRoomLayer.position.set(screenToWorldX(0), screenToWorldY(0));
+			livingRoomLayer.hitArea = new PIXI.Rectangle(0, 0, ww, wh);
+
+			livingRoomBackdrop.clear();
+			livingRoomBackdrop.beginFill(0x0b090d, 0.92);
+			livingRoomBackdrop.drawRect(0, 0, ww, wh);
+			livingRoomBackdrop.endFill();
+
+			livingRoomFloor.clear();
+			livingRoomFloor.beginFill(0x2b1f16, 0.9);
+			livingRoomFloor.drawRect(0, wh * 0.62, ww, wh * 0.38);
+			livingRoomFloor.endFill();
+
+			const tvW = ww * 0.44;
+			const tvH = wh * 0.42;
+			const tvX = ww * 0.5;
+			const tvY = wh * 0.36;
+			livingRoomTv.position.set(tvX, tvY);
+
+			livingRoomTvFrame.clear();
+			livingRoomTvFrame.beginFill(0x141820, 0.98);
+			livingRoomTvFrame.lineStyle(3, 0x2d3a4f, 0.95);
+			livingRoomTvFrame.drawRoundedRect(-tvW * 0.5, -tvH * 0.5, tvW, tvH, 14);
+			livingRoomTvFrame.endFill();
+
+			const screenW = tvW * 0.76;
+			const screenH = tvH * 0.62;
+			livingRoomTvArt.position.set(-tvW * 0.5, -tvH * 0.5);
+			livingRoomTvArt.width = tvW;
+			livingRoomTvArt.height = tvH;
+			livingRoomTvArt.alpha = LIVING_ROOM_ASSETS.tvSpritePath ? 0.95 : 0.08;
+			livingRoomTvGlass.clear();
+			livingRoomTvGlass.beginFill(0x0a1220, 0.95);
+			livingRoomTvGlass.lineStyle(2, 0x30465d, 0.8);
+			livingRoomTvGlass.drawRoundedRect(-screenW * 0.5, -tvH * 0.32, screenW, screenH, 9);
+			livingRoomTvGlass.endFill();
+
+			livingRoomTvStatic.clear();
+			livingRoomTvStatic.beginFill(0x9ad8ff, 0.06 + livingRoomState.blend * 0.03);
+			livingRoomTvStatic.drawRoundedRect(-screenW * 0.5 + 4, -tvH * 0.32 + 4, screenW - 8, screenH - 8, 7);
+			livingRoomTvStatic.endFill();
+
+			livingRoomTvSlot.clear();
+			livingRoomTvSlot.beginFill(0x06080d, 0.95);
+			livingRoomTvSlot.lineStyle(1.5, 0x3a4b66, 0.85);
+			livingRoomTvSlot.drawRoundedRect(-tvW * 0.18, tvH * 0.2, tvW * 0.36, tvH * 0.08, 4);
+			livingRoomTvSlot.endFill();
+			livingRoomTvSlotX = tvX;
+			livingRoomTvSlotY = tvY + tvH * 0.24;
+
+			livingRoomTitle.position.set(ww * 0.5, wh * 0.08);
+			livingRoomHint.position.set(ww * 0.5, wh * 0.12);
+
+			livingRoomShelf.clear();
+			livingRoomShelf.lineStyle(3, 0x5b4532, 0.9);
+			livingRoomShelf.moveTo(ww * 0.11, wh * 0.7);
+			livingRoomShelf.lineTo(ww * 0.63, wh * 0.7);
+			livingRoomShelf.lineStyle(1.5, 0xa07c5a, 0.42);
+			livingRoomShelf.moveTo(ww * 0.11, wh * 0.696);
+			livingRoomShelf.lineTo(ww * 0.63, wh * 0.696);
+
+			const detailX = ww * 0.69;
+			const detailY = wh * 0.22;
+			const detailW = ww * 0.24;
+			const detailH = wh * 0.5;
+			livingRoomDetailsPanel.clear();
+			livingRoomDetailsPanel.beginFill(0x1b1720, 0.82);
+			livingRoomDetailsPanel.lineStyle(2, 0x3b2f47, 0.8);
+			livingRoomDetailsPanel.drawRoundedRect(detailX, detailY, detailW, detailH, 10);
+			livingRoomDetailsPanel.endFill();
+			livingRoomDetailsTitle.position.set(detailX + 12, detailY + 14);
+			livingRoomDetailsStatus.position.set(detailX + 12, detailY + 38);
+			livingRoomDetailsBody.style.wordWrapWidth = Math.max(120, detailW - 24);
+			livingRoomDetailsBody.position.set(detailX + 12, detailY + 62);
+
+			livingRoomBackBg.clear();
+			livingRoomBackBg.beginFill(0x3a2430, 0.92);
+			livingRoomBackBg.lineStyle(2, 0x8f5a73, 0.86);
+			livingRoomBackBg.drawRoundedRect(0, 0, 88, 30, 8);
+			livingRoomBackBg.endFill();
+			livingRoomBackBtn.position.set(ww * 0.06, wh * 0.08);
+			livingRoomBackLabel.position.set(44, 15);
+
+			const tapeStartX = ww * 0.16;
+			const tapeGapX = ww * 0.095;
+			const tapeRowY = wh * 0.74;
+			for (let i = 0; i < livingRoomTapes.length; i++) {
+				const tape = livingRoomTapes[i];
+				tape.baseX = tapeStartX + i * tapeGapX;
+				tape.baseY = tapeRowY;
+			}
+		};
+		layoutLivingRoom();
+		const setLivingRoomTarget = (next) => {
+			livingRoomState.targetBlend = next ? 1 : 0;
+			if (next) {
+				livingRoomLayer.visible = true;
+				layoutLivingRoom();
+			}
+		};
+		openLivingRoomScene = () => {
+			setLivingRoomTarget(true);
+		};
+		closeLivingRoomScene = () => {
+			livingRoomState.returnToRoomOnPlaybackExit = false;
+			livingRoomState.hoverIndex = -1;
+			livingRoomState.inserting = null;
+			livingRoomState.activeTapeId = null;
+			applyLivingRoomTapeDetails(null);
+			setLivingRoomTarget(false);
+		};
+		onDesktopTwoExitRequested = () => {
+			if (!livingRoomState.returnToRoomOnPlaybackExit) return;
+			setLivingRoomTarget(true);
+		};
+		livingRoomBackBtn.on('pointertap', () => {
+			livingRoomState.returnToRoomOnPlaybackExit = false;
+			closeLivingRoomScene();
+		});
+		livingRoomBackBtn.on('pointerover', () => { livingRoomBackBtn.scale.set(1.04); });
+		livingRoomBackBtn.on('pointerout', () => { livingRoomBackBtn.scale.set(1); });
+		const updateLivingRoomScene = (dtSeconds) => {
+			livingRoomState.blend += (livingRoomState.targetBlend - livingRoomState.blend) * Math.min(1, dtSeconds * 8.5);
+			if (livingRoomState.blend < 0.01 && livingRoomState.targetBlend < 0.01) {
+				livingRoomLayer.visible = false;
+				livingRoomLayer.eventMode = 'none';
+				livingRoomActive = false;
+				return;
+			}
+			livingRoomActive = true;
+			livingRoomLayer.visible = true;
+			livingRoomLayer.eventMode = 'static';
+			livingRoomLayer.alpha = Math.max(0, Math.min(1, livingRoomState.blend));
+			const activeTape = livingRoomState.inserting?.tape
+				|| VHS_TAPE_LIBRARY.find((t) => t.id === livingRoomState.activeTapeId)
+				|| VHS_TAPE_LIBRARY[livingRoomState.hoverIndex]
+				|| null;
+			applyLivingRoomTapeDetails(activeTape);
+
+			for (let i = 0; i < livingRoomTapes.length; i++) {
+				const tape = livingRoomTapes[i];
+				const targetHover = (livingRoomState.hoverIndex === i && !livingRoomState.inserting) ? 1 : 0;
+				tape.hoverMix += (targetHover - tape.hoverMix) * Math.min(1, dtSeconds * 12);
+				const h = Math.max(0, Math.min(1, tape.hoverMix));
+				tape.node.position.set(tape.baseX + h * 6, tape.baseY - h * 14);
+				tape.node.scale.set(1 + h * 0.06);
+				const tw = screenToWorldSize(72);
+				const th = screenToWorldSize(42);
+				tape.shadow.clear();
+				tape.shadow.beginFill(0x000000, 0.16 + h * 0.1);
+				tape.shadow.drawRoundedRect(-tw * 0.52 + 4, -th * 0.5 + 7, tw * 1.04, th, 7);
+				tape.shadow.endFill();
+				tape.body.clear();
+				tape.body.beginFill(0x261b14, 0.97);
+				tape.body.lineStyle(2, tape.tape.accent, 0.86);
+				tape.body.drawRoundedRect(-tw * 0.5, -th * 0.5, tw, th, 6);
+				tape.body.endFill();
+				tape.art.position.set(-tw * 0.38, -th * 0.38);
+				tape.art.width = tw * 0.76;
+				tape.art.height = th * 0.34;
+				tape.art.alpha = (LIVING_ROOM_ASSETS.tapeLabelById[tape.tape.id] || LIVING_ROOM_ASSETS.tapeSpritePath) ? (0.68 + h * 0.12) : 0.12;
+				tape.labelStrip.clear();
+				tape.labelStrip.beginFill(0x3b2a1d, 0.96);
+				tape.labelStrip.drawRoundedRect(-tw * 0.44, -th * 0.07, tw * 0.88, th * 0.42, 4);
+				tape.labelStrip.endFill();
+				tape.statusLed.clear();
+				tape.statusLed.beginFill(statusColorForTape(tape.tape.status), 0.24 + h * 0.45);
+				tape.statusLed.drawCircle(tw * 0.37, -th * 0.24, Math.max(1.5, th * 0.11));
+				tape.statusLed.endFill();
+				tape.title.position.set(0, th * 0.08);
+				tape.status.position.set(0, th * 0.29);
+			}
+
+			if (livingRoomState.inserting) {
+				const ins = livingRoomState.inserting;
+				ins.progress = Math.min(1, ins.progress + dtSeconds * 2.1);
+				const eased = 1 - Math.pow(1 - ins.progress, 3);
+				ins.node.position.x = ins.startX + (livingRoomTvSlotX - ins.startX) * eased;
+				ins.node.position.y = ins.startY + (livingRoomTvSlotY - ins.startY) * eased;
+				const s = 1 + (0.38 - 1) * eased;
+				ins.node.scale.set(s);
+				livingRoomTvStatic.alpha = 0.08 + 0.14 * eased;
+				if (ins.progress >= 1) {
+					const selectedTape = ins.tape;
+					livingRoomState.activeTapeId = selectedTape.id;
+					livingRoomState.inserting = null;
+					livingRoomState.returnToRoomOnPlaybackExit = true;
+					setDesktopTwoLoadedTape(selectedTape);
+					setLivingRoomTarget(false);
+					setDesktopTwoActive(true);
+				}
+			} else {
+				livingRoomTvStatic.alpha = 0.06 + 0.02 * Math.sin((performance.now ? performance.now() : Date.now()) * 0.004);
+			}
+		};
+
 		const ENABLE_CLICK_AUDIO = false;
 		const CLICK_AUDIO_URL = './assets/audio/clickdown.wav';
 		let clickAudioCtx = null;
@@ -2753,7 +3203,7 @@ async function boot() {
 		window.addEventListener('pointerenter', updateMouseFromEvent);
 		window.addEventListener('mousemove', updateMouseFromEvent);
 		window.addEventListener('pointerdown', (e) => {
-			if (dragEnabled) return;
+			if (dragEnabled || livingRoomActive) return;
 			const p = toRendererPoint(e);
 			if (!p) return;
 			const c = getCoreScreenPos();
@@ -2771,7 +3221,7 @@ async function boot() {
 			ringDrag.lastTime = performance.now ? performance.now() : Date.now();
 		});
 		window.addEventListener('pointermove', (e) => {
-			if (dragEnabled || !ringCandidate.active) return;
+			if (dragEnabled || livingRoomActive || !ringCandidate.active) return;
 			const p = toRendererPoint(e);
 			if (!p) return;
 			const moveDx = p.x - ringCandidate.startX;
@@ -2912,12 +3362,13 @@ async function boot() {
 				if (desktopTwoEntryTransition.phase >= 1) {
 					desktopTwoEntryTransition.active = false;
 					drawTransitionWipe(0);
-					setDesktopTwoActive(true);
+					openLivingRoomScene();
 				}
 			} else if (transitionWipe.visible) {
 				drawTransitionWipe(0);
 			}
-			if (!desktopTwoActive) {
+			updateLivingRoomScene(seconds);
+			if (!desktopTwoActive && !livingRoomActive) {
 				const edgeWidth = Math.max(1, leftPortalWidth * 1.9);
 				const edgeFactor = Math.max(0, Math.min(1, 1 - mouse.x / edgeWidth));
 				leftPortalProgress += (edgeFactor - leftPortalProgress) * 0.18;
@@ -3504,6 +3955,7 @@ async function boot() {
 			// Keep shader uniforms in sync with new renderer size
 			layoutScene();
 			layoutLeftPortal();
+			layoutLivingRoom();
 			if (desktopTwoEntryTransition.active) drawTransitionWipe(desktopTwoEntryTransition.phase);
 			else drawTransitionWipe(0);
 			resizeFlowBackground();
