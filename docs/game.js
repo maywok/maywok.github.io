@@ -1281,15 +1281,15 @@ async function boot() {
 			const vineOptions = {
 				lamp: {
 					enabled: ENABLE_VINE_LAMPS,
-					color: 0x9bff6a,
-					glowColor: 0x37ff7a,
-					radius: 7,
-					glowRadius: 28,
-					glowAlpha: 0.4,
-					coreAlpha: 0.96,
+					color: 0xcfe7da,
+					glowColor: 0x95c9b2,
+					radius: 9,
+					glowRadius: 36,
+					glowAlpha: 0.28,
+					coreAlpha: 0.88,
 				},
 			};
-			let { container: vinesLayer, vines } = createVines(app, 12, 6, vineOptions);
+			let { container: vinesLayer, vines } = createVines(app, 6, 28, vineOptions);
 			for (const v of vines) v.setColor(theme.vines.hue);
 			world.addChild(vinesLayer);
 
@@ -1350,15 +1350,15 @@ async function boot() {
 				glowAlpha: 0.55,
 			};
 			const LAMP_BASE = {
-				color: 0x9bff6a,
-				glowColor: 0x37ff7a,
-				glowAlpha: 0.4,
-				coreAlpha: 0.96,
+				color: 0xcfe7da,
+				glowColor: 0x95c9b2,
+				glowAlpha: 0.28,
+				coreAlpha: 0.88,
 			};
 			const BASE_MOOD = {
 				waveTint: 0xa31d4f,
 				waveMix: 0.14,
-				lampTint: 0x37ff7a,
+				lampTint: 0xb8dbc9,
 				glowStrength: 0.0,
 				contrast: 0.0,
 				vignette: 0.01,
@@ -1442,6 +1442,17 @@ async function boot() {
 					particleColor: 0x8a6137,
 					waveMotion: 1.05,
 					lampBoost: 0.12,
+				},
+				Portfolio: {
+					waveTint: 0x2e5f85,
+					waveMix: 0.2,
+					lampTint: 0x83cbff,
+					glowStrength: 0.1,
+					contrast: 0.018,
+					vignette: 0.045,
+					particleColor: 0x2f4e6d,
+					waveMotion: 1.06,
+					lampBoost: 0.13,
 				},
 			};
 			const hoverMoodSources = new Map();
@@ -1624,9 +1635,9 @@ async function boot() {
 				return PIXI.Texture.from(canvas);
 			}
 
-			const lampLightTexture = makeLampLightTexture('#37ff7a');
+			const lampLightTexture = makeLampLightTexture('#95c9b2');
 			const vineLightSprites = [];
-			const lampLightRadius = 140;
+			const lampLightRadius = 170;
 			function rebuildVineLights() {
 				lightLayer.removeChildren();
 				vineLightSprites.length = 0;
@@ -1914,16 +1925,19 @@ async function boot() {
 						ornamentColor: 0x665881,
 					},
 					{
-						label: 'Library',
-						moodKey: 'Library',
-						glyph: '',
-						tooltip: 'Open Portfolio Library',
+						displayName: 'Portfolio',
+						label: 'Portfolio',
+						moodKey: 'Portfolio',
+						glyph: 'P',
+						hoverActionText: 'Open Portfolio',
+						tooltip: 'Open Portfolio',
 						onTap: () => {
 							startDesktopTwoEntryTransition();
 						},
 						panelFill: 0x131d2d,
 						panelFillAlpha: 0.96,
 						panelBorder: 0x6ec6f7,
+						accentColor: 0x6ec6f7,
 						panelBorderAlpha: 0.96,
 						glyphColor: 0xe8f6ff,
 						labelColor: 0xcfe9ff,
@@ -4681,10 +4695,11 @@ async function boot() {
 				const vineHue = mixColors(theme.vines.hue, moodCurrent.lampTint, clamp01(0.12 + moodCurrent.waveMix * 0.45));
 				vine.setColor(vineHue);
 				if (vine?.lamp?.enabled) {
-					vine.lamp.color = mixColors(LAMP_BASE.color, moodCurrent.lampTint, 0.28 + moodCurrent.glowStrength * 0.34 + transitionSurge * 0.26);
-					vine.lamp.glowColor = mixColors(LAMP_BASE.glowColor, 0xff7fa8, transitionSurge * 0.34 + moodCurrent.glowStrength * 0.1);
-					vine.lamp.glowAlpha = clamp01(0.32 + moodCurrent.glowStrength * 0.2 + localBoost * 0.22);
-					vine.lamp.coreAlpha = clamp01(0.92 + localBoost * 0.08);
+					const lampTintMix = clamp01(0.22 + moodCurrent.glowStrength * 0.26 + localBoost * 0.36 + transitionSurge * 0.22);
+					vine.lamp.color = mixColors(LAMP_BASE.color, moodCurrent.lampTint, lampTintMix);
+					vine.lamp.glowColor = mixColors(LAMP_BASE.glowColor, moodCurrent.lampTint, clamp01(lampTintMix + 0.08));
+					vine.lamp.glowAlpha = clamp01(0.2 + moodCurrent.glowStrength * 0.12 + localBoost * 0.13);
+					vine.lamp.coreAlpha = clamp01(0.82 + localBoost * 0.12);
 				}
 				vine.update(time, mouseWorld, seconds);
 			}
@@ -4701,10 +4716,10 @@ async function boot() {
 						+ surgeLeftInfluence * transitionSurge * 0.95;
 					const pulse = 0.42 + 0.1 * Math.sin(time * 2.0 + i * 0.5);
 					s.position.set(p.x, p.y);
-					s.tint = mixColors(LAMP_BASE.glowColor, 0xff7fa8, transitionSurge * 0.35 + moodCurrent.glowStrength * 0.14);
-					s.alpha = clamp01(pulse + moodCurrent.glowStrength * 0.18 + localBoost * 0.45);
+					s.tint = mixColors(LAMP_BASE.glowColor, moodCurrent.lampTint, clamp01(0.24 + moodCurrent.glowStrength * 0.34 + localBoost * 0.42));
+					s.alpha = clamp01(0.16 + pulse * 0.22 + moodCurrent.glowStrength * 0.08 + localBoost * 0.18);
 					const baseScale = lampLightRadius / (lampLightTexture.width * 0.5);
-					s.scale.set(baseScale * (1 + localBoost * 0.16));
+					s.scale.set(baseScale * (1 + localBoost * 0.1));
 				}
 			}
 
