@@ -14,6 +14,14 @@ import {
 import { createPixelateFilter } from './pixelate.js';
 import { createAppLauncher } from './appLauncher.js';
 import { createVineLab } from './vineLab.js';
+import {
+	initSfx,
+	loadSfx,
+	playSfx,
+	startLoop as startSfxLoop,
+	updateLoop as updateSfxLoop,
+	stopLoop as stopSfxLoop,
+} from './sfx.js';
 
 const THEMES = {
 	light: {
@@ -1451,6 +1459,61 @@ async function boot() {
 			let moodHoverResumeAtMs = 0;
 			const getMoodProfile = (key) => MOOD_MAP[key] || MOOD_MAP.default;
 			const nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+			const ICON_SFX = {
+				hover: 'hoverIcon',
+				click: 'clickIcon',
+				grab: 'grabIcon',
+				release: 'releaseIcon',
+				spin: 'spinIcon',
+				throw: 'throwIcon',
+				wallHit: 'iconWallHit',
+				breakTarget: 'breakTarget',
+			};
+			const RING_SPIN_LOOP_KEY = 'ring-spin-loop';
+			const SFX_ASSETS = {
+				[ICON_SFX.hover]: './assets/audio/sounds/Hover_Icon.mp3',
+				[ICON_SFX.click]: './assets/audio/sounds/Click_Icon.mp3',
+				[ICON_SFX.grab]: './assets/audio/sounds/Grab_Icon.mp3',
+				[ICON_SFX.release]: './assets/audio/sounds/Release_Icon.mp3',
+				[ICON_SFX.spin]: './assets/audio/sounds/Spin_Icon.mp3',
+				[ICON_SFX.throw]: './assets/audio/sounds/Throw_Icon.mp3',
+				[ICON_SFX.wallHit]: './assets/audio/sounds/Icon_Hit_Wall.wav',
+				[ICON_SFX.breakTarget]: './assets/audio/sounds/Break_Target.wav',
+			};
+			let sfxLoadWarned = false;
+			const sfxLoadPromise = loadSfx(SFX_ASSETS).catch((err) => {
+				if (sfxLoadWarned) return;
+				sfxLoadWarned = true;
+				console.warn('SFX preload failed:', err);
+			});
+			const primeSfxContext = () => {
+				initSfx().catch(() => {});
+				return sfxLoadPromise;
+			};
+			const playSfxSafe = (id, options = {}) => {
+				if (!id) return;
+				try {
+					playSfx(id, options);
+				} catch (_) {}
+			};
+			const startSfxLoopSafe = (id, key, options = {}) => {
+				if (!id || !key) return;
+				try {
+					startSfxLoop(id, key, options);
+				} catch (_) {}
+			};
+			const updateSfxLoopSafe = (key, options = {}) => {
+				if (!key) return;
+				try {
+					updateSfxLoop(key, options);
+				} catch (_) {}
+			};
+			const stopSfxLoopSafe = (key, options = {}) => {
+				if (!key) return;
+				try {
+					stopSfxLoop(key, options);
+				} catch (_) {}
+			};
 			const resolveActiveMood = () => {
 				if (moodLockTarget) {
 					activeMoodEntry = null;
@@ -2227,6 +2290,99 @@ async function boot() {
 				for (const body of externals) if (body?.container && body?.state) bodies.push(body);
 				return bodies;
 			};
+			const iconSfxState = new WeakMap();
+			let pointerPressedIcon = null;
+			const findHoveredIconBody = () => {
+				const bodies = getAllIconBodies();
+				for (let i = bodies.length - 1; i >= 0; i--) {
+					const body = bodies[i];
+					if (body?.state?.hovered) return body;
+				}
+				return null;
+			};
+			const playThrowBySpeed = (speed) => {
+				const throwMin = 170 / SCENE_SCALE;
+				const throwMax = 1100 / SCENE_SCALE;
+				const mix = clamp01((speed - throwMin) / Math.max(1, throwMax - throwMin));
+				if (mix <= 0) return;
+				playSfxSafe(ICON_SFX.throw, {
+					volume: 0.18 + mix * 0.72,
+					rate: 0.88 + mix * 0.46,
+				});
+			};
+			const updateIconSfxMonitor = () => {
+				const bodies = getAllIconBodies();
+				const now = nowMs();
+				const velocityEpsilon = 26 / SCENE_SCALE;
+				const wallThreshold = 190 / SCENE_SCALE;
+				const wallCooldownMs = 60;
+				for (const body of bodies) {
+					if (!body?.container || !body?.state) continue;
+					const container = body.container;
+					const st = body.state;
+					const hovered = Boolean(st.hovered);
+					const dragLike = Boolean(st.dragging || st.grabbed);
+					const vx = Number.isFinite(st.vx) ? st.vx : 0;
+					const vy = Number.isFinite(st.vy) ? st.vy : 0;
+					let prev = iconSfxState.get(container);
+					if (!prev) {
+						iconSfxState.set(container, {
+							hovered,
+							dragLike,
+							vx,
+							vy,
+							lastWallAt: -999,
+						});
+						continue;
+					}
+
+					if (!prev.hovered && hovered) {
+						playSfxSafe(ICON_SFX.hover, {
+							volume: 0.34 + Math.random() * 0.14,
+							rate: 0.96 + Math.random() * 0.08,
+						});
+					}
+					if (!prev.dragLike && dragLike) {
+						playSfxSafe(ICON_SFX.grab, {
+							volume: 0.5,
+							rate: 0.95 + Math.random() * 0.12,
+						});
+					}
+					if (prev.dragLike && !dragLike) {
+						const releaseSpeed = Math.hypot(vx, vy);
+						playSfxSafe(ICON_SFX.release, {
+							volume: 0.38,
+							rate: 0.94 + Math.random() * 0.1,
+						});
+						playThrowBySpeed(releaseSpeed);
+					}
+
+					if (!dragLike && !prev.dragLike) {
+						const hitX = Math.abs(prev.vx) > velocityEpsilon
+							&& Math.abs(vx) > velocityEpsilon
+							&& Math.sign(prev.vx) !== Math.sign(vx)
+							&& Math.abs(vx - prev.vx) > wallThreshold;
+						const hitY = Math.abs(prev.vy) > velocityEpsilon
+							&& Math.abs(vy) > velocityEpsilon
+							&& Math.sign(prev.vy) !== Math.sign(vy)
+							&& Math.abs(vy - prev.vy) > wallThreshold;
+						if ((hitX || hitY) && now - prev.lastWallAt > wallCooldownMs) {
+							const impact = Math.max(Math.abs(vx - prev.vx), Math.abs(vy - prev.vy));
+							const impactMix = clamp01((impact - (180 / SCENE_SCALE)) / (1050 / SCENE_SCALE));
+							playSfxSafe(ICON_SFX.wallHit, {
+								volume: 0.14 + impactMix * 0.58,
+								rate: 0.92 + impactMix * 0.22,
+							});
+							prev.lastWallAt = now;
+						}
+					}
+
+					prev.hovered = hovered;
+					prev.dragLike = dragLike;
+					prev.vx = vx;
+					prev.vy = vy;
+				}
+			};
 			const updateArcadeScoreLabel = () => {
 				const comboSuffix = arcadeFeedback.combo > 1 ? `  x${arcadeFeedback.combo}` : '';
 				arcadeScoreText.text = `SCORE ${basketballScore}${comboSuffix}`;
@@ -2300,11 +2456,13 @@ async function boot() {
 					}
 					ringDrag.active = false;
 					ringCandidate.active = false;
+					stopSfxLoopSafe(RING_SPIN_LOOP_KEY, { fadeOut: 0.08 });
 				} else {
 					ringDrag.active = false;
 					ringCandidate.active = false;
 					ringSpinVel = 0;
 					ringSpin = 0;
+					stopSfxLoopSafe(RING_SPIN_LOOP_KEY, { fadeOut: 0.08 });
 					resetArcadeRound();
 					basketballHoverTarget = 0;
 					basketballHover = 0;
@@ -4208,6 +4366,8 @@ async function boot() {
 		window.addEventListener('pointerdown', async () => {
 			mouse.down = true;
 			cursorContainer.visible = true;
+			pointerPressedIcon = findHoveredIconBody()?.container || null;
+			primeSfxContext();
 			try {
 				await ensureClickAudio();
 				playClickSlice(0.0, 0.5, 0.85);
@@ -4215,13 +4375,28 @@ async function boot() {
 		});
 		window.addEventListener('pointerup', async () => {
 			mouse.down = false;
+			const hoveredIcon = findHoveredIconBody()?.container || null;
+			const shouldPlayClick = Boolean(!dragEnabled && pointerPressedIcon && hoveredIcon && pointerPressedIcon === hoveredIcon);
+			pointerPressedIcon = null;
+			if (shouldPlayClick) {
+				playSfxSafe(ICON_SFX.click, {
+					volume: 0.62 + Math.random() * 0.16,
+					rate: 0.95 + Math.random() * 0.1,
+				});
+			}
 			try {
 				await ensureClickAudio();
 				playClickSlice(0.5, 1.0, 0.85);
 			} catch (_) {}
 		});
-		window.addEventListener('pointercancel', () => { mouse.down = false; });
-		window.addEventListener('blur', () => { mouse.down = false; });
+		window.addEventListener('pointercancel', () => {
+			mouse.down = false;
+			pointerPressedIcon = null;
+		});
+		window.addEventListener('blur', () => {
+			mouse.down = false;
+			pointerPressedIcon = null;
+		});
 		window.addEventListener('pointerleave', () => { cursorContainer.visible = false; });
 		window.addEventListener('pointerenter', () => { cursorContainer.visible = true; });
 
@@ -4345,6 +4520,7 @@ async function boot() {
 			else if (transitionWipe.visible) drawTransitionWipe(0);
 			updateLivingRoomScene(seconds);
 			if (vineLabActive) {
+				stopSfxLoopSafe(RING_SPIN_LOOP_KEY, { fadeOut: 0.08 });
 				scene.visible = false;
 				livingRoomLayer.visible = false;
 				livingRoomLayer.eventMode = 'none';
@@ -4458,6 +4634,22 @@ async function boot() {
 				if (!Number.isFinite(ringSpin)) ringSpin = 0;
 				if (Math.abs(ringSpinVel) < 0.001) ringSpinVel = 0;
 			}
+			const spinLoopMix = !dragEnabled
+				? Math.max(ringDrag.active ? 0.35 : 0, clamp01(Math.abs(ringSpinVel) / Math.max(0.001, RING_MAX_SPIN_VEL)))
+				: 0;
+			if (spinLoopMix > 0.06) {
+				startSfxLoopSafe(ICON_SFX.spin, RING_SPIN_LOOP_KEY, {
+					volume: 0.05 + spinLoopMix * 0.26,
+					rate: 0.88 + spinLoopMix * 0.36,
+					fadeIn: 0.04,
+				});
+				updateSfxLoopSafe(RING_SPIN_LOOP_KEY, {
+					volume: 0.05 + spinLoopMix * 0.26,
+					rate: 0.88 + spinLoopMix * 0.36,
+				});
+			} else {
+				stopSfxLoopSafe(RING_SPIN_LOOP_KEY, { fadeOut: 0.12 });
+			}
 			if (!dragEnabled && (iconIntroProgress < 1 || ringDrag.active || Math.abs(ringSpinVel) > 0)) {
 				appLauncher.layout();
 				layoutBlogIcon();
@@ -4502,6 +4694,7 @@ async function boot() {
 			const mouseWorld = { x: mouseWorldX, y: mouseWorldY, down: mouse.down };
 			lastMouseWorld = mouseWorld;
 			appLauncher.update(time, seconds, mouseWorld);
+			updateIconSfxMonitor();
 			if (basketballMode && dragEnabled) {
 				arcadeLayer.visible = true;
 				arcadeSweepControl.visible = true;
@@ -4646,6 +4839,17 @@ async function boot() {
 						if (dx * dx + dy * dy > (bodyRadius + targetRadius) * (bodyRadius + targetRadius)) continue;
 
 						basketballScore += type.points;
+						playSfxSafe(ICON_SFX.breakTarget, {
+							volume: 0.62 + Math.random() * 0.16,
+							rate: 0.96 + Math.random() * 0.09,
+						});
+						if (type.points >= 5) {
+							playSfxSafe(ICON_SFX.breakTarget, {
+								volume: 0.24,
+								rate: 1.5 + Math.random() * 0.08,
+								offset: 0.012,
+							});
+						}
 						const chainWindow = 2.2;
 						if (time - arcadeFeedback.lastScoreTime <= chainWindow) arcadeFeedback.combo += 1;
 						else arcadeFeedback.combo = 1;
