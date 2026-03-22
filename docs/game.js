@@ -1502,6 +1502,8 @@ async function boot() {
 			let musicSwitchWarned = false;
 			let musicUnlocked = false;
 			let activeMusicTrack = null;
+			let musicSwitchInFlight = false;
+			let pendingMusicTrack = null;
 			const sfxLoadPromise = loadSfx(SFX_ASSETS).catch((err) => {
 				if (sfxLoadWarned) return;
 				sfxLoadWarned = true;
@@ -1529,13 +1531,38 @@ async function boot() {
 			const syncMusicTrack = () => {
 				if (!musicUnlocked) return;
 				const nextTrack = resolveMusicTrack();
-				if (nextTrack === activeMusicTrack) return;
-				activeMusicTrack = nextTrack;
-				setMusicTrack(nextTrack, { crossfade: 0.75 }).catch((err) => {
-					if (musicSwitchWarned) return;
-					musicSwitchWarned = true;
-					console.warn('Music switch failed:', err);
-				});
+				pendingMusicTrack = nextTrack;
+				if (pendingMusicTrack === activeMusicTrack) return;
+				if (musicSwitchInFlight) return;
+				musicSwitchInFlight = true;
+				Promise.resolve(musicLoadPromise)
+					.then(async () => {
+						while (pendingMusicTrack && pendingMusicTrack !== activeMusicTrack) {
+							const targetTrack = pendingMusicTrack;
+							const ok = await setMusicTrack(targetTrack, { crossfade: 0.75 });
+							if (!ok) {
+								if (!musicSwitchWarned) {
+									musicSwitchWarned = true;
+									console.warn('Music switch failed: target track not ready', targetTrack);
+								}
+								pendingMusicTrack = null;
+								break;
+							}
+							activeMusicTrack = targetTrack;
+						}
+					})
+					.catch((err) => {
+						if (musicSwitchWarned) return;
+						musicSwitchWarned = true;
+						console.warn('Music switch failed:', err);
+					})
+					.finally(() => {
+						musicSwitchInFlight = false;
+						if (!musicUnlocked) return;
+						if (pendingMusicTrack && pendingMusicTrack !== activeMusicTrack) {
+							syncMusicTrack();
+						}
+					});
 			};
 			const playSfxSafe = (id, options = {}) => {
 				if (!id) return;
