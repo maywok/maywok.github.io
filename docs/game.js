@@ -2750,12 +2750,12 @@ async function boot() {
 			},
 		};
 		const VHS_TAPE_LIBRARY = [
-			{ id: 'default-home', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'DESKTOP', hasContent: true, accent: 0x8eb8ff, summary: 'Placeholder VHS.' },
-			{ id: 'slot-b', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'BRO_MEME', hasContent: true, accent: 0xcf5f8f, summary: 'Placeholder VHS.' },
-			{ id: 'slot-c', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'BRO_MEME', hasContent: true, accent: 0xd5a063, summary: 'Placeholder VHS.' },
-			{ id: 'slot-d', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'BRO_MEME', hasContent: true, accent: 0xb58a59, summary: 'Placeholder VHS.' },
-			{ id: 'slot-e', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'BRO_MEME', hasContent: true, accent: 0x4f80bf, summary: 'Placeholder VHS.' },
-			{ id: 'slot-f', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'BRO_MEME', hasContent: true, accent: 0x7a659d, summary: 'Placeholder VHS.' },
+			{ id: 'default-home', label: 'EMPTY', title: 'EMPTY', status: 'ready', contentType: 'BRO_MEME', hasContent: true, accent: 0x8eb8ff, summary: 'Default tape: bro jokes terminal.' },
+			{ id: 'slot-b', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'EMPTY', hasContent: false, accent: 0xcf5f8f, summary: 'Nothing here yet.' },
+			{ id: 'slot-c', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'EMPTY', hasContent: false, accent: 0xd5a063, summary: 'Nothing here yet.' },
+			{ id: 'slot-d', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'EMPTY', hasContent: false, accent: 0xb58a59, summary: 'Nothing here yet.' },
+			{ id: 'slot-e', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'EMPTY', hasContent: false, accent: 0x4f80bf, summary: 'Nothing here yet.' },
+			{ id: 'slot-f', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'EMPTY', hasContent: false, accent: 0x7a659d, summary: 'Nothing here yet.' },
 		];
 		const STATE_DESKTOP_FULLSCREEN = 'STATE_DESKTOP_FULLSCREEN';
 		const STATE_LIVING_ROOM_IDLE = 'STATE_LIVING_ROOM_IDLE';
@@ -2764,6 +2764,7 @@ async function boot() {
 		const VIEW_TV_AREA = 'TV_AREA';
 		const CONTENT_DESKTOP = 'DESKTOP';
 		const CONTENT_BRO_MEME = 'BRO_MEME';
+		const CONTENT_EMPTY = 'EMPTY';
 		const CONTENT_SCREENSAVER = 'SCREENSAVER';
 		const LIVING_ROOM_TRANSITION_SECONDS = 0.9;
 		const livingRoomState = {
@@ -2777,6 +2778,7 @@ async function boot() {
 			activeTapeId: null,
 			insertedTapeId: null,
 			inserting: null,
+			emptyPreviewWord: pickBroPlaceholderWord(),
 			playingMix: 0,
 			staticBurst: 0,
 		};
@@ -2841,7 +2843,20 @@ async function boot() {
 		tvDesktopTransitionSprite.texture = tvDesktopRenderTexture;
 		tvDesktopTransitionSprite.alpha = 0;
 		tvBroScreen.addChild(tvBroBg, tvBroTitle, tvBroSub);
-		tvContentContainer.addChild(tvScreenBaseBg, tvDesktopContentSprite, tvBroScreen);
+		const tvEmptyScreen = new PIXI.Container();
+		const tvEmptyBg = new PIXI.Graphics();
+		const tvEmptySprite = new PIXI.Sprite(PIXI.Texture.WHITE);
+		const tvEmptyText = new PIXI.Text('Nothing here yet bro', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 10,
+			fill: 0xf4d06d,
+			letterSpacing: 1,
+			align: 'center',
+		});
+		tvEmptyText.anchor.set(0.5, 0.5);
+		tvEmptyScreen.alpha = 0;
+		tvEmptyScreen.addChild(tvEmptyBg, tvEmptySprite, tvEmptyText);
+		tvContentContainer.addChild(tvScreenBaseBg, tvDesktopContentSprite, tvBroScreen, tvEmptyScreen);
 		const tvScreensaverLayer = new PIXI.Container();
 		const tvScreensaverBg = new PIXI.Graphics();
 		const tvScreensaverNoise = new PIXI.Graphics();
@@ -2984,6 +2999,7 @@ async function boot() {
 		fullscreenTvContentLayer.addChild(fullscreenTvContentBg, fullscreenTvContentTitle, fullscreenTvContentSub, fullscreenExitBtn);
 		app.stage.addChild(fullscreenTvContentLayer);
 		applyWipSpriteTexture(livingRoomTvArt, LIVING_ROOM_ASSETS.tvSpritePath);
+		applyWipSpriteTexture(tvEmptySprite, LIVING_ROOM_ASSETS.tapeSpritePath);
 		const setPlacardDetails = ({ title, status, body, ledText, ledColor }) => {
 			placardTitle.text = title;
 			placardStatus.text = status;
@@ -3007,11 +3023,21 @@ async function boot() {
 				});
 				return;
 			}
-			if (livingRoomState.contentMode === CONTENT_DESKTOP && livingRoomState.insertedTapeId === 'default-home') {
+			if (livingRoomState.contentMode === CONTENT_EMPTY) {
 				setPlacardDetails({
-					title: 'DEFAULT APPS VHS',
+					title: 'EMPTY TAPE',
+					status: 'STATUS: EMPTY',
+					body: `Nothing here yet ${livingRoomState.emptyPreviewWord}`,
+					ledText: 'EMPTY',
+					ledColor: 0xffc57a,
+				});
+				return;
+			}
+			if (livingRoomState.contentMode === CONTENT_BRO_MEME && livingRoomState.insertedTapeId === 'default-home') {
+				setPlacardDetails({
+					title: 'DEFAULT TAPE',
 					status: 'STATUS: INSERTED',
-					body: 'Main page tape is loaded. Press EJECT for screensaver.',
+					body: 'Bro jokes terminal loaded. Press EJECT for screensaver.',
 					ledText: 'INSERTED',
 					ledColor: 0x88d9ff,
 				});
@@ -3120,6 +3146,15 @@ async function boot() {
 			const tapeEntry = tapeNodeById.get(tapeId);
 			if (!tapeEntry) return;
 			livingRoomState.hoverIndex = -1;
+			if (!tapeEntry.tape.hasContent || tapeEntry.tape.contentType === CONTENT_EMPTY) {
+				livingRoomState.mode = STATE_LIVING_ROOM_IDLE;
+				livingRoomState.activeTapeId = tapeEntry.tape.id;
+				livingRoomState.contentMode = CONTENT_EMPTY;
+				livingRoomState.emptyPreviewWord = pickBroPlaceholderWord();
+				livingRoomState.playingMix = 0;
+				refreshPlacard();
+				return;
+			}
 			livingRoomState.mode = STATE_LIVING_ROOM_IDLE;
 			livingRoomState.inserting = {
 				tape: tapeEntry.tape,
@@ -3132,11 +3167,11 @@ async function boot() {
 		const enterLivingRoom = ({ preserveContent = false } = {}) => {
 			livingRoomState.viewMode = VIEW_TV_AREA;
 			if (!preserveContent) {
-				livingRoomState.mode = STATE_LIVING_ROOM_IDLE;
-				livingRoomState.contentMode = CONTENT_DESKTOP;
+				livingRoomState.mode = STATE_LIVING_ROOM_PLAYING;
+				livingRoomState.contentMode = CONTENT_BRO_MEME;
 				livingRoomState.activeTapeId = 'default-home';
 				livingRoomState.insertedTapeId = 'default-home';
-				livingRoomState.playingMix = 0;
+				livingRoomState.playingMix = 1;
 			}
 			livingRoomState.inserting = null;
 			livingRoomState.hoverIndex = -1;
@@ -3322,6 +3357,17 @@ async function boot() {
 			tvBroBg.endFill();
 			tvBroTitle.position.set(screenInsetX + screenW * 0.5, screenInsetY + screenH * 0.48);
 			tvBroSub.position.set(screenInsetX + screenW * 0.5, screenInsetY + screenH * 0.62);
+			tvEmptyBg.clear();
+			tvEmptyBg.beginFill(0x130d0d, 0.98);
+			tvEmptyBg.drawRect(screenInsetX, screenInsetY, screenW, screenH);
+			tvEmptyBg.endFill();
+			tvEmptySprite.width = screenW * 0.54;
+			tvEmptySprite.height = screenH * 0.54;
+			tvEmptySprite.anchor.set(0.5);
+			tvEmptySprite.position.set(screenInsetX + screenW * 0.5, screenInsetY + screenH * 0.42);
+			tvEmptyText.style.wordWrap = true;
+			tvEmptyText.style.wordWrapWidth = Math.max(80, screenW * 0.92);
+			tvEmptyText.position.set(screenInsetX + screenW * 0.5, screenInsetY + screenH * 0.82);
 			tvBroTitleBaseY = tvBroTitle.y;
 			tvBroSubBaseY = tvBroSub.y;
 			tvScreensaverBg.clear();
@@ -3584,10 +3630,13 @@ async function boot() {
 
 			const broTarget = livingRoomState.contentMode === CONTENT_BRO_MEME ? 1 : 0;
 			livingRoomState.playingMix += (broTarget - livingRoomState.playingMix) * Math.min(1, dtSeconds * 8);
+			const emptyTarget = livingRoomState.contentMode === CONTENT_EMPTY ? 1 : 0;
+			tvEmptyScreen.alpha += (emptyTarget - tvEmptyScreen.alpha) * Math.min(1, dtSeconds * 8);
 			const screensaverTarget = livingRoomState.contentMode === CONTENT_SCREENSAVER ? 1 : 0;
 			tvScreensaverLayer.alpha += (screensaverTarget - tvScreensaverLayer.alpha) * Math.min(1, dtSeconds * 6);
-			tvDesktopContentSprite.alpha = livingRoomState.contentMode === CONTENT_DESKTOP ? 1 : Math.max(0, 1 - livingRoomState.playingMix * 1.35 - tvScreensaverLayer.alpha);
+			tvDesktopContentSprite.alpha = livingRoomState.contentMode === CONTENT_DESKTOP ? 1 : 0;
 			tvBroScreen.alpha = livingRoomState.playingMix;
+			tvEmptyText.text = `Nothing here yet ${livingRoomState.emptyPreviewWord}`;
 
 			const pulseTime = (performance.now ? performance.now() : Date.now()) * 0.003;
 			tvBroTitle.y = tvBroTitleBaseY + Math.sin(pulseTime) * 1.2;
@@ -3598,8 +3647,16 @@ async function boot() {
 				tvScreensaverNoise.alpha = 0.08 + 0.08 * Math.sin(pulseTime * 1.7);
 			}
 			if (fullscreenTvContentLayer.visible) {
-				fullscreenTvContentTitle.text = livingRoomState.contentMode === CONTENT_SCREENSAVER ? 'CRT SCREENSAVER' : 'BRO MEME FEED';
-				fullscreenTvContentSub.text = livingRoomState.contentMode === CONTENT_SCREENSAVER ? 'NO TAPE / IDLE' : 'fullscreen playback';
+				if (livingRoomState.contentMode === CONTENT_SCREENSAVER) {
+					fullscreenTvContentTitle.text = 'CRT SCREENSAVER';
+					fullscreenTvContentSub.text = 'NO TAPE / IDLE';
+				} else if (livingRoomState.contentMode === CONTENT_EMPTY) {
+					fullscreenTvContentTitle.text = 'UH-OH';
+					fullscreenTvContentSub.text = `Nothing here yet ${livingRoomState.emptyPreviewWord}`;
+				} else {
+					fullscreenTvContentTitle.text = 'BRO MEME FEED';
+					fullscreenTvContentSub.text = 'fullscreen playback';
+				}
 				const fullscreenNonDesktop = livingRoomState.contentMode !== CONTENT_DESKTOP;
 				fullscreenTvContentBg.alpha = fullscreenNonDesktop ? 1 : 0;
 				fullscreenTvContentTitle.alpha = fullscreenNonDesktop ? 1 : 0;
@@ -3607,6 +3664,8 @@ async function boot() {
 				if (livingRoomState.contentMode === CONTENT_SCREENSAVER) {
 					const ssWave = 0.5 + 0.5 * Math.sin(pulseTime * 0.6);
 					fullscreenTvContentBg.tint = (Math.floor(40 + ssWave * 70) << 16) | (Math.floor(70 + ssWave * 80) << 8) | Math.floor(150 + ssWave * 90);
+				} else if (livingRoomState.contentMode === CONTENT_EMPTY) {
+					fullscreenTvContentBg.tint = 0x3b2a1d;
 				} else {
 					fullscreenTvContentBg.tint = 0xffffff;
 				}
