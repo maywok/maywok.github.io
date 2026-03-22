@@ -88,6 +88,8 @@ async function boot() {
 		let livingRoomActive = false;
 		let closeLivingRoomScene = () => {};
 		let openLivingRoomScene = () => {};
+		let returnToTvAreaFromFullscreen = () => {};
+		let isFullscreenTvPlaybackActive = () => false;
 		const ensureDesktopTwoBackground = () => {
 			if (!desktopTwoRoot || desktopTwoApp) return;
 			const DESKTOP_TWO_BG = 0x090b10;
@@ -1070,6 +1072,10 @@ async function boot() {
 			}
 			if (desktopTwoActive) {
 				setDesktopTwoActive(false);
+				return;
+			}
+			if (isFullscreenTvPlaybackActive()) {
+				returnToTvAreaFromFullscreen();
 				return;
 			}
 			if (livingRoomActive) closeLivingRoomScene();
@@ -2744,12 +2750,12 @@ async function boot() {
 			},
 		};
 		const VHS_TAPE_LIBRARY = [
-			{ id: 'blog', label: 'BLOG', title: 'Blog', status: 'wip', hasContent: true, accent: 0x5c9d6f, summary: 'Click to insert. Placeholder tape art uses Uh-Oh.png.' },
-			{ id: 'reflex', label: 'REFLEX', title: 'Reflex', status: 'wip', hasContent: true, accent: 0xcf5f8f, summary: 'Click to insert. Placeholder tape art uses Uh-Oh.png.' },
-			{ id: 'walklatro', label: 'WALKLATRO', title: 'Walklatro', status: 'wip', hasContent: true, accent: 0xd5a063, summary: 'Click to insert. Placeholder tape art uses Uh-Oh.png.' },
-			{ id: 'resume', label: 'RESUME', title: 'Resume', status: 'empty', hasContent: true, accent: 0xb58a59, summary: 'Click to insert. Placeholder tape art uses Uh-Oh.png.' },
-			{ id: 'linkedin', label: 'LINKEDIN', title: 'LinkedIn', status: 'wip', hasContent: true, accent: 0x4f80bf, summary: 'Click to insert. Placeholder tape art uses Uh-Oh.png.' },
-			{ id: 'github', label: 'GITHUB', title: 'GitHub', status: 'wip', hasContent: true, accent: 0x7a659d, summary: 'Click to insert. Placeholder tape art uses Uh-Oh.png.' },
+			{ id: 'default-home', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'DESKTOP', hasContent: true, accent: 0x8eb8ff, summary: 'Placeholder VHS.' },
+			{ id: 'slot-b', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'BRO_MEME', hasContent: true, accent: 0xcf5f8f, summary: 'Placeholder VHS.' },
+			{ id: 'slot-c', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'BRO_MEME', hasContent: true, accent: 0xd5a063, summary: 'Placeholder VHS.' },
+			{ id: 'slot-d', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'BRO_MEME', hasContent: true, accent: 0xb58a59, summary: 'Placeholder VHS.' },
+			{ id: 'slot-e', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'BRO_MEME', hasContent: true, accent: 0x4f80bf, summary: 'Placeholder VHS.' },
+			{ id: 'slot-f', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'BRO_MEME', hasContent: true, accent: 0x7a659d, summary: 'Placeholder VHS.' },
 		];
 		const STATE_DESKTOP_FULLSCREEN = 'STATE_DESKTOP_FULLSCREEN';
 		const STATE_LIVING_ROOM_IDLE = 'STATE_LIVING_ROOM_IDLE';
@@ -2764,6 +2770,7 @@ async function boot() {
 			mode: STATE_DESKTOP_FULLSCREEN,
 			viewMode: VIEW_FULLSCREEN,
 			contentMode: CONTENT_DESKTOP,
+			fullscreenFromTv: false,
 			blend: 0,
 			targetBlend: 0,
 			hoverIndex: -1,
@@ -2786,6 +2793,12 @@ async function boot() {
 		const leftShelf = new PIXI.Graphics();
 		const rightShelf = new PIXI.Graphics();
 		const livingRoomTv = new PIXI.Container();
+		const tvBodyShadow = new PIXI.Graphics();
+		const tvBody = new PIXI.Graphics();
+		const tvBezelRimLight = new PIXI.Graphics();
+		const tvBezelRimShade = new PIXI.Graphics();
+		const tvInnerFrame = new PIXI.Graphics();
+		const tvGlassReflection = new PIXI.Graphics();
 		const livingRoomTvFrame = new PIXI.Graphics();
 		const livingRoomTvArt = new PIXI.Sprite(PIXI.Texture.WHITE);
 		const tvScreenGroup = new PIXI.Container();
@@ -2935,6 +2948,7 @@ async function boot() {
 		const fullscreenTvContentLayer = new PIXI.Container();
 		fullscreenTvContentLayer.zIndex = 820;
 		fullscreenTvContentLayer.visible = false;
+		fullscreenTvContentLayer.eventMode = 'static';
 		const fullscreenTvContentBg = new PIXI.Graphics();
 		const fullscreenTvContentTitle = new PIXI.Text('BRO MEME FEED', {
 			fontFamily: 'Minecraft, monospace',
@@ -2950,7 +2964,19 @@ async function boot() {
 			letterSpacing: 1,
 		});
 		fullscreenTvContentSub.anchor.set(0.5, 0.5);
-		fullscreenTvContentLayer.addChild(fullscreenTvContentBg, fullscreenTvContentTitle, fullscreenTvContentSub);
+		const fullscreenExitBtn = new PIXI.Container();
+		const fullscreenExitBtnBg = new PIXI.Graphics();
+		const fullscreenExitBtnLabel = new PIXI.Text('EXIT TO TV', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 10,
+			fill: 0xf4e5cc,
+			letterSpacing: 1,
+		});
+		fullscreenExitBtnLabel.anchor.set(0.5, 0.5);
+		fullscreenExitBtn.addChild(fullscreenExitBtnBg, fullscreenExitBtnLabel);
+		fullscreenExitBtn.eventMode = 'static';
+		fullscreenExitBtn.cursor = 'pointer';
+		fullscreenTvContentLayer.addChild(fullscreenTvContentBg, fullscreenTvContentTitle, fullscreenTvContentSub, fullscreenExitBtn);
 		app.stage.addChild(fullscreenTvContentLayer);
 		applyWipSpriteTexture(livingRoomTvArt, LIVING_ROOM_ASSETS.tvSpritePath);
 		const setPlacardDetails = ({ title, status, body, ledText, ledColor }) => {
@@ -2976,7 +3002,7 @@ async function boot() {
 				});
 				return;
 			}
-			if (livingRoomState.contentMode === CONTENT_DESKTOP && livingRoomState.insertedTapeId === 'desktop-home') {
+			if (livingRoomState.contentMode === CONTENT_DESKTOP && livingRoomState.insertedTapeId === 'default-home') {
 				setPlacardDetails({
 					title: 'DEFAULT APPS VHS',
 					status: 'STATUS: INSERTED',
@@ -3034,7 +3060,7 @@ async function boot() {
 			const art = new PIXI.Sprite(PIXI.Texture.WHITE);
 			const labelStrip = new PIXI.Graphics();
 			const statusLed = new PIXI.Graphics();
-			const title = new PIXI.Text(tape.label, {
+			const title = new PIXI.Text('EMPTY', {
 				fontFamily: 'Minecraft, monospace',
 				fontSize: 9,
 				fill: 0xefe1cb,
@@ -3055,7 +3081,7 @@ async function boot() {
 			node.eventMode = 'static';
 			node.cursor = 'pointer';
 			node.on('pointerover', () => {
-				if (livingRoomState.mode !== STATE_LIVING_ROOM_IDLE || livingRoomState.inserting || livingRoomState.targetBlend < 1) return;
+				if (livingRoomState.viewMode !== VIEW_TV_AREA || livingRoomState.inserting || livingRoomState.targetBlend < 1) return;
 				livingRoomState.hoverIndex = index;
 			});
 			node.on('pointerout', () => {
@@ -3083,11 +3109,12 @@ async function boot() {
 		const livingRoomTapes = VHS_TAPE_LIBRARY.map((tape, index) => createTapeNode(tape, index));
 		const tapeNodeById = new Map(livingRoomTapes.map((entry) => [entry.tape.id, entry]));
 		const playTape = (tapeId) => {
-			if (livingRoomState.mode !== STATE_LIVING_ROOM_IDLE || livingRoomState.inserting || livingRoomState.blend < 0.98) return;
+			if (livingRoomState.inserting || livingRoomState.blend < 0.98) return;
 			if (livingRoomState.viewMode !== VIEW_TV_AREA) return;
 			const tapeEntry = tapeNodeById.get(tapeId);
 			if (!tapeEntry) return;
 			livingRoomState.hoverIndex = -1;
+			livingRoomState.mode = STATE_LIVING_ROOM_IDLE;
 			livingRoomState.inserting = {
 				tape: tapeEntry.tape,
 				node: tapeEntry.node,
@@ -3096,15 +3123,18 @@ async function boot() {
 				startY: tapeEntry.node.position.y,
 			};
 		};
-		const enterLivingRoom = () => {
+		const enterLivingRoom = ({ preserveContent = false } = {}) => {
 			livingRoomState.viewMode = VIEW_TV_AREA;
-			livingRoomState.mode = STATE_LIVING_ROOM_IDLE;
-			livingRoomState.contentMode = CONTENT_DESKTOP;
-			livingRoomState.activeTapeId = 'desktop-home';
-			livingRoomState.insertedTapeId = 'desktop-home';
+			if (!preserveContent) {
+				livingRoomState.mode = STATE_LIVING_ROOM_IDLE;
+				livingRoomState.contentMode = CONTENT_DESKTOP;
+				livingRoomState.activeTapeId = 'default-home';
+				livingRoomState.insertedTapeId = 'default-home';
+				livingRoomState.playingMix = 0;
+			}
 			livingRoomState.inserting = null;
 			livingRoomState.hoverIndex = -1;
-			livingRoomState.playingMix = 0;
+			livingRoomState.fullscreenFromTv = false;
 			livingRoomState.targetBlend = 1;
 			livingRoomLayer.visible = true;
 			refreshDesktopTvTexture();
@@ -3117,17 +3147,33 @@ async function boot() {
 			layoutLivingRoom();
 			refreshPlacard();
 		};
+		returnToTvAreaFromFullscreen = () => {
+			enterLivingRoom({ preserveContent: true });
+		};
+		isFullscreenTvPlaybackActive = () => livingRoomState.viewMode === VIEW_FULLSCREEN && livingRoomState.fullscreenFromTv;
 		const exitLivingRoom = () => {
 			livingRoomState.hoverIndex = -1;
 			livingRoomState.inserting = null;
 			livingRoomState.viewMode = VIEW_FULLSCREEN;
-			livingRoomState.mode = STATE_LIVING_ROOM_IDLE;
+			livingRoomState.fullscreenFromTv = true;
 			livingRoomState.targetBlend = 0;
 			tvDesktopTransitionLayer.visible = true;
 			tvDesktopTransitionSprite.alpha = 1;
 		};
 		tvScreenGroup.addChild(tvContentContainer, tvScreenMask, tvCrtOverlay);
-		livingRoomTv.addChild(livingRoomTvFrame, livingRoomTvArt, tvScreenGroup, tvSlotForeground, tvScreenHitArea, tvEjectBtn);
+		livingRoomTv.addChild(
+			tvBodyShadow,
+			tvBody,
+			tvBezelRimLight,
+			tvBezelRimShade,
+			tvInnerFrame,
+			livingRoomTvFrame,
+			tvScreenGroup,
+			tvGlassReflection,
+			tvSlotForeground,
+			tvScreenHitArea,
+			tvEjectBtn,
+		);
 		livingRoomLayer.addChild(roomBg, leftShelf, rightShelf);
 		for (const tape of livingRoomTapes) livingRoomLayer.addChild(tape.node);
 		livingRoomLayer.addChild(livingRoomTv, livingRoomForeground, placard, tvDesktopTransitionLayer, livingRoomBackBtn);
@@ -3173,34 +3219,52 @@ async function boot() {
 			livingRoomFloor.drawRect(0, sh * 0.62, sw, sh * 0.38);
 			livingRoomFloor.endFill();
 
-			const tvW = sw * 0.6;
-			const tvH = sh * 0.56;
+			const tvW = Math.min(sw, sh) * 0.62;
+			const tvH = tvW * 0.98;
 			const tvX = sw * 0.5;
-			const tvY = sh * 0.44;
+			const tvY = sh * 0.46;
 			livingRoomTv.position.set(tvX, tvY);
 
-			livingRoomTvFrame.clear();
-			livingRoomTvFrame.beginFill(0x161c24, 0.98);
-			livingRoomTvFrame.lineStyle(3, 0x394a63, 0.95);
-			livingRoomTvFrame.drawRoundedRect(-tvW * 0.5, -tvH * 0.5, tvW, tvH, 6);
-			livingRoomTvFrame.endFill();
+			tvBodyShadow.clear();
+			tvBodyShadow.beginFill(0x000000, 0.34);
+			tvBodyShadow.drawRoundedRect(-tvW * 0.51 + 10, -tvH * 0.5 + 14, tvW, tvH, 8);
+			tvBodyShadow.endFill();
+			tvBody.clear();
+			tvBody.beginFill(0x171b22, 0.99);
+			tvBody.drawRoundedRect(-tvW * 0.5, -tvH * 0.5, tvW, tvH, 8);
+			tvBody.endFill();
+			tvBezelRimLight.clear();
+			tvBezelRimLight.lineStyle(3, 0x4a5566, 0.52);
+			tvBezelRimLight.moveTo(-tvW * 0.49, tvH * -0.49);
+			tvBezelRimLight.lineTo(tvW * 0.49, tvH * -0.49);
+			tvBezelRimLight.lineTo(tvW * 0.49, tvH * -0.46);
+			tvBezelRimLight.moveTo(-tvW * 0.49, tvH * -0.49);
+			tvBezelRimLight.lineTo(-tvW * 0.49, tvH * 0.49);
+			tvBezelRimShade.clear();
+			tvBezelRimShade.lineStyle(4, 0x090c11, 0.52);
+			tvBezelRimShade.moveTo(-tvW * 0.49, tvH * 0.49);
+			tvBezelRimShade.lineTo(tvW * 0.49, tvH * 0.49);
+			tvBezelRimShade.lineTo(tvW * 0.49, tvH * -0.49);
 
-			livingRoomTvArt.position.set(-tvW * 0.5, -tvH * 0.5);
-			livingRoomTvArt.width = tvW;
-			livingRoomTvArt.height = tvH;
-			livingRoomTvArt.alpha = LIVING_ROOM_ASSETS.tvSpritePath ? 0.92 : 0.08;
-
-			const screenInsetX = tvW * 0.19;
-			const screenInsetY = tvH * 0.22;
-			const screenW = tvW * 0.62;
-			const screenH = tvH * 0.52;
+			const screenInsetX = tvW * 0.2;
+			const screenInsetY = tvH * 0.2;
+			const screenW = tvW * 0.6;
+			const screenH = tvH * 0.6;
 			const screenX = tvX - tvW * 0.5 + screenInsetX;
 			const screenY = tvY - tvH * 0.5 + screenInsetY;
 			livingRoomTvScreenRect.x = screenX;
 			livingRoomTvScreenRect.y = screenY;
 			livingRoomTvScreenRect.w = screenW;
 			livingRoomTvScreenRect.h = screenH;
-			livingRoomTvScreenRect.r = 8;
+			livingRoomTvScreenRect.r = 6;
+			tvInnerFrame.clear();
+			tvInnerFrame.beginFill(0x0b0f14, 0.95);
+			tvInnerFrame.drawRoundedRect(screenInsetX - tvW * 0.06, screenInsetY - tvH * 0.06, screenW + tvW * 0.12, screenH + tvH * 0.12, 8);
+			tvInnerFrame.endFill();
+			livingRoomTvFrame.clear();
+			livingRoomTvFrame.beginFill(0x05070b, 0.76);
+			livingRoomTvFrame.drawRoundedRect(screenInsetX - 6, screenInsetY - 6, screenW + 12, screenH + 12, 7);
+			livingRoomTvFrame.endFill();
 
 			tvScreenGroup.position.set(-tvW * 0.5, -tvH * 0.5);
 			tvScreenMask.clear();
@@ -3244,11 +3308,18 @@ async function boot() {
 				tvCrtOverlay.moveTo(screenInsetX + 3, y);
 				tvCrtOverlay.lineTo(screenInsetX + screenW - 3, y);
 			}
+			tvGlassReflection.clear();
+			tvGlassReflection.beginFill(0xffffff, 0.07);
+			tvGlassReflection.drawRoundedRect(screenInsetX + screenW * 0.06, screenInsetY + screenH * 0.06, screenW * 0.28, screenH * 0.2, 8);
+			tvGlassReflection.endFill();
+			tvGlassReflection.beginFill(0xffffff, 0.035);
+			tvGlassReflection.drawRoundedRect(screenInsetX + screenW * 0.48, screenInsetY + screenH * 0.12, screenW * 0.12, screenH * 0.56, 6);
+			tvGlassReflection.endFill();
 
 			tvSlotForeground.clear();
 			tvSlotForeground.beginFill(0x06080d, 0.95);
 			tvSlotForeground.lineStyle(1.5, 0x3a4b66, 0.85);
-			tvSlotForeground.drawRoundedRect(-tvW * 0.18, tvH * 0.2, tvW * 0.36, tvH * 0.08, 4);
+			tvSlotForeground.drawRoundedRect(-tvW * 0.2, tvH * 0.22, tvW * 0.4, tvH * 0.08, 4);
 			tvSlotForeground.endFill();
 			tvEjectBtnBg.clear();
 			tvEjectBtnBg.beginFill(0x272428, 0.95);
@@ -3260,13 +3331,13 @@ async function boot() {
 			livingRoomTvSlotX = tvX;
 			livingRoomTvSlotY = tvY + tvH * 0.24;
 
-			const shelfW = sw * 0.11;
-			const shelfH = sh * 0.44;
-			const leftShelfX = tvX - tvW * 0.5 - shelfW * 1.03;
-			const rightShelfX = tvX + tvW * 0.5 + shelfW * 0.03;
+			const shelfW = sw * 0.1;
+			const shelfH = sh * 0.4;
+			const leftShelfX = tvX - tvW * 0.5 - shelfW * 0.8;
+			const rightShelfX = tvX + tvW * 0.5 - shelfW * 0.2;
 			const shelfY = sh * 0.34;
 			leftShelf.clear();
-			leftShelf.beginFill(0x4a3324, 0.95);
+			leftShelf.beginFill(0x35271d, 0.86);
 			leftShelf.drawRoundedRect(leftShelfX, shelfY, shelfW, shelfH, 6);
 			leftShelf.endFill();
 			leftShelf.lineStyle(2, 0x7c573d, 0.75);
@@ -3278,7 +3349,7 @@ async function boot() {
 			leftShelf.lineTo(leftShelfX + shelfW * 0.9, shelfY + shelfH * 0.76);
 
 			rightShelf.clear();
-			rightShelf.beginFill(0x4a3324, 0.95);
+			rightShelf.beginFill(0x35271d, 0.86);
 			rightShelf.drawRoundedRect(rightShelfX, shelfY, shelfW, shelfH, 6);
 			rightShelf.endFill();
 			rightShelf.lineStyle(2, 0x7c573d, 0.75);
@@ -3339,6 +3410,13 @@ async function boot() {
 			fullscreenTvContentBg.endFill();
 			fullscreenTvContentTitle.position.set(sw * 0.5, sh * 0.46);
 			fullscreenTvContentSub.position.set(sw * 0.5, sh * 0.58);
+			fullscreenExitBtnBg.clear();
+			fullscreenExitBtnBg.beginFill(0x2f2432, 0.96);
+			fullscreenExitBtnBg.lineStyle(2, 0x8f5a73, 0.9);
+			fullscreenExitBtnBg.drawRoundedRect(0, 0, 116, 28, 7);
+			fullscreenExitBtnBg.endFill();
+			fullscreenExitBtn.position.set(18, 16);
+			fullscreenExitBtnLabel.position.set(58, 14);
 
 			drawLivingRoomBackdrop(livingRoomState.blend);
 		};
@@ -3373,6 +3451,13 @@ async function boot() {
 		});
 		tvEjectBtn.on('pointerover', () => { tvEjectBtn.scale.set(1.05); });
 		tvEjectBtn.on('pointerout', () => { tvEjectBtn.scale.set(1); });
+		fullscreenExitBtn.on('pointertap', () => {
+			if (livingRoomState.viewMode !== VIEW_FULLSCREEN) return;
+			if (!livingRoomState.fullscreenFromTv) return;
+			returnToTvAreaFromFullscreen();
+		});
+		fullscreenExitBtn.on('pointerover', () => { fullscreenExitBtn.scale.set(1.04); });
+		fullscreenExitBtn.on('pointerout', () => { fullscreenExitBtn.scale.set(1); });
 		livingRoomBackBtn.on('pointertap', () => {
 			exitLivingRoom();
 		});
@@ -3393,13 +3478,9 @@ async function boot() {
 				livingRoomState.mode = STATE_DESKTOP_FULLSCREEN;
 				livingRoomState.staticBurst = 0;
 				livingRoomState.viewMode = VIEW_FULLSCREEN;
-				if (livingRoomState.contentMode === CONTENT_DESKTOP) {
-					scene.visible = true;
-					fullscreenTvContentLayer.visible = false;
-				} else {
-					scene.visible = false;
-					fullscreenTvContentLayer.visible = true;
-				}
+				scene.visible = livingRoomState.contentMode === CONTENT_DESKTOP;
+				fullscreenTvContentLayer.visible = livingRoomState.fullscreenFromTv;
+				fullscreenTvContentLayer.eventMode = livingRoomState.fullscreenFromTv ? 'passive' : 'none';
 				livingRoomActive = false;
 				return;
 			}
@@ -3415,11 +3496,14 @@ async function boot() {
 				fullscreenTvContentLayer.visible = false;
 			} else if (livingRoomState.viewMode === VIEW_FULLSCREEN && blend < 0.005) {
 				scene.visible = livingRoomState.contentMode === CONTENT_DESKTOP;
-				fullscreenTvContentLayer.visible = livingRoomState.contentMode !== CONTENT_DESKTOP;
+				fullscreenTvContentLayer.visible = livingRoomState.fullscreenFromTv;
 			} else {
 				scene.visible = true;
 				fullscreenTvContentLayer.visible = false;
 			}
+			const fullscreenUiActive = livingRoomState.fullscreenFromTv && livingRoomState.viewMode === VIEW_FULLSCREEN && blend < 0.02;
+			fullscreenTvContentLayer.eventMode = fullscreenUiActive ? 'passive' : 'none';
+			fullscreenExitBtn.visible = fullscreenUiActive;
 			livingRoomActive = true;
 			livingRoomLayer.visible = true;
 			livingRoomLayer.eventMode = blend > 0.02 ? 'static' : 'none';
@@ -3439,8 +3523,8 @@ async function boot() {
 
 			livingRoomWallGlow.alpha = 0.12 + reveal * 0.88;
 			livingRoomFloor.alpha = 0.22 + reveal * 0.78;
-			leftShelf.alpha = 0.1 + reveal * 0.9;
-			rightShelf.alpha = 0.1 + reveal * 0.9;
+			leftShelf.alpha = 0.08 + reveal * 0.62;
+			rightShelf.alpha = 0.08 + reveal * 0.62;
 			livingRoomForeground.alpha = 0.12 + reveal * 0.88;
 			placard.alpha = Math.max(0, (reveal - 0.2) / 0.8);
 			livingRoomBackBtn.alpha = Math.max(0, (reveal - 0.62) / 0.38);
@@ -3472,6 +3556,10 @@ async function boot() {
 			if (fullscreenTvContentLayer.visible) {
 				fullscreenTvContentTitle.text = livingRoomState.contentMode === CONTENT_SCREENSAVER ? 'CRT SCREENSAVER' : 'BRO MEME FEED';
 				fullscreenTvContentSub.text = livingRoomState.contentMode === CONTENT_SCREENSAVER ? 'NO TAPE / IDLE' : 'fullscreen playback';
+				const fullscreenNonDesktop = livingRoomState.contentMode !== CONTENT_DESKTOP;
+				fullscreenTvContentBg.alpha = fullscreenNonDesktop ? 1 : 0;
+				fullscreenTvContentTitle.alpha = fullscreenNonDesktop ? 1 : 0;
+				fullscreenTvContentSub.alpha = fullscreenNonDesktop ? 1 : 0;
 				if (livingRoomState.contentMode === CONTENT_SCREENSAVER) {
 					const ssWave = 0.5 + 0.5 * Math.sin(pulseTime * 0.6);
 					fullscreenTvContentBg.tint = (Math.floor(40 + ssWave * 70) << 16) | (Math.floor(70 + ssWave * 80) << 8) | Math.floor(150 + ssWave * 90);
@@ -3484,7 +3572,7 @@ async function boot() {
 			const burstStatic = livingRoomState.staticBurst > 0 ? (0.18 + (livingRoomState.staticBurst / 0.3) * 0.44) : 0;
 			tvCrtOverlay.alpha = Math.max(idleStatic, burstStatic);
 
-			const interactionsReady = reveal > 0.95 && livingRoomState.viewMode === VIEW_TV_AREA && livingRoomState.mode === STATE_LIVING_ROOM_IDLE && !livingRoomState.inserting;
+			const interactionsReady = reveal > 0.95 && livingRoomState.viewMode === VIEW_TV_AREA && !livingRoomState.inserting;
 			for (let i = 0; i < livingRoomTapes.length; i++) {
 				const tape = livingRoomTapes[i];
 				const inserted = livingRoomState.insertedTapeId && livingRoomState.insertedTapeId === tape.tape.id;
@@ -3496,8 +3584,8 @@ async function boot() {
 				const hoverOffsetX = tape.side === 'left' ? h * 12 : -h * 12;
 				tape.node.position.set(tape.baseX + hoverOffsetX, tape.baseY - h * 2);
 				tape.node.scale.set(1 + h * 0.06);
-				const tw = 72;
-				const th = 42;
+				const tw = 108;
+				const th = 62;
 				tape.shadow.clear();
 				tape.shadow.beginFill(0x000000, 0.16 + h * 0.14);
 				tape.shadow.drawRoundedRect(-tw * 0.52 + 4, -th * 0.5 + 7, tw * 1.04, th, 7);
@@ -3537,8 +3625,8 @@ async function boot() {
 					livingRoomState.activeTapeId = selectedTape.id;
 					livingRoomState.insertedTapeId = selectedTape.id;
 					livingRoomState.inserting = null;
-					livingRoomState.mode = STATE_LIVING_ROOM_PLAYING;
-					livingRoomState.contentMode = CONTENT_BRO_MEME;
+					livingRoomState.contentMode = selectedTape.contentType === CONTENT_DESKTOP ? CONTENT_DESKTOP : CONTENT_BRO_MEME;
+					livingRoomState.mode = livingRoomState.contentMode === CONTENT_BRO_MEME ? STATE_LIVING_ROOM_PLAYING : STATE_LIVING_ROOM_IDLE;
 					livingRoomState.staticBurst = 0.2 + Math.random() * 0.1;
 					setDesktopTwoLoadedTape(selectedTape);
 				}
