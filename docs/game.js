@@ -1173,10 +1173,10 @@ async function boot() {
 				scene.scale.set(SCENE_SCALE);
 			}
 			const { filter: crtScanlinesFilter, uniforms: crtScanlinesUniforms } = createCRTScanlinesFilter(app, {
-				strength: 0.5,
-				speed: 0.2,
-				noise: 0.022,
-				mask: 0.2,
+				strength: 0.18,
+				speed: 0.08,
+				noise: 0.0,
+				mask: 0.06,
 			});
 			const crtOverlay = new PIXI.Container();
 			crtOverlay.sortableChildren = true;
@@ -1184,7 +1184,7 @@ async function boot() {
 			crtOverlay.zIndex = 4500;
 			const crtOverlayPlate = new PIXI.Sprite(PIXI.Texture.WHITE);
 			crtOverlayPlate.tint = 0xd8eef4;
-			crtOverlayPlate.alpha = 0.12;
+			crtOverlayPlate.alpha = 0.035;
 			const crtOverlayVignette = new PIXI.Graphics();
 			crtOverlay.addChild(crtOverlayPlate, crtOverlayVignette);
 			crtOverlay.filters = [crtScanlinesFilter];
@@ -1197,12 +1197,7 @@ async function boot() {
 				crtOverlayPlate.width = sw;
 				crtOverlayPlate.height = sh;
 				crtOverlayVignette.clear();
-				crtOverlayVignette.beginFill(0x02060c, 0.16);
-				crtOverlayVignette.drawRect(0, 0, sw, edge);
-				crtOverlayVignette.drawRect(0, sh - edge, sw, edge);
-				crtOverlayVignette.drawRect(0, edge, edge, sh - edge * 2);
-				crtOverlayVignette.drawRect(sw - edge, edge, edge, sh - edge * 2);
-				crtOverlayVignette.endFill();
+				// Keep vignette disabled; scanlines should be the only persistent global pass.
 			};
 			drawCrtOverlay();
 			let themeKey = loadThemeKey();
@@ -2680,7 +2675,7 @@ async function boot() {
 			const sh = app.renderer.height;
 			transitionWipe.visible = true;
 			const glitchPulse = Math.sin(p * Math.PI);
-			transitionWipe.beginFill(0x05070d, 0.08 + glitchPulse * 0.14);
+			transitionWipe.beginFill(0x05070d, 0.0);
 			transitionWipe.drawRect(0, 0, sw, sh);
 			transitionWipe.endFill();
 			const stripeCount = 22;
@@ -2688,7 +2683,7 @@ async function boot() {
 				const y = Math.random() * sh;
 				const h = 1 + Math.random() * 3;
 				const xJitter = (Math.random() - 0.5) * 24 * glitchPulse;
-				transitionWipe.beginFill(0xaedfff, 0.03 + Math.random() * 0.08 * glitchPulse);
+				transitionWipe.beginFill(0xaedfff, 0.0);
 				transitionWipe.drawRect(xJitter, y, sw, h);
 				transitionWipe.endFill();
 			}
@@ -2697,7 +2692,7 @@ async function boot() {
 					const bandH = Math.max(8, sh * (0.03 + Math.random() * 0.08));
 					const by = Math.random() * (sh - bandH);
 					const bx = (Math.random() - 0.5) * 18;
-					transitionWipe.beginFill(0xffffff, 0.03 + Math.random() * 0.07);
+					transitionWipe.beginFill(0xffffff, 0.0);
 					transitionWipe.drawRect(bx, by, sw, bandH);
 					transitionWipe.endFill();
 				}
@@ -4375,6 +4370,11 @@ async function boot() {
 				livingRoomLayer.visible = false;
 				livingRoomLayer.eventMode = 'none';
 				fullscreenTvContentLayer.visible = false;
+				cursorContainer.visible = true;
+				cursorContainer.position.set(
+					Math.max(0, Math.min(app.renderer.width, mouse.x)),
+					Math.max(0, Math.min(app.renderer.height, mouse.y)),
+				);
 				updateVineLabNow(seconds);
 				time += seconds;
 				return;
@@ -4461,8 +4461,8 @@ async function boot() {
 				density: FLOW_BASE.density * (1 + (moodCurrent.waveMotion - 1) * 0.45 + transitionSurge * 0.14),
 				glowAlpha: clamp01(FLOW_BASE.glowAlpha + moodCurrent.glowStrength * 0.16 + transitionSurge * 0.2),
 			});
-			crtScanlinesUniforms.u_strength = 0.42 + moodCurrent.contrast * 0.45;
-			crtScanlinesUniforms.u_noise = 0.02 + moodCurrent.glowStrength * 0.03;
+			crtScanlinesUniforms.u_strength = 0.18 + moodCurrent.contrast * 0.18;
+			crtScanlinesUniforms.u_noise = 0.0;
 			window.moodCurrent = {
 				key: activeMoodEntry?.key || 'default',
 				locked: Boolean(moodLockTarget),

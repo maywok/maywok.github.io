@@ -98,6 +98,7 @@ export function createVineLab(app, options = {}) {
 	labCursor.zIndex = 220;
 	labCursor.eventMode = 'none';
 	labCursor.addChild(labCursorOuter, labCursorDot);
+	labCursor.visible = false;
 	panelTitle.anchor.set(0, 0);
 	controlsText.anchor.set(0, 0);
 	terminalViewport.addChild(terminalContent, terminalMask);
@@ -135,8 +136,10 @@ export function createVineLab(app, options = {}) {
 		spawnables: [],
 		nextSpawnId: 1,
 		cursor: {
-			x: app.renderer.width * 0.5,
-			y: app.renderer.height * 0.55,
+			screenX: app.renderer.width * 0.5,
+			screenY: app.renderer.height * 0.55,
+			worldX: app.renderer.width * 0.5,
+			worldY: app.renderer.height * 0.55,
 			active: false,
 		},
 		terminal: {
@@ -152,6 +155,8 @@ export function createVineLab(app, options = {}) {
 	const SWING_DAMP = 0.995;
 	const SWING_GRAVITY = 18.0;
 	const SPAWN_LANES = [0.14, 0.27, 0.42, 0.58, 0.73, 0.86];
+	const cursorGlobalPoint = new PIXI.Point();
+	const cursorWorldPoint = new PIXI.Point();
 
 	function drawLabCursor() {
 		labCursorOuter.clear();
@@ -176,17 +181,42 @@ export function createVineLab(app, options = {}) {
 		const h = app.renderer.height;
 		const nx = Math.max(0, Math.min(w, x));
 		const ny = Math.max(0, Math.min(h, y));
-		labState.cursor.x = nx;
-		labState.cursor.y = ny;
+		cursorGlobalPoint.set(nx, ny);
+		world.toLocal(cursorGlobalPoint, undefined, cursorWorldPoint);
+		labState.cursor.screenX = nx;
+		labState.cursor.screenY = ny;
+		labState.cursor.worldX = cursorWorldPoint.x;
+		labState.cursor.worldY = cursorWorldPoint.y;
 		labState.cursor.active = true;
 		labCursor.position.set(nx, ny);
 	}
 
-	function getCursorAnchor() {
+	function getCursorAnchorWorld() {
 		if (!labState.cursor.active) {
 			return { x: app.renderer.width * 0.5, y: app.renderer.height * 0.55 };
 		}
-		return { x: labState.cursor.x, y: labState.cursor.y };
+		return { x: labState.cursor.worldX, y: labState.cursor.worldY };
+	}
+
+	function findSpawnAtCursor({ w, h, pad = 12 }) {
+		const anchor = getCursorAnchorWorld();
+		const minX = 10;
+		const maxX = app.renderer.width - w - 10;
+		const minY = 88;
+		const maxY = groundY - h - 6;
+		const baseX = Math.max(minX, Math.min(maxX, anchor.x - w * 0.5));
+		const baseY = Math.max(minY, Math.min(maxY, anchor.y - h * 0.5));
+		if (canPlaceSpawn(baseX, baseY, w, h, pad)) return { x: baseX, y: baseY };
+		const jitterSteps = [8, 16, 26, 38, 52];
+		for (const step of jitterSteps) {
+			for (let i = 0; i < 8; i++) {
+				const ang = (Math.PI * 2 * i) / 8;
+				const tx = Math.max(minX, Math.min(maxX, baseX + Math.cos(ang) * step));
+				const ty = Math.max(minY, Math.min(maxY, baseY + Math.sin(ang) * step));
+				if (canPlaceSpawn(tx, ty, w, h, pad)) return { x: tx, y: ty };
+			}
+		}
+		return { x: baseX, y: baseY };
 	}
 
 	function layoutTerminalLines() {
@@ -452,7 +482,7 @@ export function createVineLab(app, options = {}) {
 		if (!labState.cursor.active) {
 			setCursorPosition(w * 0.5, h * 0.55);
 		} else {
-			setCursorPosition(labState.cursor.x, labState.cursor.y);
+			setCursorPosition(labState.cursor.screenX, labState.cursor.screenY);
 		}
 
 		buildBasePlatforms();
@@ -474,18 +504,7 @@ export function createVineLab(app, options = {}) {
 	function spawnCrate() {
 		const w = 44;
 		const h = 36;
-		const cursor = getCursorAnchor();
-		const at = findSpawnPosition({
-			w,
-			h,
-			allowPlatform: true,
-			platformBias: 0.52,
-			preferredX: cursor.x,
-			preferredY: cursor.y,
-			groundYOffset: 0,
-			platformYOffset: 0,
-			pad: 12,
-		});
+		const at = findSpawnAtCursor({ w, h, pad: 12 });
 		pushSpawnable({ id: labState.nextSpawnId++, type: 'crate', x: at.x, y: at.y, w, h });
 		pushLog('spawned crate');
 	}
@@ -493,18 +512,7 @@ export function createVineLab(app, options = {}) {
 	function spawnBouncePad() {
 		const w = 70;
 		const h = 14;
-		const cursor = getCursorAnchor();
-		const at = findSpawnPosition({
-			w,
-			h,
-			allowPlatform: true,
-			platformBias: 0.22,
-			preferredX: cursor.x,
-			preferredY: cursor.y,
-			groundYOffset: 0,
-			platformYOffset: 0,
-			pad: 18,
-		});
+		const at = findSpawnAtCursor({ w, h, pad: 18 });
 		pushSpawnable({ id: labState.nextSpawnId++, type: 'bounce', x: at.x, y: at.y, w, h, bounce: 1.45 });
 		pushLog('spawned bouncy pad');
 	}
@@ -512,19 +520,7 @@ export function createVineLab(app, options = {}) {
 	function spawnWindZone() {
 		const w = 120;
 		const h = 120;
-		const cursor = getCursorAnchor();
-		const at = findSpawnPosition({
-			w,
-			h,
-			allowPlatform: true,
-			platformBias: 0.7,
-			preferredX: cursor.x,
-			preferredY: cursor.y,
-			allowFreeY: true,
-			groundYOffset: -18,
-			platformYOffset: -22,
-			pad: 20,
-		});
+		const at = findSpawnAtCursor({ w, h, pad: 20 });
 		const dir = Math.random() > 0.5 ? 1 : -1;
 		pushSpawnable({ id: labState.nextSpawnId++, type: 'wind', x: at.x, y: at.y, w, h, force: dir * 640 });
 		pushLog(`spawned wind zone (${dir > 0 ? 'right' : 'left'})`);
@@ -877,8 +873,10 @@ export function createVineLab(app, options = {}) {
 	function update(dt) {
 		if (!active) return;
 		time += dt;
-		const cursorPulse = 1 + Math.sin(time * 7.4) * 0.06;
-		labCursor.scale.set(cursorPulse);
+		if (labCursor.visible) {
+			const cursorPulse = 1 + Math.sin(time * 7.4) * 0.06;
+			labCursor.scale.set(cursorPulse);
+		}
 		drawSpawnables(time);
 		updateSwing(dt);
 		updateVines(dt);
@@ -886,21 +884,21 @@ export function createVineLab(app, options = {}) {
 
 	layer.on('pointermove', (event) => {
 		if (!active) return;
-		const p = event.data?.getLocalPosition?.(layer) || event.getLocalPosition?.(layer);
-		if (!p) return;
-		setCursorPosition(p.x, p.y);
+		const g = event.data?.global || event.global;
+		if (!g) return;
+		setCursorPosition(g.x, g.y);
 	});
 	layer.on('pointerdown', (event) => {
 		if (!active) return;
-		const p = event.data?.getLocalPosition?.(layer) || event.getLocalPosition?.(layer);
-		if (!p) return;
-		setCursorPosition(p.x, p.y);
+		const g = event.data?.global || event.global;
+		if (!g) return;
+		setCursorPosition(g.x, g.y);
 	});
 	layer.on('pointerenter', (event) => {
 		if (!active) return;
-		const p = event.data?.getLocalPosition?.(layer) || event.getLocalPosition?.(layer);
-		if (!p) return;
-		setCursorPosition(p.x, p.y);
+		const g = event.data?.global || event.global;
+		if (!g) return;
+		setCursorPosition(g.x, g.y);
 	});
 	drawLabCursor();
 
