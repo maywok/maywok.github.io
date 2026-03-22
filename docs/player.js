@@ -147,4 +147,10 @@ export class Player {
 		this.vy = 0;
 		this.grounded = true;
 	}
+
+	destroy() {
+		window.removeEventListener('keydown', this._onKeyDown);
+		window.removeEventListener('keyup', this._onKeyUp);
+		this.keys.clear();
+	}
 }

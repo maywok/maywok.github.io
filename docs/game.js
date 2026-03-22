@@ -13,6 +13,7 @@ import {
 } from './shaders.js';
 import { createPixelateFilter } from './pixelate.js';
 import { createAppLauncher } from './appLauncher.js';
+import { createVineLab } from './vineLab.js';
 
 const THEMES = {
 	light: {
@@ -90,6 +91,11 @@ async function boot() {
 		let openLivingRoomScene = () => {};
 		let closePortfolioLibraryNow = () => {};
 		let openPortfolioLibraryNow = () => {};
+		let closeVineLabNow = () => {};
+		let openVineLabNow = () => {};
+		let updateVineLabNow = () => {};
+		let resizeVineLabNow = () => {};
+		let vineLabActive = false;
 		let returnToTvAreaFromFullscreen = () => {};
 		let isFullscreenTvPlaybackActive = () => false;
 		const ensureDesktopTwoBackground = () => {
@@ -1069,6 +1075,10 @@ async function boot() {
 		};
 		window.addEventListener('keydown', (event) => {
 			if (event.key !== 'Escape') return;
+			if (vineLabActive) {
+				closeVineLabNow();
+				return;
+			}
 			if (desktopTwoActive && tryCloseDesktopTwoPortfolioWindow()) {
 				return;
 			}
@@ -1289,7 +1299,7 @@ async function boot() {
 					coreAlpha: 0.88,
 				},
 			};
-			let { container: vinesLayer, vines } = createVines(app, 6, 28, vineOptions);
+			let { container: vinesLayer, vines } = createVines(app, 0, 28, vineOptions);
 			for (const v of vines) v.setColor(theme.vines.hue);
 			world.addChild(vinesLayer);
 
@@ -1453,6 +1463,17 @@ async function boot() {
 					particleColor: 0x2f4e6d,
 					waveMotion: 1.06,
 					lampBoost: 0.13,
+				},
+				VineLab: {
+					waveTint: 0x2b8675,
+					waveMix: 0.21,
+					lampTint: 0x38ffd0,
+					glowStrength: 0.11,
+					contrast: 0.019,
+					vignette: 0.046,
+					particleColor: 0x1d6657,
+					waveMotion: 1.07,
+					lampBoost: 0.14,
 				},
 			};
 			const hoverMoodSources = new Map();
@@ -1925,6 +1946,27 @@ async function boot() {
 						ornamentColor: 0x665881,
 					},
 					{
+						displayName: 'Vine Lab',
+						label: 'Vine Lab',
+						moodKey: 'VineLab',
+						tooltip: 'Open Vine Lab',
+						hoverActionText: 'Open Vine Lab',
+						onTap: () => {
+							openVineLabNow();
+						},
+						panelFill: 0x0f1f2b,
+						panelFillAlpha: 0.96,
+						panelBorder: 0x38ffd0,
+						accentColor: 0x38ffd0,
+						panelBorderAlpha: 0.95,
+						glyphColor: 0xe8fffa,
+						labelColor: 0xb8ffea,
+						glowAlpha: 0.08,
+						glowHoverAlpha: 0.24,
+						ornament: 'lab-beaker',
+						ornamentColor: 0x38ffd0,
+					},
+					{
 						displayName: 'Portfolio',
 						label: 'Portfolio',
 						moodKey: 'Portfolio',
@@ -1954,7 +1996,7 @@ async function boot() {
 					setMoodHover(key, hovered, container);
 				},
 				layoutProvider: ({ index }) => {
-					const slots = [5, 1, 6];
+					const slots = [5, 1, 3, 6];
 					const slot = slots[index] ?? 5;
 					return getIntroPoseForSlot(slot);
 				},
@@ -3701,6 +3743,40 @@ async function boot() {
 		closeLivingRoomScene = () => {
 			startDesktopTwoExitTransition();
 		};
+		const vineLabApp = createVineLab(app, {
+			accentColor: 0x38ffd0,
+			onExit: () => {
+				closeVineLabNow();
+			},
+		});
+		updateVineLabNow = (dtSeconds) => {
+			vineLabApp.update(dtSeconds);
+		};
+		resizeVineLabNow = () => {
+			vineLabApp.resize();
+		};
+		openVineLabNow = () => {
+			if (vineLabActive || livingRoomActive || desktopTwoActive || desktopTwoEntryTransition.active) return;
+			vineLabActive = true;
+			livingRoomState.targetBlend = 0;
+			livingRoomState.blend = 0;
+			livingRoomState.viewMode = VIEW_FULLSCREEN;
+			livingRoomLayer.visible = false;
+			livingRoomLayer.eventMode = 'none';
+			fullscreenTvContentLayer.visible = false;
+			setDesktopTwoActive(false);
+			scene.visible = false;
+			vineLabApp.open();
+		};
+		closeVineLabNow = () => {
+			if (!vineLabActive) return;
+			vineLabActive = false;
+			vineLabApp.close();
+			scene.visible = true;
+			livingRoomLayer.visible = false;
+			livingRoomLayer.eventMode = 'none';
+			fullscreenTvContentLayer.visible = false;
+		};
 		onDesktopTwoExitRequested = () => {};
 		tvScreenHitArea.on('pointertap', () => {
 			if (livingRoomState.viewMode !== VIEW_TV_AREA) return;
@@ -4093,7 +4169,7 @@ async function boot() {
 		app.view.addEventListener('pointerdown', updateMouseFromEvent);
 		app.view.addEventListener('pointerenter', updateMouseFromEvent);
 		window.addEventListener('pointerdown', (e) => {
-			if (dragEnabled || livingRoomActive) return;
+			if (dragEnabled || livingRoomActive || vineLabActive) return;
 			const p = toRendererPoint(e);
 			if (!p) return;
 			const c = getCoreScreenPos();
@@ -4111,7 +4187,7 @@ async function boot() {
 			ringDrag.lastTime = performance.now ? performance.now() : Date.now();
 		});
 		window.addEventListener('pointermove', (e) => {
-			if (dragEnabled || livingRoomActive || !ringCandidate.active) return;
+			if (dragEnabled || livingRoomActive || vineLabActive || !ringCandidate.active) return;
 			const p = toRendererPoint(e);
 			if (!p) return;
 			const moveDx = p.x - ringCandidate.startX;
@@ -4276,6 +4352,15 @@ async function boot() {
 				livingRoomLayer.position.x = 0;
 			}
 			updateLivingRoomScene(seconds);
+			if (vineLabActive) {
+				scene.visible = false;
+				livingRoomLayer.visible = false;
+				livingRoomLayer.eventMode = 'none';
+				fullscreenTvContentLayer.visible = false;
+				updateVineLabNow(seconds);
+				time += seconds;
+				return;
+			}
 			if (portfolioSnapTimer > 0 && livingRoomActive) {
 				portfolioSnapTimer = Math.max(0, portfolioSnapTimer - seconds);
 				const t = 1 - (portfolioSnapTimer / 0.16);
@@ -4284,7 +4369,7 @@ async function boot() {
 			} else {
 				livingRoomLayer.scale.set(1);
 			}
-			if (ENABLE_LEFT_PORTAL_SHORTCUT && !desktopTwoActive && !livingRoomActive) {
+			if (ENABLE_LEFT_PORTAL_SHORTCUT && !desktopTwoActive && !livingRoomActive && !vineLabActive) {
 				const edgeWidth = Math.max(1, leftPortalWidth * 1.9);
 				const edgeFactor = Math.max(0, Math.min(1, 1 - mouse.x / edgeWidth));
 				leftPortalProgress += (edgeFactor - leftPortalProgress) * 0.18;
@@ -4882,13 +4967,14 @@ async function boot() {
 
 			// Rebuild vines layout for new width/height
 			world.removeChild(vinesLayer);
-			const rebuilt = createVines(app, 12, 6, vineOptions);
+			const rebuilt = createVines(app, 0, 28, vineOptions);
 			world.addChild(rebuilt.container);
 			vinesLayer = rebuilt.container;
 			vines.length = 0; // mutate array in-place to keep reference
 			for (const v of rebuilt.vines) vines.push(v);
 			rebuildVineLights();
 			if (ENABLE_PLAYER_CUBE) player.onResize();
+			resizeVineLabNow();
 
 			// Reposition link platforms relative to new size
 			appLauncher.layout();

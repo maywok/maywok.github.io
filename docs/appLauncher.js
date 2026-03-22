@@ -132,6 +132,12 @@ export function createAppLauncher(app, world, options = {}) {
 		const mountainMid = new PIXI.Graphics();
 		const mountainNear = new PIXI.Graphics();
 		const pictureHaze = new PIXI.Graphics();
+		const labFace = new PIXI.Graphics();
+		const labGrid = new PIXI.Graphics();
+		const labGlass = new PIXI.Graphics();
+		const labLiquid = new PIXI.Graphics();
+		const labBubbles = new PIXI.Graphics();
+		const labTicks = new PIXI.Graphics();
 		const ornament = new PIXI.Graphics();
 		const catWhiskers = new PIXI.Graphics();
 		const statusLight = new PIXI.Graphics();
@@ -191,7 +197,7 @@ export function createAppLauncher(app, world, options = {}) {
 		mountainMid.mask = pictureMask;
 		mountainNear.mask = pictureMask;
 		pictureHaze.mask = pictureMask;
-		iconContainer.addChild(glow, bg, hoverWash, border, pictureFrame, pictureMask, mountainFar, mountainMid, mountainNear, pictureHaze, ornament, catWhiskers, statusLight);
+		iconContainer.addChild(glow, bg, hoverWash, border, pictureFrame, pictureMask, mountainFar, mountainMid, mountainNear, pictureHaze, labFace, labGrid, labLiquid, labBubbles, labGlass, labTicks, ornament, catWhiskers, statusLight);
 		if (iconSprite) iconContainer.addChild(iconSprite);
 		if (hoverSprite) iconContainer.addChild(hoverSprite);
 		iconContainer.addChild(glyph, label, tooltip);
@@ -216,6 +222,8 @@ export function createAppLauncher(app, world, options = {}) {
 			lastDragTime: 0,
 			paperCooldown: Math.random() * 0.2,
 			paperSpawnOffset: { x: 0, y: -28 },
+			labBeakerRect: null,
+			labBubbleSeed: [Math.random() * Math.PI * 2, Math.random() * Math.PI * 2, Math.random() * Math.PI * 2],
 		};
 
 		const motionLayers = [
@@ -275,6 +283,13 @@ export function createAppLauncher(app, world, options = {}) {
 			mountainMid.clear();
 			mountainNear.clear();
 			pictureHaze.clear();
+			labFace.clear();
+			labGrid.clear();
+			labGlass.clear();
+			labLiquid.clear();
+			labBubbles.clear();
+			labTicks.clear();
+			state.labBeakerRect = null;
 
 			if (item.ornament === 'mountains') {
 				const inset = 2;
@@ -349,6 +364,65 @@ export function createAppLauncher(app, world, options = {}) {
 				ornament.drawRoundedRect(-eyeGap * 0.5 - eyeW, visorY - eyeH * 0.5, eyeW, eyeH, 1.1);
 				ornament.drawRoundedRect(eyeGap * 0.5, visorY - eyeH * 0.5, eyeW, eyeH, 1.1);
 				ornament.endFill();
+			}
+			if (item.ornament === 'lab-beaker') {
+				const faceInset = 3;
+				const faceX = -size * 0.5 + faceInset;
+				const faceY = -size * 0.5 + faceInset;
+				const faceW = size - faceInset * 2;
+				const faceH = size - faceInset * 2;
+				const faceR = Math.max(6, radius - 2);
+				labFace.beginFill(0x0b1d28, 0.96);
+				labFace.drawRoundedRect(faceX, faceY, faceW, faceH, faceR);
+				labFace.endFill();
+				labGrid.lineStyle(1, 0x58bca6, 0.16);
+				for (let y = faceY + 5; y < faceY + faceH; y += 6) {
+					labGrid.moveTo(faceX + 1, y);
+					labGrid.lineTo(faceX + faceW - 1, y);
+				}
+				for (let x = faceX + 5; x < faceX + faceW * 0.5; x += 7) {
+					labGrid.moveTo(x, faceY + 1);
+					labGrid.lineTo(x, faceY + faceH - 1);
+				}
+				labGrid.lineStyle(1.4, 0x7ee8d2, 0.36);
+				const waveY = faceY + faceH * 0.68;
+				labGrid.moveTo(faceX + faceW * 0.08, waveY);
+				for (let i = 0; i <= 6; i++) {
+					const t = i / 6;
+					const px = faceX + faceW * (0.08 + t * 0.42);
+					const py = waveY + Math.sin(t * Math.PI * 2.2) * (faceH * 0.08);
+					if (i === 0) labGrid.moveTo(px, py);
+					else labGrid.lineTo(px, py);
+				}
+				const beakerW = faceW * 0.36;
+				const beakerH = faceH * 0.5;
+				const beakerX = faceX + faceW * 0.56;
+				const beakerY = faceY + faceH * 0.24;
+				state.labBeakerRect = { x: beakerX, y: beakerY, w: beakerW, h: beakerH };
+				labGlass.lineStyle(1.8, 0xe8fffa, 0.9);
+				labGlass.moveTo(beakerX + beakerW * 0.24, beakerY + beakerH * 0.03);
+				labGlass.lineTo(beakerX + beakerW * 0.18, beakerY + beakerH * 0.94);
+				labGlass.lineTo(beakerX + beakerW * 0.82, beakerY + beakerH * 0.94);
+				labGlass.lineTo(beakerX + beakerW * 0.76, beakerY + beakerH * 0.03);
+				labGlass.lineTo(beakerX + beakerW * 0.24, beakerY + beakerH * 0.03);
+				labTicks.lineStyle(1, 0xc8fff1, 0.52);
+				for (let i = 0; i < 4; i++) {
+					const ty = beakerY + beakerH * (0.16 + i * 0.18);
+					labTicks.moveTo(beakerX + beakerW * 0.12, ty);
+					labTicks.lineTo(beakerX + beakerW * 0.22, ty);
+				}
+				labLiquid.beginFill(item.accentColor ?? 0x38ffd0, 0.55);
+				labLiquid.drawRoundedRect(beakerX + beakerW * 0.24, beakerY + beakerH * 0.53, beakerW * 0.52, beakerH * 0.36, 3);
+				labLiquid.endFill();
+				labBubbles.beginFill(0xbaffef, 0.66);
+				labBubbles.drawCircle(beakerX + beakerW * 0.52, beakerY + beakerH * 0.68, Math.max(1.2, size * 0.016));
+				labBubbles.drawCircle(beakerX + beakerW * 0.62, beakerY + beakerH * 0.58, Math.max(1.4, size * 0.018));
+				labBubbles.drawCircle(beakerX + beakerW * 0.45, beakerY + beakerH * 0.5, Math.max(1.6, size * 0.02));
+				labBubbles.endFill();
+				statusLight.beginFill(item.accentColor ?? 0x38ffd0, 1);
+				statusLight.drawCircle(faceX + faceW * 0.88, faceY + faceH * 0.84, Math.max(2, size * 0.03));
+				statusLight.endFill();
+				statusLight.alpha = 0.42;
 			}
 			if (item.ornament === 'resume') {
 				const printerBodyW = size * 0.56;
@@ -453,6 +527,8 @@ export function createAppLauncher(app, world, options = {}) {
 				glyph.visible = false;
 			} else if (item.ornament === 'mountains') {
 				glyph.visible = true;
+			} else if (item.ornament === 'lab-beaker') {
+				glyph.visible = false;
 			} else {
 				glyph.visible = true;
 			}
@@ -527,7 +603,7 @@ export function createAppLauncher(app, world, options = {}) {
 		};
 		iconContainer._updatePlatformRect();
 
-		return { container: iconContainer, state, drawIcon, glow, hoverWash, border, ornament, catWhiskers, statusLight, pictureHaze, mountainFar, mountainMid, mountainNear, cardMotion, iconSprite, hoverSprite, item };
+		return { container: iconContainer, state, drawIcon, glow, hoverWash, border, ornament, catWhiskers, statusLight, pictureHaze, mountainFar, mountainMid, mountainNear, labLiquid, labBubbles, labGlass, labTicks, cardMotion, iconSprite, hoverSprite, item };
 	}
 
 	function layout(snap = true) {
@@ -778,6 +854,27 @@ export function createAppLauncher(app, world, options = {}) {
 				icon.mountainMid.scale.set(1 + mix * 0.004);
 				icon.mountainNear.scale.set(1 + mix * 0.006);
 				if (icon.pictureHaze) icon.pictureHaze.alpha = 0.16 + mix * 0.08;
+			}
+			if (icon.item?.ornament === 'lab-beaker') {
+				const mix = Math.max(0, Math.min(1, icon.state.hoverMix));
+				const liquidY = Math.sin(time * (3.8 + mix * 3.6) + icon.state.phase + icon.state.labBubbleSeed[2]) * (1.1 + mix * 3.6);
+				const liquidX = Math.cos(time * (2.6 + mix * 2.1) + icon.state.phase) * (0.35 + mix * 1.4);
+				if (icon.labLiquid) {
+					icon.labLiquid.position.y = liquidY;
+					icon.labLiquid.position.x = liquidX;
+					icon.labLiquid.rotation = Math.sin(time * (4.8 + mix * 3.4) + icon.state.phase) * (0.01 + mix * 0.045);
+				}
+				if (icon.labBubbles) {
+					const b1 = Math.sin(time * (2.6 + mix * 3.8) + icon.state.labBubbleSeed[0]) * (1.2 + mix * 2.2);
+					const b2 = Math.sin(time * (3.4 + mix * 4.4) + icon.state.labBubbleSeed[1]) * (1.1 + mix * 2.6);
+					icon.labBubbles.position.y = -(2.2 + mix * 5.6) + b1;
+					icon.labBubbles.position.x = b2 * 0.72;
+					icon.labBubbles.alpha = 0.62 + mix * 0.32;
+				}
+				if (icon.statusLight) {
+					icon.statusLight.alpha = 0.42 + mix * 0.54;
+					icon.statusLight.scale.set(1 + mix * 0.2);
+				}
 			}
 			icon.cardMotion?.update();
 			if (icon.iconSprite?.playing) icon.iconSprite.update(dtSeconds * 60);
