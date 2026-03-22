@@ -2762,6 +2762,8 @@ async function boot() {
 		const STATE_LIVING_ROOM_PLAYING = 'STATE_LIVING_ROOM_PLAYING';
 		const VIEW_FULLSCREEN = 'FULLSCREEN';
 		const VIEW_TV_AREA = 'TV_AREA';
+		const OVERLAY_MODE_LIBRARY = 'library';
+		const OVERLAY_MODE_TV = 'tv';
 		const CONTENT_DESKTOP = 'DESKTOP';
 		const CONTENT_BRO_MEME = 'BRO_MEME';
 		const CONTENT_EMPTY = 'EMPTY';
@@ -2769,6 +2771,7 @@ async function boot() {
 		const LIVING_ROOM_TRANSITION_SECONDS = 0.9;
 		const livingRoomState = {
 			mode: STATE_DESKTOP_FULLSCREEN,
+			overlayMode: OVERLAY_MODE_LIBRARY,
 			viewMode: VIEW_FULLSCREEN,
 			contentMode: CONTENT_DESKTOP,
 			fullscreenFromTv: false,
@@ -3039,12 +3042,21 @@ async function boot() {
 		const TERMINAL_TYPE_RATE = 54;
 		const TERMINAL_BASE_COLOR = 0xf3f8ff;
 		const TERMINAL_BRO_COLOR = 0xffd56b;
+		const DEFAULT_NEON_ACCENT = 0x6ec6f7;
 		const DEFAULT_TERMINAL_TEXT = [
 			'> MAIN PAGE READY',
 			'the magic happens here',
 			'> bro-link synced',
 		].join('\n');
 		const getTapeById = (tapeId) => VHS_TAPE_LIBRARY.find((tape) => tape.id === tapeId) || null;
+		const getSelectedTape = () => {
+			const selectedId = livingRoomState.insertedTapeId || livingRoomState.activeTapeId;
+			return getTapeById(selectedId) || getTapeById('default-home');
+		};
+		const getActiveAccentColor = () => {
+			const selectedTape = getSelectedTape();
+			return selectedTape?.accent || DEFAULT_NEON_ACCENT;
+		};
 		const destroyContainerChildren = (container) => {
 			const nodes = container.removeChildren();
 			for (const node of nodes) {
@@ -3108,7 +3120,7 @@ async function boot() {
 			cartridgeScrollState.thumbY = thumbY;
 			cartridgeScrollState.thumbH = thumbH;
 			cartridgeScrollThumb.clear();
-			cartridgeScrollThumb.beginFill(0x6ec6f7, maxScroll > 0 ? 0.9 : 0.35);
+			cartridgeScrollThumb.beginFill(getActiveAccentColor(), maxScroll > 0 ? 0.9 : 0.35);
 			cartridgeScrollThumb.drawRoundedRect(0, thumbY, 8, thumbH, 4);
 			cartridgeScrollThumb.endFill();
 			cartridgeScrollThumb.visible = maxScroll > 0;
@@ -3149,6 +3161,7 @@ async function boot() {
 			setPreviewForTape(focusTape);
 			const sourceKey = `${hoveredTape ? 'hover' : 'selected'}:${focusTape.id}:${livingRoomState.emptyPreviewWord}`;
 			setTerminalText(getTerminalTextForTape(focusTape), sourceKey);
+			updateCartridgeScrollUi();
 		};
 		const createTapeNode = (tape, index) => {
 			const node = new PIXI.Container();
@@ -3230,9 +3243,11 @@ async function boot() {
 			livingRoomState.contentMode = CONTENT_BRO_MEME;
 			livingRoomState.playingMix = 1;
 			setDesktopTwoLoadedTape(tapeEntry.tape);
+			layoutLivingRoom();
 			refreshPlacard();
 		};
 		const enterLivingRoom = ({ preserveContent = false } = {}) => {
+			livingRoomState.overlayMode = OVERLAY_MODE_LIBRARY;
 			livingRoomState.viewMode = VIEW_TV_AREA;
 			if (!preserveContent) {
 				livingRoomState.mode = STATE_LIVING_ROOM_PLAYING;
@@ -3260,12 +3275,13 @@ async function boot() {
 		returnToTvAreaFromFullscreen = () => {
 			enterLivingRoom({ preserveContent: true });
 		};
-		isFullscreenTvPlaybackActive = () => livingRoomState.viewMode === VIEW_FULLSCREEN && livingRoomState.fullscreenFromTv;
+		isFullscreenTvPlaybackActive = () => livingRoomState.overlayMode === OVERLAY_MODE_TV && livingRoomState.viewMode === VIEW_FULLSCREEN && livingRoomState.fullscreenFromTv;
 		const exitLivingRoom = () => {
 			livingRoomState.hoverIndex = -1;
 			livingRoomState.inserting = null;
+			livingRoomState.overlayMode = OVERLAY_MODE_LIBRARY;
 			livingRoomState.viewMode = VIEW_FULLSCREEN;
-			livingRoomState.fullscreenFromTv = true;
+			livingRoomState.fullscreenFromTv = false;
 			livingRoomState.targetBlend = 0;
 			tvDesktopTransitionLayer.visible = true;
 			tvDesktopTransitionSprite.alpha = 1;
@@ -3401,7 +3417,7 @@ async function boot() {
 			tvBodyShadow.endFill();
 			tvBody.clear();
 			tvBody.beginFill(0x08131f, 0.92);
-			tvBody.lineStyle(2, 0x6ac8ff, 0.65);
+			tvBody.lineStyle(2, getActiveAccentColor(), 0.65);
 			tvBody.drawRoundedRect(0, 0, panelW, panelH, 12);
 			tvBody.endFill();
 			tvInnerFrame.clear();
@@ -3461,7 +3477,7 @@ async function boot() {
 
 			tvBroBg.clear();
 			tvBroBg.beginFill(0x060e18, 0.96);
-			tvBroBg.lineStyle(1, 0x6ec6f7, 0.48);
+			tvBroBg.lineStyle(1, getActiveAccentColor(), 0.48);
 			tvBroBg.drawRoundedRect(terminalX, contentY, terminalW, contentH, 8);
 			tvBroBg.endFill();
 			tvBroTitle.anchor.set(0, 0);
@@ -3584,12 +3600,20 @@ async function boot() {
 		tvEjectBtn.on('pointerout', () => {});
 		fullscreenExitBtn.on('pointertap', () => {
 			if (livingRoomState.viewMode !== VIEW_FULLSCREEN) return;
-			if (!livingRoomState.fullscreenFromTv) return;
+			if (!isFullscreenTvPlaybackActive()) return;
 			returnToTvAreaFromFullscreen();
 		});
 		fullscreenExitBtn.on('pointerover', () => { fullscreenExitBtn.scale.set(1.04); });
 		fullscreenExitBtn.on('pointerout', () => { fullscreenExitBtn.scale.set(1); });
 		livingRoomBackBtn.on('pointertap', () => {
+			if (livingRoomState.overlayMode === OVERLAY_MODE_LIBRARY) {
+				exitLivingRoom();
+				return;
+			}
+			if (isFullscreenTvPlaybackActive()) {
+				returnToTvAreaFromFullscreen();
+				return;
+			}
 			exitLivingRoom();
 		});
 		livingRoomBackBtn.on('pointerover', () => { livingRoomBackBtn.scale.set(1.04); });
@@ -3659,9 +3683,10 @@ async function boot() {
 				livingRoomState.mode = STATE_DESKTOP_FULLSCREEN;
 				livingRoomState.staticBurst = 0;
 				livingRoomState.viewMode = VIEW_FULLSCREEN;
-				scene.visible = livingRoomState.contentMode === CONTENT_DESKTOP;
-				fullscreenTvContentLayer.visible = livingRoomState.fullscreenFromTv;
-				fullscreenTvContentLayer.eventMode = livingRoomState.fullscreenFromTv ? 'passive' : 'none';
+				scene.visible = true;
+				const showTvFullscreen = livingRoomState.overlayMode === OVERLAY_MODE_TV && livingRoomState.fullscreenFromTv;
+				fullscreenTvContentLayer.visible = showTvFullscreen;
+				fullscreenTvContentLayer.eventMode = showTvFullscreen ? 'passive' : 'none';
 				livingRoomActive = false;
 				return;
 			}
@@ -3676,16 +3701,16 @@ async function boot() {
 				scene.visible = false;
 				fullscreenTvContentLayer.visible = false;
 			} else if (livingRoomState.viewMode === VIEW_FULLSCREEN && blend < 0.005) {
-				scene.visible = livingRoomState.contentMode === CONTENT_DESKTOP;
-				fullscreenTvContentLayer.visible = livingRoomState.fullscreenFromTv;
+				scene.visible = true;
+				fullscreenTvContentLayer.visible = livingRoomState.overlayMode === OVERLAY_MODE_TV && livingRoomState.fullscreenFromTv;
 			} else {
 				scene.visible = true;
 				fullscreenTvContentLayer.visible = false;
 			}
-			const fullscreenUiActive = livingRoomState.fullscreenFromTv && livingRoomState.viewMode === VIEW_FULLSCREEN && blend < 0.02;
+			livingRoomActive = blend > 0.02;
+			const fullscreenUiActive = livingRoomActive && isFullscreenTvPlaybackActive() && blend < 0.02;
 			fullscreenTvContentLayer.eventMode = fullscreenUiActive ? 'passive' : 'none';
 			fullscreenExitBtn.visible = fullscreenUiActive;
-			livingRoomActive = true;
 			livingRoomLayer.visible = true;
 			livingRoomLayer.eventMode = blend > 0.02 ? 'static' : 'none';
 			livingRoomLayer.alpha = 1;
@@ -3741,7 +3766,7 @@ async function boot() {
 			tvBroTitle.y = tvBroTitleBaseY;
 			const shimmerY = holoPanelLocalRect.y + ((pulseTime * 42) % (holoPanelLocalRect.h + 26)) - 12;
 			tvSlotForeground.clear();
-			tvSlotForeground.beginFill(0x8bd9ff, 0.18);
+			tvSlotForeground.beginFill(getActiveAccentColor(), 0.12);
 			tvSlotForeground.drawRoundedRect(holoPanelLocalRect.x + 10, shimmerY, Math.max(24, holoPanelLocalRect.w - 20), 3, 2);
 			tvSlotForeground.endFill();
 			if (tvScreensaverLayer.alpha > 0.001) {
@@ -3774,7 +3799,7 @@ async function boot() {
 				}
 			}
 			livingRoomState.staticBurst = Math.max(0, livingRoomState.staticBurst - dtSeconds);
-			const idleStatic = 0.015 + 0.01 * Math.sin((performance.now ? performance.now() : Date.now()) * 0.004);
+			const idleStatic = 0.08 + 0.02 * Math.sin((performance.now ? performance.now() : Date.now()) * 0.004);
 			const burstStatic = livingRoomState.staticBurst > 0 ? (0.03 + (livingRoomState.staticBurst / 0.3) * 0.06) : 0;
 			tvCrtOverlay.alpha = Math.max(idleStatic, burstStatic);
 
@@ -3798,7 +3823,8 @@ async function boot() {
 				tape.shadow.endFill();
 				tape.body.clear();
 				tape.body.beginFill(0x1a2633, 0.98);
-				tape.body.lineStyle(2, selected ? 0x89d5ff : 0x36556f, selected ? 0.98 : (0.5 + h * 0.16));
+				const borderAlpha = selected ? 0.98 : (targetHover > 0 ? 0.6 : 0.28);
+				tape.body.lineStyle(2, tape.tape.accent || DEFAULT_NEON_ACCENT, borderAlpha);
 				tape.body.drawRoundedRect(-tw * 0.5, -th * 0.5, tw, th, 9);
 				tape.body.endFill();
 				tape.notch.clear();
