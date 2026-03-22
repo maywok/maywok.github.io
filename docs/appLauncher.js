@@ -125,6 +125,12 @@ export function createAppLauncher(app, world, options = {}) {
 		const bg = new PIXI.Graphics();
 		const border = new PIXI.Graphics();
 		const glow = new PIXI.Graphics();
+		const pictureFrame = new PIXI.Graphics();
+		const pictureMask = new PIXI.Graphics();
+		const mountainFar = new PIXI.Graphics();
+		const mountainMid = new PIXI.Graphics();
+		const mountainNear = new PIXI.Graphics();
+		const pictureHaze = new PIXI.Graphics();
 		const ornament = new PIXI.Graphics();
 		const catWhiskers = new PIXI.Graphics();
 		const statusLight = new PIXI.Graphics();
@@ -177,7 +183,11 @@ export function createAppLauncher(app, world, options = {}) {
 		tooltip.addChild(tooltipBg, tooltipText);
 		tooltip.visible = false;
 
-		iconContainer.addChild(glow, bg, border, ornament, catWhiskers, statusLight);
+		mountainFar.mask = pictureMask;
+		mountainMid.mask = pictureMask;
+		mountainNear.mask = pictureMask;
+		pictureHaze.mask = pictureMask;
+		iconContainer.addChild(glow, bg, border, pictureFrame, pictureMask, mountainFar, mountainMid, mountainNear, pictureHaze, ornament, catWhiskers, statusLight);
 		if (iconSprite) iconContainer.addChild(iconSprite);
 		if (hoverSprite) iconContainer.addChild(hoverSprite);
 		iconContainer.addChild(glyph, label, tooltip);
@@ -185,6 +195,7 @@ export function createAppLauncher(app, world, options = {}) {
 		const state = {
 			index,
 			hovered: false,
+			hoverMix: 0,
 			base: { x: 0, y: 0 },
 			free: { x: 0, y: 0 },
 			phase: index * 0.9,
@@ -247,6 +258,54 @@ export function createAppLauncher(app, world, options = {}) {
 			catWhiskers.visible = false;
 			statusLight.clear();
 			statusLight.alpha = 0;
+			pictureFrame.clear();
+			pictureMask.clear();
+			mountainFar.clear();
+			mountainMid.clear();
+			mountainNear.clear();
+			pictureHaze.clear();
+
+			if (item.ornament === 'mountains') {
+				const frameW = size * 0.68;
+				const frameH = size * 0.54;
+				const frameX = -frameW * 0.5;
+				const frameY = -frameH * 0.44;
+				const frameR = Math.max(5, size * 0.085);
+				const drawMountainBand = (graphics, color, alpha, baseY, radius, offset = 0) => {
+					graphics.clear();
+					graphics.beginFill(color, alpha);
+					const spanStep = radius * 1.05;
+					const minCenter = frameX - radius;
+					const maxCenter = frameX + frameW + radius;
+					for (let cx = minCenter + offset; cx < maxCenter; cx += spanStep) {
+						graphics.moveTo(cx - radius, baseY);
+						graphics.arc(cx, baseY, radius, Math.PI, 0, false);
+						graphics.lineTo(cx + radius, frameY + frameH + radius);
+						graphics.lineTo(cx - radius, frameY + frameH + radius);
+						graphics.closePath();
+					}
+					graphics.endFill();
+				};
+				pictureFrame.beginFill(0x132236, 0.95);
+				pictureFrame.lineStyle(1.5, item.panelBorder ?? 0x6ec6f7, 0.88);
+				pictureFrame.drawRoundedRect(frameX, frameY, frameW, frameH, frameR);
+				pictureFrame.endFill();
+				pictureMask.beginFill(0xffffff, 1);
+				pictureMask.drawRoundedRect(frameX + 3, frameY + 3, frameW - 6, frameH - 6, Math.max(3, frameR - 3));
+				pictureMask.endFill();
+				const innerTop = frameY + 3;
+				const innerBottom = frameY + frameH - 3;
+				drawMountainBand(mountainFar, 0xaec3d8, 0.92, innerTop + (frameH - 6) * 0.72, (frameH - 6) * 0.62, 0);
+				drawMountainBand(mountainMid, 0x7f9fbe, 0.94, innerTop + (frameH - 6) * 0.82, (frameH - 6) * 0.54, frameW * 0.18);
+				drawMountainBand(mountainNear, 0x4e7398, 0.96, innerTop + (frameH - 6) * 0.94, (frameH - 6) * 0.46, frameW * 0.08);
+				pictureHaze.beginFill(0xe6f3ff, 0.16);
+				pictureHaze.drawRoundedRect(frameX + 6, innerTop + 4, frameW - 12, Math.max(6, frameH * 0.16), 3);
+				pictureHaze.endFill();
+				mountainFar.position.set(0, 0);
+				mountainMid.position.set(0, 0);
+				mountainNear.position.set(0, 0);
+				pictureHaze.position.set(0, 0);
+			}
 			if (item.ornament === 'cat') {
 				const spacing = Math.max(2, size * 0.04);
 				const outline = ornamentColor;
@@ -368,6 +427,10 @@ export function createAppLauncher(app, world, options = {}) {
 			}
 			if (iconSprite || hoverSprite) {
 				glyph.visible = false;
+			} else if (item.ornament === 'mountains') {
+				glyph.visible = false;
+			} else {
+				glyph.visible = true;
 			}
 			iconContainer.hitArea = new PIXI.Rectangle(-size / 2, -size / 2, size, size);
 			cardMotion.reset();
@@ -440,7 +503,7 @@ export function createAppLauncher(app, world, options = {}) {
 		};
 		iconContainer._updatePlatformRect();
 
-		return { container: iconContainer, state, drawIcon, glow, border, ornament, catWhiskers, statusLight, cardMotion, iconSprite, hoverSprite, item };
+		return { container: iconContainer, state, drawIcon, glow, border, ornament, catWhiskers, statusLight, pictureHaze, mountainFar, mountainMid, mountainNear, cardMotion, iconSprite, hoverSprite, item };
 	}
 
 	function layout(snap = true) {
@@ -510,6 +573,7 @@ export function createAppLauncher(app, world, options = {}) {
 			if (dragState.active) dragState.active = null;
 			dragState.grabbed = null;
 		}
+		let launcherHovered = false;
 		icons.forEach((icon) => {
 			const radiusBound = icon.state.radius * icon.container.scale.x;
 			const minBoundX = minX + radiusBound;
@@ -517,6 +581,7 @@ export function createAppLauncher(app, world, options = {}) {
 			const minBoundY = minY + radiusBound;
 			const maxBoundY = maxY - radiusBound;
 			const scale = icon.state.hovered ? 1.08 : 1.0;
+			icon.state.hoverMix += ((icon.state.hovered ? 1 : 0) - icon.state.hoverMix) * 0.18;
 			const amp = icon.state.hovered ? 6 : 3;
 			const bounce = Math.sin(time * 3 + icon.state.phase) * amp;
 			const popOut = icon.state.hovered ? 4 : 0;
@@ -636,7 +701,9 @@ export function createAppLauncher(app, world, options = {}) {
 				icon.container.rotation = icon.state.angle;
 			}
 			icon.container.scale.set(scale);
-			icon.container.zIndex = (icon.state.dragging || icon.state.grabbed) ? 3 : (icon.state.hovered ? 2 : 1);
+			if (icon.state.hovered || icon.state.dragging || icon.state.grabbed) launcherHovered = true;
+			const baseZ = 100 + icon.state.index;
+			icon.container.zIndex = (icon.state.dragging || icon.state.grabbed) ? 1200 : (icon.state.hovered ? 1000 : baseZ);
 			if (icon.glow) {
 				const hoverGlow = icon.item?.glowHoverAlpha ?? 0.24;
 				const idleGlow = icon.item?.glowAlpha ?? 0.08;
@@ -673,11 +740,21 @@ export function createAppLauncher(app, world, options = {}) {
 					icon.state.paperCooldown = PAPER_FX.spawnIntervalMin + Math.random() * (PAPER_FX.spawnIntervalMax - PAPER_FX.spawnIntervalMin);
 				}
 			}
+			if (icon.item?.ornament === 'mountains') {
+				const mix = Math.max(0, Math.min(1, icon.state.hoverMix));
+				icon.mountainFar.position.set(1 * mix, -0.4 * mix);
+				icon.mountainMid.position.set(2 * mix, -0.7 * mix);
+				icon.mountainNear.position.set(3 * mix, -1.0 * mix);
+				if (icon.pictureHaze) icon.pictureHaze.alpha = 0.16 + mix * 0.08;
+			}
 			icon.cardMotion?.update();
 			if (icon.iconSprite?.playing) icon.iconSprite.update(dtSeconds * 60);
 			if (icon.hoverSprite?.playing && icon.hoverSprite.visible) icon.hoverSprite.update(dtSeconds * 60);
 			icon.container._updatePlatformRect?.();
 		});
+		container.zIndex = launcherHovered ? 1000 : 80;
+		container.parent?.sortChildren?.();
+		container.sortChildren?.();
 
 		for (let i = paperBits.length - 1; i >= 0; i--) {
 			const p = paperBits[i];

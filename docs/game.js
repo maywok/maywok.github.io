@@ -1477,6 +1477,11 @@ async function boot() {
 			};
 			const setMoodHover = (key, hovered, container) => {
 				if (!container) return;
+				if (container.__hoverBaseZ == null) {
+					container.__hoverBaseZ = Number.isFinite(container.zIndex) ? container.zIndex : 0;
+				}
+				container.zIndex = hovered ? 2200 : container.__hoverBaseZ;
+				container.parent?.sortChildren?.();
 				const moodKey = getMoodProfile(key) === MOOD_MAP.default && key !== 'default' ? 'default' : key;
 				if (hovered) {
 					if (!moodHoverEnabled || moodLockTarget) return;
@@ -1654,11 +1659,13 @@ async function boot() {
 			let dragEnabled = false;
 			let ringSpin = 0;
 			let ringSpinVel = 0;
+			const ringSlotCount = 7;
+			const ringSlotStep = (Math.PI * 2) / ringSlotCount;
+			const ringStartAngle = -Math.PI * 0.62;
 			const CORE_CLOCK_SCALE = 1.3;
 			const CORE_BASE_HALF_SIZE = 49;
 			const ringDrag = { active: false, lastAngle: 0, lastTime: 0 };
 			const ringCandidate = { active: false, startX: 0, startY: 0, lastX: 0, lastY: 0 };
-			const ringSlotAngles = [-90, -30, 20, 90, 150, 210, 270];
 			const getCoreScreenPos = () => ({
 				x: app.renderer.width * 0.5,
 				y: app.renderer.height * 0.48,
@@ -1670,26 +1677,23 @@ async function boot() {
 			const getClockHalfScreenSize = () => CORE_BASE_HALF_SIZE * CORE_CLOCK_SCALE;
 			const getRingIconSize = () => Math.max(58, Math.min(84, app.renderer.height * 0.108));
 			const getRingRadius = () => {
-				const baseRadius = Math.max(120, Math.min(220, Math.min(app.renderer.width, app.renderer.height) * 0.24));
+				const baseRadius = Math.max(132, Math.min(250, Math.min(app.renderer.width, app.renderer.height) * 0.285));
 				const clockHalf = getClockHalfScreenSize();
 				const iconHalf = getRingIconSize() * 0.5;
-				const collisionClearance = clockHalf * 0.5;
+				const collisionClearance = clockHalf * 0.64;
 				const required = clockHalf + iconHalf + collisionClearance;
 				return Math.max(baseRadius, required);
 			};
-			const getRingSlotRadius = (slotIndex) => {
-				const slot = ((slotIndex % ringSlotAngles.length) + ringSlotAngles.length) % ringSlotAngles.length;
-				const emphasis = (slot === 0 || slot === 5) ? getClockHalfScreenSize() * 0.12 : 0;
-				return getRingRadius() + emphasis;
-			};
+			const getRingSlotRadius = () => getRingRadius();
 			const getCoreControlRadius = () => Math.max(44, getRingRadius() * 0.46);
 			let coreHoverAmount = 0;
 			const RING_THROW_BOOST = 1.7;
 			const RING_MAX_SPIN_VEL = 10.5;
 			const getRingSlotScreenPos = (slotIndex) => {
 				const core = getCoreScreenPos();
-				const radius = getRingSlotRadius(slotIndex);
-				const angle = (ringSlotAngles[slotIndex % ringSlotAngles.length] * Math.PI) / 180 + ringSpin;
+				const slot = ((slotIndex % ringSlotCount) + ringSlotCount) % ringSlotCount;
+				const radius = getRingSlotRadius();
+				const angle = ringStartAngle + slot * ringSlotStep + ringSpin;
 				return {
 					x: core.x + Math.cos(angle) * radius,
 					y: core.y + Math.sin(angle) * radius,
@@ -1912,7 +1916,7 @@ async function boot() {
 					{
 						label: 'Library',
 						moodKey: 'Library',
-						glyph: 'L',
+						glyph: '',
 						tooltip: 'Open Portfolio Library',
 						onTap: () => {
 							startDesktopTwoEntryTransition();
@@ -1925,6 +1929,7 @@ async function boot() {
 						labelColor: 0xcfe9ff,
 						glowAlpha: 0.08,
 						glowHoverAlpha: 0.24,
+						ornament: 'mountains',
 						ornamentColor: 0x6ec6f7,
 					},
 				],
