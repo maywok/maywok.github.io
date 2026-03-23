@@ -3,6 +3,17 @@ const bufferCache = new Map();
 const loadPromises = new Map();
 const activeLoops = new Map();
 let masterGain = null;
+let sfxUiVolume = 1;
+const SFX_GAIN_CAP = 0.60;
+
+function clamp01(v) {
+	if (!Number.isFinite(v)) return 1;
+	return Math.max(0, Math.min(1, v));
+}
+
+function computeSfxGain(ui01) {
+	return clamp01(ui01) * SFX_GAIN_CAP;
+}
 
 function getAudioContextClass() {
 	return window.AudioContext || window.webkitAudioContext || null;
@@ -11,7 +22,7 @@ function getAudioContextClass() {
 function ensureMasterGain(ctx) {
 	if (masterGain) return masterGain;
 	masterGain = ctx.createGain();
-	masterGain.gain.value = 1;
+	masterGain.gain.value = computeSfxGain(sfxUiVolume);
 	masterGain.connect(ctx.destination);
 	return masterGain;
 }
@@ -194,4 +205,19 @@ export function stopAllLoops(options = {}) {
 
 export function hasSfx(id) {
 	return bufferCache.has(id);
+}
+
+export function setSfxVolume(ui01) {
+	sfxUiVolume = clamp01(ui01);
+	if (masterGain && audioCtx) {
+		const now = audioCtx.currentTime;
+		const target = computeSfxGain(sfxUiVolume);
+		masterGain.gain.cancelScheduledValues(now);
+		masterGain.gain.setTargetAtTime(target, now, 0.03);
+	}
+	return sfxUiVolume;
+}
+
+export function getSfxVolume() {
+	return sfxUiVolume;
 }

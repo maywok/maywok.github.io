@@ -3,6 +3,17 @@ let masterGain = null;
 let activeTrack = null;
 const loadedTracks = new Map();
 const loadPromises = new Map();
+let musicUiVolume = 1;
+const MUSIC_GAIN_CAP = 0.35;
+
+function clamp01(v) {
+	if (!Number.isFinite(v)) return 1;
+	return Math.max(0, Math.min(1, v));
+}
+
+function computeMusicGain(ui01) {
+	return clamp01(ui01) * MUSIC_GAIN_CAP;
+}
 
 function getAudioContextClass() {
 	return window.AudioContext || window.webkitAudioContext || null;
@@ -15,7 +26,7 @@ function canUseAudio() {
 function ensureMasterGain(ctx) {
 	if (masterGain) return masterGain;
 	masterGain = ctx.createGain();
-	masterGain.gain.value = 1;
+	masterGain.gain.value = computeMusicGain(musicUiVolume);
 	masterGain.connect(ctx.destination);
 	return masterGain;
 }
@@ -144,4 +155,19 @@ export async function setMusicTrack(trackId, options = {}) {
 
 export function getActiveMusicTrackId() {
 	return activeTrack?.id || null;
+}
+
+export function setMusicVolume(ui01) {
+	musicUiVolume = clamp01(ui01);
+	if (masterGain && musicCtx) {
+		const now = musicCtx.currentTime;
+		const target = computeMusicGain(musicUiVolume);
+		masterGain.gain.cancelScheduledValues(now);
+		masterGain.gain.setTargetAtTime(target, now, 0.03);
+	}
+	return musicUiVolume;
+}
+
+export function getMusicVolume() {
+	return musicUiVolume;
 }

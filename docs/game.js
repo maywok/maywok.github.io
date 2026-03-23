@@ -21,11 +21,13 @@ import {
 	startLoop as startSfxLoop,
 	updateLoop as updateSfxLoop,
 	stopLoop as stopSfxLoop,
+	setSfxVolume,
 } from './sfx.js';
 import {
 	initMusic,
 	loadMusic,
 	setMusicTrack,
+	setMusicVolume,
 } from './music.js';
 
 const THEMES = {
@@ -1497,6 +1499,28 @@ async function boot() {
 				[MUSIC_TRACKS.lab]: { url: './assets/audio/music/The_Lab.mp3' },
 				[MUSIC_TRACKS.targetTest]: { url: './assets/audio/music/Target_Test.mp3' },
 			};
+			const MUSIC_VOLUME_STORAGE_KEY = 'mw_musicVolume';
+			const SFX_VOLUME_STORAGE_KEY = 'mw_sfxVolume';
+			const readStoredUiVolume = (key, fallback = 1) => {
+				try {
+					const raw = localStorage.getItem(key);
+					if (raw == null || raw === '') return fallback;
+					const parsed = Number(raw);
+					if (!Number.isFinite(parsed)) return fallback;
+					return Math.max(0, Math.min(1, parsed));
+				} catch (_) {
+					return fallback;
+				}
+			};
+			const writeStoredUiVolume = (key, value) => {
+				try {
+					localStorage.setItem(key, String(Math.max(0, Math.min(1, value))));
+				} catch (_) {}
+			};
+			let musicUiVolume = readStoredUiVolume(MUSIC_VOLUME_STORAGE_KEY, 1);
+			let sfxUiVolume = readStoredUiVolume(SFX_VOLUME_STORAGE_KEY, 1);
+			setMusicVolume(musicUiVolume);
+			setSfxVolume(sfxUiVolume);
 			let sfxLoadWarned = false;
 			let musicLoadWarned = false;
 			let musicSwitchWarned = false;
@@ -2175,6 +2199,320 @@ async function boot() {
 			lockToggle.zIndex = 150;
 			world.addChild(lockToggle);
 
+			const soundToggle = new PIXI.Container();
+			const soundBg = new PIXI.Graphics();
+			const soundGlow = new PIXI.Graphics();
+			const soundIcon = new PIXI.Graphics();
+			const soundButtonSize = 52;
+			const soundStackGap = 8;
+			let soundHoverTarget = 0;
+			let soundHover = 0;
+			let soundNeedsRedraw = true;
+			let soundPanelOpen = false;
+			let soundCloseHoverTarget = 0;
+			let soundCloseHover = 0;
+			let lockScreenX = 0;
+			let lockScreenY = 0;
+			let soundScreenX = 0;
+			let soundScreenY = 0;
+
+			soundToggle.eventMode = 'static';
+			soundToggle.cursor = 'pointer';
+			const drawSoundControl = () => {
+				const hover = Math.max(0, Math.min(1, soundHover));
+				soundGlow.clear();
+				soundGlow.beginFill(0xffffff, 0.07 + hover * 0.2);
+				soundGlow.drawRoundedRect(-4, -4, soundButtonSize + 8, soundButtonSize + 8, 14);
+				soundGlow.endFill();
+
+				soundBg.clear();
+				soundBg.beginFill(0x050d0b, 0.9);
+				soundBg.lineStyle(1, 0x22f3c8, 0.58 + hover * 0.34);
+				soundBg.drawRoundedRect(0, 0, soundButtonSize, soundButtonSize, 12);
+				soundBg.endFill();
+
+				const cx = soundButtonSize * 0.5;
+				const cy = soundButtonSize * 0.5;
+				soundIcon.clear();
+				soundIcon.beginFill(0xffffff, 1);
+				soundIcon.drawPolygon([
+					cx - 12, cy - 6,
+					cx - 7, cy - 6,
+					cx - 2, cy - 11,
+					cx - 2, cy + 11,
+					cx - 7, cy + 6,
+					cx - 12, cy + 6,
+				]);
+				soundIcon.endFill();
+				soundIcon.lineStyle(2.2, 0xffffff, 0.85);
+				soundIcon.arc(cx + 1, cy, 5.5, -0.7, 0.7);
+				soundIcon.lineStyle(2, 0xffffff, 0.65);
+				soundIcon.arc(cx + 1, cy, 9, -0.8, 0.8);
+
+				soundToggle.scale.set(1 + hover * 0.04);
+				soundToggle.pivot.set(
+					(soundButtonSize * soundToggle.scale.x - soundButtonSize) * 0.5,
+					(soundButtonSize * soundToggle.scale.y - soundButtonSize) * 0.5,
+				);
+				soundNeedsRedraw = false;
+			};
+			soundToggle.addChild(soundGlow, soundBg, soundIcon);
+			soundToggle.zIndex = 151;
+			world.addChild(soundToggle);
+
+			const soundPanel = new PIXI.Container();
+			const soundPanelGlow = new PIXI.Graphics();
+			const soundPanelBg = new PIXI.Graphics();
+			const soundPanelTitle = new PIXI.Text('SOUND', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 13,
+				fill: 0xe7fff6,
+				letterSpacing: 1,
+			});
+			soundPanelTitle.anchor.set(0, 0.5);
+			const soundCloseBtn = new PIXI.Container();
+			const soundCloseBtnBg = new PIXI.Graphics();
+			const soundCloseBtnText = new PIXI.Text('X', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 11,
+				fill: 0xffffff,
+				letterSpacing: 1,
+			});
+			soundCloseBtnText.anchor.set(0.5, 0.5);
+			soundCloseBtn.addChild(soundCloseBtnBg, soundCloseBtnText);
+			soundCloseBtn.eventMode = 'static';
+			soundCloseBtn.cursor = 'pointer';
+
+			const soundPanelWidth = 236;
+			const soundPanelHeight = 132;
+			const sliderTrackWidth = 132;
+			const sliderTrackHeight = 8;
+			const sliderLeft = 84;
+			const sliderTop = 48;
+			const sliderGap = 42;
+			const soundSliders = [];
+			let activeSoundSlider = null;
+
+			const formatVolumeLabel = (value) => `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
+			const applyMusicUiVolume = (value, persist = true) => {
+				musicUiVolume = Math.max(0, Math.min(1, value));
+				setMusicVolume(musicUiVolume);
+				if (persist) writeStoredUiVolume(MUSIC_VOLUME_STORAGE_KEY, musicUiVolume);
+			};
+			const applySfxUiVolume = (value, persist = true) => {
+				sfxUiVolume = Math.max(0, Math.min(1, value));
+				setSfxVolume(sfxUiVolume);
+				if (persist) writeStoredUiVolume(SFX_VOLUME_STORAGE_KEY, sfxUiVolume);
+			};
+
+			const drawSoundCloseBtn = () => {
+				const hover = Math.max(0, Math.min(1, soundCloseHover));
+				soundCloseBtnBg.clear();
+				soundCloseBtnBg.beginFill(0x081a16, 0.9);
+				soundCloseBtnBg.lineStyle(1, 0x22f3c8, 0.55 + hover * 0.35);
+				soundCloseBtnBg.drawRoundedRect(0, 0, 24, 18, 5);
+				soundCloseBtnBg.endFill();
+				soundCloseBtn.scale.set(1 + hover * 0.05);
+				soundCloseBtn.pivot.set((24 * soundCloseBtn.scale.x - 24) * 0.5, (18 * soundCloseBtn.scale.y - 18) * 0.5);
+				soundCloseBtnText.position.set(12, 9);
+			};
+
+			const createSoundSlider = (labelText, rowIndex, initialValue, onChange) => {
+				const rowY = sliderTop + rowIndex * sliderGap;
+				const label = new PIXI.Text(labelText, {
+					fontFamily: 'Minecraft, monospace',
+					fontSize: 11,
+					fill: 0xc7ebde,
+					letterSpacing: 1,
+				});
+				label.anchor.set(0, 0.5);
+				label.position.set(14, rowY);
+
+				const valueText = new PIXI.Text('100%', {
+					fontFamily: 'Minecraft, monospace',
+					fontSize: 10,
+					fill: 0xaeeed8,
+					letterSpacing: 1,
+				});
+				valueText.anchor.set(1, 0.5);
+				valueText.position.set(soundPanelWidth - 12, rowY);
+
+				const track = new PIXI.Graphics();
+				const fill = new PIXI.Graphics();
+				const knob = new PIXI.Graphics();
+				track.eventMode = 'static';
+				track.cursor = 'pointer';
+				knob.eventMode = 'static';
+				knob.cursor = 'pointer';
+
+				const slider = {
+					label,
+					valueText,
+					track,
+					fill,
+					knob,
+					rowY,
+					trackX: sliderLeft,
+					trackY: rowY - sliderTrackHeight * 0.5,
+					trackW: sliderTrackWidth,
+					trackH: sliderTrackHeight,
+					value: Math.max(0, Math.min(1, initialValue)),
+					onChange,
+				};
+
+				const draw = () => {
+					const v = Math.max(0, Math.min(1, slider.value));
+					const fillW = slider.trackW * v;
+					slider.track.clear();
+					slider.track.beginFill(0x06110e, 0.92);
+					slider.track.lineStyle(1, 0x22f3c8, 0.4);
+					slider.track.drawRoundedRect(slider.trackX, slider.trackY, slider.trackW, slider.trackH, 4);
+					slider.track.endFill();
+
+					slider.fill.clear();
+					slider.fill.beginFill(0x7feac7, 0.92);
+					slider.fill.drawRoundedRect(slider.trackX, slider.trackY, Math.max(3, fillW), slider.trackH, 4);
+					slider.fill.endFill();
+
+					const knobX = slider.trackX + fillW;
+					slider.knob.clear();
+					slider.knob.beginFill(0xeafff5, 1);
+					slider.knob.lineStyle(1, 0x22f3c8, 0.95);
+					slider.knob.drawCircle(knobX, slider.rowY, 6);
+					slider.knob.endFill();
+
+					slider.valueText.text = formatVolumeLabel(v);
+				};
+
+				const setValue = (nextValue, persist = true) => {
+					slider.value = Math.max(0, Math.min(1, nextValue));
+					draw();
+					slider.onChange?.(slider.value, persist);
+				};
+
+				const setFromEvent = (event, persist = true) => {
+					const local = event.getLocalPosition(soundPanel);
+					const nextValue = (local.x - slider.trackX) / slider.trackW;
+					setValue(nextValue, persist);
+				};
+
+				const beginDrag = (event) => {
+					activeSoundSlider = slider;
+					setFromEvent(event);
+				};
+
+				track.on('pointerdown', beginDrag);
+				knob.on('pointerdown', beginDrag);
+				slider.setValue = setValue;
+				slider.setFromEvent = setFromEvent;
+				slider.draw = draw;
+				draw();
+				soundPanel.addChild(label, track, fill, knob, valueText);
+				soundSliders.push(slider);
+				return slider;
+			};
+
+			const musicSlider = createSoundSlider('MUSIC', 0, musicUiVolume, (value, persist) => {
+				applyMusicUiVolume(value, persist);
+			});
+			const sfxSlider = createSoundSlider('SFX', 1, sfxUiVolume, (value, persist) => {
+				applySfxUiVolume(value, persist);
+			});
+
+			const layoutSoundPanel = () => {
+				const panelScreenX = Math.max(12, Math.min(app.renderer.width - soundPanelWidth - 12, soundScreenX + soundButtonSize - soundPanelWidth));
+				const panelScreenY = Math.max(12, Math.min(app.renderer.height - soundPanelHeight - 12, soundScreenY - soundPanelHeight - 8));
+				soundPanel.position.set(screenToWorldX(panelScreenX), screenToWorldY(panelScreenY));
+			};
+
+			const drawSoundPanel = () => {
+				soundPanelGlow.clear();
+				soundPanelGlow.beginFill(0x8effda, 0.07);
+				soundPanelGlow.drawRoundedRect(-4, -4, soundPanelWidth + 8, soundPanelHeight + 8, 12);
+				soundPanelGlow.endFill();
+
+				soundPanelBg.clear();
+				soundPanelBg.beginFill(0x040d0c, 0.94);
+				soundPanelBg.lineStyle(1, 0x22f3c8, 0.58);
+				soundPanelBg.drawRoundedRect(0, 0, soundPanelWidth, soundPanelHeight, 10);
+				soundPanelBg.endFill();
+
+				soundPanelTitle.position.set(12, 15);
+				soundCloseBtn.position.set(soundPanelWidth - 34, 8);
+				drawSoundCloseBtn();
+				for (const slider of soundSliders) slider.draw?.();
+			};
+
+			const closeSoundPanel = () => {
+				soundPanelOpen = false;
+				soundPanel.visible = false;
+				soundPanel.eventMode = 'none';
+				activeSoundSlider = null;
+			};
+			const openSoundPanel = () => {
+				soundPanelOpen = true;
+				soundPanel.visible = true;
+				soundPanel.eventMode = 'static';
+				layoutSoundPanel();
+				drawSoundPanel();
+			};
+			const toggleSoundPanel = () => {
+				if (soundPanelOpen) closeSoundPanel();
+				else openSoundPanel();
+			};
+			const isPointInDisplayObject = (obj, point) => {
+				if (!obj || !obj.visible || !point) return false;
+				const b = obj.getBounds();
+				return point.x >= b.x && point.x <= b.x + b.width && point.y >= b.y && point.y <= b.y + b.height;
+			};
+
+			soundPanel.addChild(soundPanelGlow, soundPanelBg, soundPanelTitle, soundCloseBtn);
+			soundPanel.zIndex = 171;
+			soundPanel.visible = false;
+			soundPanel.eventMode = 'none';
+			world.addChild(soundPanel);
+			drawSoundPanel();
+			drawSoundControl();
+
+			soundCloseBtn.on('pointerover', () => { soundCloseHoverTarget = 1; });
+			soundCloseBtn.on('pointerout', () => { soundCloseHoverTarget = 0; });
+			soundCloseBtn.on('pointertap', () => {
+				playSfxSafe(ICON_SFX.click, { volume: 0.38, rate: 1.02 });
+				closeSoundPanel();
+			});
+
+			soundToggle.on('pointerover', () => {
+				soundHoverTarget = 1;
+				soundNeedsRedraw = true;
+				playSfxSafe(ICON_SFX.hover, { volume: 0.33, rate: 1.02 });
+			});
+			soundToggle.on('pointerout', () => {
+				soundHoverTarget = 0;
+				soundNeedsRedraw = true;
+			});
+			soundToggle.on('pointertap', () => {
+				playSfxSafe(ICON_SFX.click, { volume: 0.5, rate: 1.0 });
+				toggleSoundPanel();
+			});
+
+			if (app?.stage) {
+				if (!app.stage.eventMode || app.stage.eventMode === 'none') {
+					app.stage.eventMode = 'static';
+				}
+				if (!app.stage.hitArea) {
+					app.stage.hitArea = app.screen;
+				}
+				app.stage.on('pointermove', (event) => {
+					if (!activeSoundSlider || !soundPanelOpen) return;
+					activeSoundSlider.setFromEvent?.(event);
+				});
+				const stopSoundSliderDrag = () => {
+					activeSoundSlider = null;
+				};
+				app.stage.on('pointerup', stopSoundSliderDrag);
+				app.stage.on('pointerupoutside', stopSoundSliderDrag);
+			}
+
 			const basketballToggle = new PIXI.Container();
 			const basketballBg = new PIXI.Graphics();
 			const basketballGlow = new PIXI.Graphics();
@@ -2615,9 +2953,15 @@ async function boot() {
 				drawBasketballToggle();
 			};
 			const placeLockButton = () => {
-				const x = screenToWorldX(app.renderer.width - lockButtonSize - 16);
-				const y = screenToWorldY(app.renderer.height - lockButtonSize - 16);
+				lockScreenX = app.renderer.width - lockButtonSize - 16;
+				lockScreenY = app.renderer.height - lockButtonSize - 16;
+				const x = screenToWorldX(lockScreenX);
+				const y = screenToWorldY(lockScreenY);
 				lockToggle.position.set(x, y);
+				soundScreenX = lockScreenX;
+				soundScreenY = lockScreenY - soundButtonSize - soundStackGap;
+				soundToggle.position.set(screenToWorldX(soundScreenX), screenToWorldY(soundScreenY));
+				layoutSoundPanel();
 				const bx = screenToWorldX(app.renderer.width - lockButtonSize - basketballButtonSize - 26);
 				const by = screenToWorldY(app.renderer.height - basketballButtonSize - 19);
 				basketballToggle.position.set(bx, by);
@@ -4504,9 +4848,13 @@ async function boot() {
 		window.addEventListener('pointerup', stopRingDrag);
 		window.addEventListener('pointercancel', stopRingDrag);
 		window.addEventListener('blur', stopRingDrag);
-		window.addEventListener('pointerdown', async () => {
+		window.addEventListener('pointerdown', async (e) => {
 			mouse.down = true;
 			cursorContainer.visible = true;
+			const point = toRendererPoint(e);
+			if (soundPanelOpen && point && !isPointInDisplayObject(soundPanel, point) && !isPointInDisplayObject(soundToggle, point)) {
+				closeSoundPanel();
+			}
 			pointerPressedIcon = findHoveredIconBody()?.container || null;
 			primeSfxContext();
 			primeMusicContext();
@@ -4608,6 +4956,16 @@ async function boot() {
 			basketballHover += (basketballHoverTarget - basketballHover) * lockEase;
 			if (Math.abs(basketballHover - prevBHover) > 0.001) {
 				drawBasketballToggle();
+			}
+			const prevSoundHover = soundHover;
+			soundHover += (soundHoverTarget - soundHover) * lockEase;
+			if (Math.abs(soundHover - prevSoundHover) > 0.001 || soundNeedsRedraw) {
+				drawSoundControl();
+			}
+			const prevSoundCloseHover = soundCloseHover;
+			soundCloseHover += (soundCloseHoverTarget - soundCloseHover) * lockEase;
+			if (soundPanelOpen && Math.abs(soundCloseHover - prevSoundCloseHover) > 0.001) {
+				drawSoundCloseBtn();
 			}
 			desktopTwoEntryTransition.surge = Math.max(0, desktopTwoEntryTransition.surge - seconds / 0.32);
 			let transitionWipePhase = 0;
