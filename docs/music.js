@@ -157,6 +157,20 @@ export function getActiveMusicTrackId() {
 	return activeTrack?.id || null;
 }
 
+export async function setMusicPaused(paused) {
+	if (!musicCtx) return false;
+	try {
+		if (paused) {
+			if (musicCtx.state === 'running') await musicCtx.suspend();
+		} else if (musicCtx.state === 'suspended') {
+			await musicCtx.resume();
+		}
+		return true;
+	} catch (_) {
+		return false;
+	}
+}
+
 export function setMusicVolume(ui01) {
 	musicUiVolume = clamp01(ui01);
 	if (masterGain && musicCtx) {

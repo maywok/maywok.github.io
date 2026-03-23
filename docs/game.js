@@ -27,6 +27,7 @@ import {
 	initMusic,
 	loadMusic,
 	setMusicTrack,
+	setMusicPaused,
 	setMusicVolume,
 } from './music.js';
 
@@ -4893,6 +4894,16 @@ async function boot() {
 				playClickSlice(0.0, 0.5, 0.85);
 			} catch (_) {}
 		});
+		const syncMusicTabFocus = () => {
+			const hidden = typeof document !== 'undefined' ? document.hidden : false;
+			setMusicPaused(hidden).catch(() => {});
+			if (!hidden) syncMusicTrack();
+		};
+		if (typeof document !== 'undefined') {
+			document.addEventListener('visibilitychange', syncMusicTabFocus);
+		}
+		window.addEventListener('blur', syncMusicTabFocus);
+		window.addEventListener('focus', syncMusicTabFocus);
 		window.addEventListener('pointerup', async () => {
 			mouse.down = false;
 			const hoveredIcon = findHoveredIconBody()?.container || null;
