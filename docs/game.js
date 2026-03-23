@@ -2263,10 +2263,12 @@ async function boot() {
 			const soundPanel = new PIXI.Container();
 			const soundPanelGlow = new PIXI.Graphics();
 			const soundPanelBg = new PIXI.Graphics();
+			const soundPanelChrome = new PIXI.Graphics();
+			const soundPanelOrnament = new PIXI.Graphics();
 			const soundPanelTitle = new PIXI.Text('SOUND', {
 				fontFamily: 'Minecraft, monospace',
-				fontSize: 13,
-				fill: 0xe7fff6,
+				fontSize: 12,
+				fill: 0xd4fff2,
 				letterSpacing: 1,
 			});
 			soundPanelTitle.anchor.set(0, 0.5);
@@ -2283,12 +2285,13 @@ async function boot() {
 			soundCloseBtn.eventMode = 'static';
 			soundCloseBtn.cursor = 'pointer';
 
-			const soundPanelWidth = 236;
-			const soundPanelHeight = 132;
-			const sliderTrackWidth = 132;
-			const sliderTrackHeight = 8;
-			const sliderLeft = 84;
-			const sliderTop = 48;
+			const soundPanelWidth = 248;
+			const soundPanelHeight = 144;
+			const soundPanelHeaderH = 24;
+			const sliderTrackWidth = 142;
+			const sliderTrackHeight = 11;
+			const sliderLeft = 90;
+			const sliderTop = 56;
 			const sliderGap = 42;
 			const soundSliders = [];
 			let activeSoundSlider = null;
@@ -2308,8 +2311,8 @@ async function boot() {
 			const drawSoundCloseBtn = () => {
 				const hover = Math.max(0, Math.min(1, soundCloseHover));
 				soundCloseBtnBg.clear();
-				soundCloseBtnBg.beginFill(0x081a16, 0.9);
-				soundCloseBtnBg.lineStyle(1, 0x22f3c8, 0.55 + hover * 0.35);
+				soundCloseBtnBg.beginFill(0x0f1c17, 0.95);
+				soundCloseBtnBg.lineStyle(1.2, 0x8ef8d8, 0.62 + hover * 0.35);
 				soundCloseBtnBg.drawRoundedRect(0, 0, 24, 18, 5);
 				soundCloseBtnBg.endFill();
 				soundCloseBtn.scale.set(1 + hover * 0.05);
@@ -2330,14 +2333,15 @@ async function boot() {
 
 				const valueText = new PIXI.Text('100%', {
 					fontFamily: 'Minecraft, monospace',
-					fontSize: 10,
-					fill: 0xaeeed8,
+					fontSize: 11,
+					fill: 0xe5fff8,
 					letterSpacing: 1,
 				});
 				valueText.anchor.set(1, 0.5);
 				valueText.position.set(soundPanelWidth - 12, rowY);
 
 				const track = new PIXI.Graphics();
+				const fillGlow = new PIXI.Graphics();
 				const fill = new PIXI.Graphics();
 				const knob = new PIXI.Graphics();
 				track.eventMode = 'static';
@@ -2349,6 +2353,7 @@ async function boot() {
 					label,
 					valueText,
 					track,
+					fillGlow,
 					fill,
 					knob,
 					rowY,
@@ -2364,21 +2369,28 @@ async function boot() {
 					const v = Math.max(0, Math.min(1, slider.value));
 					const fillW = slider.trackW * v;
 					slider.track.clear();
-					slider.track.beginFill(0x06110e, 0.92);
-					slider.track.lineStyle(1, 0x22f3c8, 0.4);
+					slider.track.beginFill(0x12251f, 0.96);
+					slider.track.lineStyle(1.2, 0x67efc9, 0.72);
 					slider.track.drawRoundedRect(slider.trackX, slider.trackY, slider.trackW, slider.trackH, 4);
 					slider.track.endFill();
 
+					slider.fillGlow.clear();
+					slider.fillGlow.beginFill(0x89ffe2, 0.34);
+					slider.fillGlow.drawRoundedRect(slider.trackX - 1, slider.trackY - 1, Math.max(4, fillW + 2), slider.trackH + 2, 5);
+					slider.fillGlow.endFill();
+
 					slider.fill.clear();
-					slider.fill.beginFill(0x7feac7, 0.92);
+					slider.fill.beginFill(0x8effda, 0.98);
 					slider.fill.drawRoundedRect(slider.trackX, slider.trackY, Math.max(3, fillW), slider.trackH, 4);
 					slider.fill.endFill();
 
 					const knobX = slider.trackX + fillW;
 					slider.knob.clear();
-					slider.knob.beginFill(0xeafff5, 1);
-					slider.knob.lineStyle(1, 0x22f3c8, 0.95);
-					slider.knob.drawCircle(knobX, slider.rowY, 6);
+					slider.knob.beginFill(0xffffff, 1);
+					slider.knob.lineStyle(1.5, 0x58ffd0, 0.98);
+					slider.knob.drawCircle(knobX, slider.rowY, 7.2);
+					slider.knob.lineStyle(0.8, 0xffffff, 0.9);
+					slider.knob.drawCircle(knobX, slider.rowY, 3.4);
 					slider.knob.endFill();
 
 					slider.valueText.text = formatVolumeLabel(v);
@@ -2407,7 +2419,7 @@ async function boot() {
 				slider.setFromEvent = setFromEvent;
 				slider.draw = draw;
 				draw();
-				soundPanel.addChild(label, track, fill, knob, valueText);
+				soundPanel.addChild(label, track, fillGlow, fill, knob, valueText);
 				soundSliders.push(slider);
 				return slider;
 			};
@@ -2432,12 +2444,25 @@ async function boot() {
 				soundPanelGlow.endFill();
 
 				soundPanelBg.clear();
-				soundPanelBg.beginFill(0x040d0c, 0.94);
-				soundPanelBg.lineStyle(1, 0x22f3c8, 0.58);
+				soundPanelBg.beginFill(0x091410, 0.95);
+				soundPanelBg.lineStyle(1.5, 0x22f3c8, 0.64);
 				soundPanelBg.drawRoundedRect(0, 0, soundPanelWidth, soundPanelHeight, 10);
 				soundPanelBg.endFill();
 
-				soundPanelTitle.position.set(12, 15);
+				soundPanelChrome.clear();
+				soundPanelChrome.beginFill(0x132c24, 0.96);
+				soundPanelChrome.lineStyle(1, 0x8ef8d8, 0.72);
+				soundPanelChrome.drawRoundedRect(1, 1, soundPanelWidth - 2, soundPanelHeaderH, 8);
+				soundPanelChrome.endFill();
+
+				soundPanelOrnament.clear();
+				soundPanelOrnament.beginFill(0x9cffe2, 0.9);
+				soundPanelOrnament.drawCircle(soundPanelWidth - 62, 13, 2.2);
+				soundPanelOrnament.drawCircle(soundPanelWidth - 54, 13, 2.2);
+				soundPanelOrnament.drawCircle(soundPanelWidth - 46, 13, 2.2);
+				soundPanelOrnament.endFill();
+
+				soundPanelTitle.position.set(12, 13);
 				soundCloseBtn.position.set(soundPanelWidth - 34, 8);
 				drawSoundCloseBtn();
 				for (const slider of soundSliders) slider.draw?.();
@@ -2466,7 +2491,7 @@ async function boot() {
 				return point.x >= b.x && point.x <= b.x + b.width && point.y >= b.y && point.y <= b.y + b.height;
 			};
 
-			soundPanel.addChild(soundPanelGlow, soundPanelBg, soundPanelTitle, soundCloseBtn);
+			soundPanel.addChild(soundPanelGlow, soundPanelBg, soundPanelChrome, soundPanelOrnament, soundPanelTitle, soundCloseBtn);
 			soundPanel.zIndex = 171;
 			soundPanel.visible = false;
 			soundPanel.eventMode = 'none';
@@ -2969,12 +2994,16 @@ async function boot() {
 			lockToggle.on('pointerover', () => {
 				lockHoverTarget = 1;
 				lockNeedsRedraw = true;
+				playSfxSafe(ICON_SFX.hover, { volume: 0.32, rate: 1.0 });
 			});
 			lockToggle.on('pointerout', () => {
 				lockHoverTarget = 0;
 				lockNeedsRedraw = true;
 			});
-			lockToggle.on('pointertap', () => applyDragEnabled(!dragEnabled));
+			lockToggle.on('pointertap', () => {
+				playSfxSafe(ICON_SFX.click, { volume: 0.5, rate: 1.0 });
+				applyDragEnabled(!dragEnabled);
+			});
 			basketballToggle.on('pointerover', () => { basketballHoverTarget = 1; });
 			basketballToggle.on('pointerout', () => { basketballHoverTarget = 0; });
 			basketballToggle.on('pointertap', () => {

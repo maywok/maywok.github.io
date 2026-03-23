@@ -4,7 +4,7 @@ const loadPromises = new Map();
 const activeLoops = new Map();
 let masterGain = null;
 let sfxUiVolume = 1;
-const SFX_GAIN_CAP = 0.60;
+const SFX_GAIN_CAP = 0.52;
 
 function clamp01(v) {
 	if (!Number.isFinite(v)) return 1;

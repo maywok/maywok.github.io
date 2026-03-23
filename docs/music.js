@@ -4,7 +4,7 @@ let activeTrack = null;
 const loadedTracks = new Map();
 const loadPromises = new Map();
 let musicUiVolume = 1;
-const MUSIC_GAIN_CAP = 0.35;
+const MUSIC_GAIN_CAP = 0.30;
 
 function clamp01(v) {
 	if (!Number.isFinite(v)) return 1;
