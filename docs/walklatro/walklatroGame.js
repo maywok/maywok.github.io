@@ -284,7 +284,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	container.visible = false;
 	container.eventMode = 'static';
 	container.hitArea = new PIXI.Rectangle(0, 0, windowWidth, windowHeight);
-	container.zIndex = 55;
+	container.zIndex = 3200;
 
 	const panelFill = new PIXI.Graphics();
 	panelFill.beginFill(colors.panel, 0.98);
@@ -920,11 +920,38 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	closeBtn.on('pointertap', () => close());
 
 	const dragState = { active: false, offsetX: 0, offsetY: 0 };
+	const bringWindowToFront = () => {
+		if (container.parent) {
+			container.parent.addChild(container);
+		}
+	};
+	const clampWindowPosition = (x, y) => {
+		const margin = 8;
+		const minX = screenToWorldX(margin);
+		const minY = screenToWorldY(margin);
+		const maxX = screenToWorldX(app.renderer.width - windowWidth - margin);
+		const maxY = screenToWorldY(app.renderer.height - windowHeight - margin);
+		return {
+			x: Math.max(minX, Math.min(maxX, x)),
+			y: Math.max(minY, Math.min(maxY, y)),
+		};
+	};
+	const syncWindowBaseFromCurrentPose = () => {
+		const t = clamp(state.bootProgress, 0, 1);
+		const eased = 1 - Math.pow(1 - t, 3);
+		const scale = 0.96 + eased * 0.04;
+		const offsetX = (windowWidth * (1 - scale)) * 0.5;
+		const offsetY = (windowHeight * (1 - scale)) * 0.5;
+		windowBaseX = container.position.x - offsetX;
+		windowBaseY = container.position.y - offsetY - (1 - eased) * 12;
+	};
 	if (app?.stage) {
 		app.stage.eventMode = 'static';
 		app.stage.hitArea = app.screen;
 	}
 	headerBg.on('pointerdown', (event) => {
+		event.stopPropagation();
+		bringWindowToFront();
 		const pos = event.getLocalPosition(world);
 		dragState.active = true;
 		dragState.offsetX = pos.x - container.position.x;
@@ -933,13 +960,22 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	app.stage.on('pointermove', (event) => {
 		if (!dragState.active) return;
 		const pos = event.getLocalPosition(world);
-		container.position.set(pos.x - dragState.offsetX, pos.y - dragState.offsetY);
+		const next = clampWindowPosition(pos.x - dragState.offsetX, pos.y - dragState.offsetY);
+		container.position.set(next.x, next.y);
+		syncWindowBaseFromCurrentPose();
 	});
-	app.stage.on('pointerup', () => { dragState.active = false; });
-	app.stage.on('pointerupoutside', () => { dragState.active = false; });
+	app.stage.on('pointerup', () => {
+		if (!dragState.active) return;
+		dragState.active = false;
+		syncWindowBaseFromCurrentPose();
+	});
+	app.stage.on('pointerupoutside', () => {
+		if (!dragState.active) return;
+		dragState.active = false;
+		syncWindowBaseFromCurrentPose();
+	});
 
 	let glowTime = 0;
-	let swirlTime = 0;
 	const updateSelectionGlow = (time) => {
 		if (!state.selected.size) return;
 		const hue = (time * 90) % 360;
@@ -962,30 +998,8 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		}
 	};
 
-	const swirlSprite = new PIXI.Sprite(createSwirlTexture(colors));
-	swirlSprite.alpha = 0.34;
-	swirlSprite.width = windowWidth;
-	swirlSprite.height = windowHeight;
-	swirlSprite.position.set(0, 0);
-
-	const swirlDisplace = new PIXI.Sprite(createNoiseTexture());
-	swirlDisplace.width = windowWidth;
-	swirlDisplace.height = windowHeight;
-	swirlDisplace.alpha = 0;
-	swirlDisplace.visible = true;
-	swirlDisplace.renderable = true;
-	if (swirlDisplace.texture?.baseTexture) {
-		swirlDisplace.texture.baseTexture.wrapMode = PIXI.WRAP_MODES.REPEAT;
-	}
-	const swirlFilter = new PIXI.filters.DisplacementFilter(swirlDisplace);
-	swirlFilter.scale.set(28, 20);
-	swirlSprite.filters = [swirlFilter];
-	swirlSprite.mask = panelMask;
-
 	container.addChild(
 		panelFill,
-		swirlDisplace,
-		swirlSprite,
 		panelMask,
 		panelBorder,
 		headerBg,
@@ -1046,11 +1060,6 @@ export function createWalklatroOverlay(app, world, options = {}) {
 		if (state.open) applyBootPose();
 		if (!state.open) return;
 		glowTime += dt / 60;
-		swirlTime += dt / 60;
-		swirlDisplace.x = swirlTime * 24;
-		swirlDisplace.y = swirlTime * 18;
-		swirlSprite.rotation = Math.sin(swirlTime * 0.22) * 0.03;
-		swirlSprite.alpha = 0.34 + Math.sin(swirlTime * 0.25) * 0.05;
 		updateSelectionGlow(glowTime);
 		if (state.scoring) {
 			for (let i = scoreAnimations.length - 1; i >= 0; i -= 1) {
@@ -1131,6 +1140,7 @@ export function createWalklatroOverlay(app, world, options = {}) {
 
 	const open = () => {
 		container.visible = true;
+		bringWindowToFront();
 		state.open = true;
 		state.bootProgress = 0;
 		container.alpha = 0;

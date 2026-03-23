@@ -477,7 +477,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	container.visible = false;
 	container.eventMode = 'static';
 	container.hitArea = new PIXI.Rectangle(0, 0, windowWidth, windowHeight);
-	container.zIndex = 50;
+	container.zIndex = 3200;
 
 	const panelMask = new PIXI.Graphics();
 	panelMask.beginFill(0xffffff, 1);
@@ -1163,6 +1163,31 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	window.addEventListener('keydown', onKeyDown);
 
 	const dragState = { active: false, offsetX: 0, offsetY: 0 };
+	const bringWindowToFront = () => {
+		if (container.parent) {
+			container.parent.addChild(container);
+		}
+	};
+	const clampWindowPosition = (x, y) => {
+		const margin = 8;
+		const minX = screenToWorldX(margin);
+		const minY = screenToWorldY(margin);
+		const maxX = screenToWorldX(app.renderer.width - windowWidth - margin);
+		const maxY = screenToWorldY(app.renderer.height - windowHeight - margin);
+		return {
+			x: Math.max(minX, Math.min(maxX, x)),
+			y: Math.max(minY, Math.min(maxY, y)),
+		};
+	};
+	const syncWindowBaseFromCurrentPose = () => {
+		const t = clamp(state.bootProgress, 0, 1);
+		const eased = 1 - Math.pow(1 - t, 3);
+		const scale = 0.96 + eased * 0.04;
+		const offsetX = (windowWidth * (1 - scale)) * 0.5;
+		const offsetY = (windowHeight * (1 - scale)) * 0.5;
+		windowBaseX = container.position.x - offsetX;
+		windowBaseY = container.position.y - offsetY - (1 - eased) * 12;
+	};
 	if (app?.stage) {
 		app.stage.eventMode = 'static';
 		app.stage.hitArea = app.screen;
@@ -1171,6 +1196,8 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		event.stopPropagation();
 	});
 	headerBg.on('pointerdown', (event) => {
+		event.stopPropagation();
+		bringWindowToFront();
 		const pos = event.getLocalPosition(world);
 		dragState.active = true;
 		dragState.offsetX = pos.x - container.position.x;
@@ -1212,13 +1239,18 @@ export function createReflexGameOverlay(app, world, options = {}) {
 			return;
 		}
 		if (!dragState.active) return;
-		container.position.set(pos.x - dragState.offsetX, pos.y - dragState.offsetY);
+		const next = clampWindowPosition(pos.x - dragState.offsetX, pos.y - dragState.offsetY);
+		container.position.set(next.x, next.y);
+		syncWindowBaseFromCurrentPose();
 	});
 	app.stage.on('pointerup', () => {
 		releasePetDrag();
 		if (playerDrag.active) {
 			playerDrag.active = false;
 			playerActor.position.set(playerBase.x, playerBase.y);
+		}
+		if (dragState.active) {
+			syncWindowBaseFromCurrentPose();
 		}
 		dragState.active = false;
 	});
@@ -1227,6 +1259,9 @@ export function createReflexGameOverlay(app, world, options = {}) {
 		if (playerDrag.active) {
 			playerDrag.active = false;
 			playerActor.position.set(playerBase.x, playerBase.y);
+		}
+		if (dragState.active) {
+			syncWindowBaseFromCurrentPose();
 		}
 		dragState.active = false;
 	});
@@ -1339,6 +1374,7 @@ export function createReflexGameOverlay(app, world, options = {}) {
 
 	const open = () => {
 		container.visible = true;
+		bringWindowToFront();
 		state.open = true;
 		state.bootProgress = 0;
 		container.alpha = 0;
