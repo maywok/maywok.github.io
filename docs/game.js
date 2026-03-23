@@ -2682,7 +2682,7 @@ async function boot() {
 				popupColor: 0xffffff,
 				lastPopupColor: null,
 				noGoVoided: false,
-				cursorWasRight: false,
+				cursorWasBlocked: false,
 			};
 			const arcadePopupPalette = [0xff5f9c, 0x5fffd2, 0x6bd3ff, 0xffc14b, 0xb37aff, 0x7aff6d, 0xff7a5c];
 			const pickArcadePopupColor = () => {
@@ -2801,11 +2801,15 @@ async function boot() {
 				{ points: 3, radiusPx: 24, ringColor: 0x68ffd9, coreColor: 0x0f2a22, shardColor: 0x90ffe7, respawnMin: 0.85, respawnMax: 1.55 },
 				{ points: 5, radiusPx: 15, ringColor: 0xffd56b, coreColor: 0x312206, shardColor: 0xffe7a7, respawnMin: 1.2, respawnMax: 2.1 },
 			];
+			const arcadeMaxTargetRadiusPx = Math.max(...arcadeTargetTypes.map((targetType) => targetType.radiusPx));
 			const arcadeTargets = [];
 			const arcadeShards = [];
 			let arcadeTargetSeed = 0;
+			const ARCADE_DIVIDER_Y_RATIO = 0.2;
+			const getArcadeDividerScreenY = () => app.renderer.height * ARCADE_DIVIDER_Y_RATIO;
 			const arcadeState = {
 				dividerWorldX: 0,
+				dividerWorldY: 0,
 			};
 			const arcadeCountdownSteps = [
 				{ label: '3', rate: 1.0, tint: 0xe8faff },
@@ -2863,8 +2867,11 @@ async function boot() {
 			};
 			const respawnArcadeTarget = (target, forceTypeIndex = null) => {
 				target.typeIndex = Number.isInteger(forceTypeIndex) ? forceTypeIndex : getArcadeTargetTypeIndex();
-				target.screenX = arcadeRand(app.renderer.width * 0.58, app.renderer.width * 0.9);
-				target.screenY = arcadeRand(app.renderer.height * 0.2, app.renderer.height * 0.63);
+				const dividerY = getArcadeDividerScreenY();
+				const spawnMinY = Math.max(20, app.renderer.height * 0.06);
+				const spawnMaxY = Math.max(spawnMinY + 6, dividerY - (arcadeMaxTargetRadiusPx + 12));
+				target.screenX = arcadeRand(app.renderer.width * 0.08, app.renderer.width * 0.92);
+				target.screenY = arcadeRand(spawnMinY, spawnMaxY);
 				target.phase = Math.random() * Math.PI * 2;
 				target.phaseVel = arcadeRand(1.3, 2.6);
 				target.drawScreenX = target.screenX;
@@ -3018,7 +3025,7 @@ async function boot() {
 				arcadeFeedback.lastScoreTime = -999;
 				arcadeFeedback.popupTimer = 999;
 				arcadeFeedback.noGoVoided = false;
-				arcadeFeedback.cursorWasRight = false;
+				arcadeFeedback.cursorWasBlocked = false;
 				arcadePopupText.visible = false;
 				stopArcadeCountdown();
 				iconScoreState.clear();
@@ -3138,8 +3145,8 @@ async function boot() {
 				if (basketballMode) {
 					resetArcadeRound();
 					startArcadeCountdown();
-					arcadeFeedback.cursorWasRight = mouse.x >= app.renderer.width * 0.5;
-					arcadeFeedback.noGoVoided = arcadeFeedback.cursorWasRight;
+					arcadeFeedback.cursorWasBlocked = mouse.y <= getArcadeDividerScreenY();
+					arcadeFeedback.noGoVoided = arcadeFeedback.cursorWasBlocked;
 				} else {
 					stopArcadeCountdown();
 					arcadePopupText.visible = false;
@@ -3158,10 +3165,10 @@ async function boot() {
 					const st = body?.state;
 					if (!c || !st) continue;
 					if (st.dragging || st.grabbed) continue;
-					if (c.position.x <= arcadeState.dividerWorldX + screenToWorldSize(8)) continue;
-					c.position.x -= step;
-					st.vx = Math.min(st.vx ?? 0, -shove);
-					st.vy = (st.vy ?? 0) * 0.9;
+					if (c.position.y >= arcadeState.dividerWorldY - screenToWorldSize(8)) continue;
+					c.position.y += step;
+					st.vy = Math.max(st.vy ?? 0, shove);
+					st.vx = (st.vx ?? 0) * 0.9;
 					if (st.free) {
 						st.free.x = c.position.x;
 						st.free.y = c.position.y;
@@ -3169,7 +3176,7 @@ async function boot() {
 					moved += 1;
 				}
 				if (moved > 0) {
-					triggerArcadePopup('SWEEP LEFT', 0.86, 0x90dcff);
+					triggerArcadePopup('SWEEP DOWN', 0.86, 0x90dcff);
 				}
 			});
 			placeLockButton();
@@ -5374,49 +5381,52 @@ async function boot() {
 					y: (sy - cy - cameraOffset.y) / SCENE_SCALE + cy,
 				});
 				const toWorldSizeWithCamera = (s) => s / SCENE_SCALE;
-				const dividerX = app.renderer.width * 0.5;
-				const cursorIsRight = mouse.x >= dividerX;
-				if (!arcadeFeedback.cursorWasRight && cursorIsRight) {
+				const dividerY = getArcadeDividerScreenY();
+				const cursorIsAbove = mouse.y <= dividerY;
+				if (!arcadeFeedback.cursorWasBlocked && cursorIsAbove) {
 					arcadeFeedback.combo = 0;
 					updateArcadeScoreLabel();
-					triggerArcadePopup('RIGHT SIDE BLOCKED', 1.02, 0xff5f88);
-				} else if (arcadeFeedback.cursorWasRight && !cursorIsRight) {
-					triggerArcadePopup('LEFT SIDE ACTIVE', 0.92, 0x8fffb9);
+					triggerArcadePopup('TOP SIDE BLOCKED', 1.02, 0xff5f88);
+				} else if (arcadeFeedback.cursorWasBlocked && !cursorIsAbove) {
+					triggerArcadePopup('BOTTOM SIDE ACTIVE', 0.92, 0x8fffb9);
 				}
-				arcadeFeedback.cursorWasRight = cursorIsRight;
-				arcadeFeedback.noGoVoided = cursorIsRight;
-				const dividerNear = Math.max(0, Math.min(1, 1 - Math.abs(mouse.x - dividerX) / 170));
-				const dividerTop = app.renderer.height * 0.06;
-				const dividerBottom = app.renderer.height * 0.94;
-				const dividerCenter = toWorldFromScreen(dividerX, app.renderer.height * 0.5);
-				const dividerWidth = toWorldSizeWithCamera(16);
-				const dividerHeight = toWorldSizeWithCamera(dividerBottom - dividerTop);
+				arcadeFeedback.cursorWasBlocked = cursorIsAbove;
+				arcadeFeedback.noGoVoided = cursorIsAbove;
+				const dividerNear = Math.max(0, Math.min(1, 1 - Math.abs(mouse.y - dividerY) / 130));
+				const dividerLeft = app.renderer.width * 0.04;
+				const dividerRight = app.renderer.width * 0.96;
+				const dividerCenter = toWorldFromScreen(app.renderer.width * 0.5, dividerY);
+				const dividerWidth = toWorldSizeWithCamera(dividerRight - dividerLeft);
+				const dividerHeight = toWorldSizeWithCamera(15);
 				arcadeState.dividerWorldX = dividerCenter.x;
+				arcadeState.dividerWorldY = dividerCenter.y;
 
 				arcadeDividerGlow.clear();
 				arcadeDividerGlow.beginFill(arcadeFeedback.noGoVoided ? 0xff5f88 : 0x7fd8ff, dividerNear * (arcadeFeedback.noGoVoided ? 0.62 : 0.48));
 				arcadeDividerGlow.drawRoundedRect(
-					dividerCenter.x - dividerWidth * 0.95,
-					dividerCenter.y - dividerHeight * 0.52,
-					dividerWidth * 1.9,
-					dividerHeight * 1.04,
-					dividerWidth * 0.6,
+					dividerCenter.x - dividerWidth * 0.5,
+					dividerCenter.y - dividerHeight * 0.5,
+					dividerWidth,
+					dividerHeight,
+					dividerHeight * 0.6,
 				);
 				arcadeDividerGlow.endFill();
 
 				arcadeSweepHover += (arcadeSweepHoverTarget - arcadeSweepHover) * Math.min(1, seconds * 14);
-				const sweepNear = Math.max(0, Math.min(1, 1 - (app.renderer.width - mouse.x) / 150));
+				const sweepAnchorX = app.renderer.width * 0.94;
+				const sweepAnchorY = Math.max(28, dividerY - 24);
+				const sweepNear = Math.max(0, Math.min(1, 1 - Math.hypot(mouse.x - sweepAnchorX, mouse.y - sweepAnchorY) / 170));
 				const sweepBoost = Math.max(arcadeSweepHover, sweepNear * 0.75);
-				const sweepPos = toWorldFromScreen(app.renderer.width * 0.974, app.renderer.height * 0.5);
-				const sweepW = toWorldSizeWithCamera(17);
-				const sweepH = toWorldSizeWithCamera(30);
+				const sweepPos = toWorldFromScreen(sweepAnchorX, sweepAnchorY);
+				const sweepW = toWorldSizeWithCamera(24);
+				const sweepH = toWorldSizeWithCamera(16);
 				const sway = Math.sin(time * 4.2) * toWorldSizeWithCamera(2.4) * (0.35 + sweepBoost);
-				const p0x = sweepPos.x + sweepW * 0.58 + sway;
-				const p0y = sweepPos.y - sweepH * 0.72;
-				const p1x = sweepPos.x - sweepW * 0.62 + sway;
-				const p1y = sweepPos.y;
-				const p2x = sweepPos.x + sweepW * 0.58 + sway;
-				const p2y = sweepPos.y + sweepH * 0.72;
+				const p0x = sweepPos.x - sweepW * 0.72 + sway;
+				const p0y = sweepPos.y - sweepH * 0.55;
+				const p1x = sweepPos.x + sweepW * 0.72 + sway;
+				const p1y = sweepPos.y - sweepH * 0.55;
+				const p2x = sweepPos.x + sway;
+				const p2y = sweepPos.y + sweepH * 0.8;
 				arcadeSweepControl.clear();
 				arcadeSweepControl.beginFill(0x8fdcff, 0.14 + sweepBoost * 0.24);
 				arcadeSweepControl.drawPolygon([p0x, p0y, p1x, p1y, p2x, p2y]);
@@ -5474,7 +5484,7 @@ async function boot() {
 				arcadeHintText.text = countdownActive
 					? 'TARGET TEST STARTING...'
 					: (arcadeFeedback.noGoVoided
-					? 'RIGHT SIDE BLOCKED: CURSOR LEFT TO SCORE'
+					? 'TOP SIDE BLOCKED: CURSOR BELOW TO SCORE'
 					: 'THROW MODE: HIT TARGETS (1 / 3 / 5)');
 				arcadeHintText.position.set(toWorldFromScreen(24, 18).x, toWorldFromScreen(24, 18).y);
 				const scorePulse = 1 + Math.min(0.24, arcadeFeedback.combo * 0.035) + Math.sin(time * 5.2) * 0.02;
@@ -5484,7 +5494,6 @@ async function boot() {
 				arcadeScoreText.tint = arcadeFeedback.noGoVoided ? 0xff8fab : 0xffffff;
 
 				const bodies = getAllIconBodies();
-				const rightFloorY = toWorldFromScreen(0, app.renderer.height - 18).y;
 				for (const body of bodies) {
 					const key = body.container;
 					let st = iconScoreState.get(key);
@@ -5499,14 +5508,13 @@ async function boot() {
 					const bodyState = body.state;
 					if (!c || !bodyState) continue;
 
-					if (c.position.x > arcadeState.dividerWorldX + toWorldSizeWithCamera(18)
-						&& c.position.y >= rightFloorY
+					if (c.position.y < arcadeState.dividerWorldY - toWorldSizeWithCamera(18)
 						&& st.returnCooldown <= 0
 						&& !bodyState.dragging
 						&& !bodyState.grabbed) {
-						c.position.x -= toWorldSizeWithCamera(8);
-						bodyState.vx = Math.min(bodyState.vx ?? 0, -420 / SCENE_SCALE);
-						bodyState.vy = Math.min(bodyState.vy ?? 0, -140 / SCENE_SCALE);
+						c.position.y += toWorldSizeWithCamera(8);
+						bodyState.vx = (bodyState.vx ?? 0) * 0.92;
+						bodyState.vy = Math.max(bodyState.vy ?? 0, 420 / SCENE_SCALE);
 						if (bodyState.free) {
 							bodyState.free.x = c.position.x;
 							bodyState.free.y = c.position.y;
