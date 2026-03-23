@@ -2308,8 +2308,11 @@ async function boot() {
 			const sliderGap = 42;
 			const soundSliders = [];
 			let activeSoundSlider = null;
+			let activeSoundPointerId = null;
 			const soundPanelDrag = { active: false, offsetX: 0, offsetY: 0 };
 			let soundPanelCustomPosition = false;
+ 			const soundRendererPoint = new PIXI.Point();
+			const soundLocalPoint = new PIXI.Point();
 
 			const bringSoundPanelToFront = () => {
 				if (soundPanel.parent) {
@@ -2334,6 +2337,18 @@ async function boot() {
 			};
 			const clampSoundPanelToViewport = () => {
 				moveSoundPanel(soundPanel.position.x, soundPanel.position.y, soundPanelCustomPosition);
+			};
+			const updateActiveSoundSliderFromClient = (clientX, clientY, persist = true) => {
+				if (!activeSoundSlider || !soundPanelOpen) return;
+				const rect = app.view.getBoundingClientRect();
+				if (!rect || rect.width <= 0 || rect.height <= 0) return;
+				soundRendererPoint.set(
+					(clientX - rect.left) * (app.renderer.width / rect.width),
+					(clientY - rect.top) * (app.renderer.height / rect.height),
+				);
+				soundPanel.toLocal(soundRendererPoint, undefined, soundLocalPoint);
+				const nextValue = (soundLocalPoint.x - activeSoundSlider.trackX) / activeSoundSlider.trackW;
+				activeSoundSlider.setValue?.(nextValue, persist);
 			};
 
 			const formatVolumeLabel = (value) => `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
@@ -2461,7 +2476,18 @@ async function boot() {
 				};
 
 				const beginDrag = (event) => {
+					event.stopPropagation?.();
 					activeSoundSlider = slider;
+					const nativeEvent = event?.data?.originalEvent || event?.originalEvent;
+					if (nativeEvent && Number.isFinite(nativeEvent.pointerId)) {
+						activeSoundPointerId = nativeEvent.pointerId;
+						if (typeof app.view.setPointerCapture === 'function') {
+							try {
+								app.view.setPointerCapture(activeSoundPointerId);
+							} catch (_) {
+							}
+						}
+					}
 					setFromEvent(event);
 				};
 
@@ -2519,7 +2545,7 @@ async function boot() {
 
 				soundPanelOrnament.clear();
 
-				soundPanelTitle.position.set(10, 6);
+				soundPanelTitle.position.set(10, Math.max(0, soundPanelHeaderH - 6 - soundPanelTitle.height + 1));
 				soundCloseBtn.position.set(soundPanelWidth - 34, 3);
 				drawSoundCloseBtn();
 				for (const slider of soundSliders) slider.draw?.();
@@ -2615,11 +2641,26 @@ async function boot() {
 					activeSoundSlider.setFromEvent?.(event);
 				});
 				const stopSoundSliderDrag = () => {
+					if (activeSoundPointerId != null && typeof app.view.releasePointerCapture === 'function') {
+						try {
+							app.view.releasePointerCapture(activeSoundPointerId);
+						} catch (_) {
+						}
+					}
+					activeSoundPointerId = null;
 					activeSoundSlider = null;
 					soundPanelDrag.active = false;
 				};
 				app.stage.on('pointerup', stopSoundSliderDrag);
 				app.stage.on('pointerupoutside', stopSoundSliderDrag);
+				app.view.addEventListener('pointermove', (event) => {
+					if (!activeSoundSlider || !soundPanelOpen) return;
+					updateActiveSoundSliderFromClient(event.clientX, event.clientY, true);
+				});
+				app.view.addEventListener('pointerup', stopSoundSliderDrag);
+				app.view.addEventListener('pointercancel', stopSoundSliderDrag);
+				window.addEventListener('pointerup', stopSoundSliderDrag);
+				window.addEventListener('pointercancel', stopSoundSliderDrag);
 			}
 
 			const basketballToggle = new PIXI.Container();
