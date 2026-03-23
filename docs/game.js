@@ -1121,6 +1121,17 @@ async function boot() {
 			}
 		}
 
+		const isMobileTouchDevice = () => {
+			if (typeof navigator === 'undefined') return false;
+			const ua = navigator.userAgent || '';
+			const hasTouch = (typeof navigator.maxTouchPoints === 'number' && navigator.maxTouchPoints > 0)
+				|| (typeof window !== 'undefined' && 'ontouchstart' in window);
+			const mobileUa = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+			const iPadDesktopUa = /Macintosh/i.test(ua) && hasTouch;
+			return hasTouch && (mobileUa || iPadDesktopUa);
+		};
+		const SHOW_INGAME_CURSOR = !isMobileTouchDevice();
+
 		const app = new PIXI.Application({
 				resizeTo: root,
 				background: THEMES[loadThemeKey()].appBackground,
@@ -1137,7 +1148,7 @@ async function boot() {
 			app.view.style.width = '100%';
 			app.view.style.height = '100%';
 			app.view.style.display = 'block';
-			app.view.style.cursor = 'none';
+			app.view.style.cursor = SHOW_INGAME_CURSOR ? 'none' : 'auto';
 
 			const ENABLE_DEBUG_HUD = false;
 			const DEBUG_SHAPES = false;
@@ -2273,7 +2284,7 @@ async function boot() {
 				fill: 0x22f3c8,
 				letterSpacing: 1,
 			});
-			soundPanelTitle.anchor.set(0, 0.5);
+			soundPanelTitle.anchor.set(0, 0);
 			const soundCloseBtn = new PIXI.Container();
 			const soundCloseBtnBg = new PIXI.Graphics();
 			const soundCloseBtnText = new PIXI.Text('X', {
@@ -2369,18 +2380,26 @@ async function boot() {
 				valueText.anchor.set(1, 0.5);
 				valueText.position.set(soundPanelWidth - 12, rowY);
 
+				const hit = new PIXI.Graphics();
 				const track = new PIXI.Graphics();
 				const fillGlow = new PIXI.Graphics();
 				const fill = new PIXI.Graphics();
 				const knob = new PIXI.Graphics();
+				hit.eventMode = 'static';
+				hit.cursor = 'pointer';
 				track.eventMode = 'static';
 				track.cursor = 'pointer';
+				fillGlow.eventMode = 'none';
+				fill.eventMode = 'none';
 				knob.eventMode = 'static';
 				knob.cursor = 'pointer';
+				label.eventMode = 'none';
+				valueText.eventMode = 'none';
 
 				const slider = {
 					label,
 					valueText,
+					hit,
 					track,
 					fillGlow,
 					fill,
@@ -2397,6 +2416,10 @@ async function boot() {
 				const draw = () => {
 					const v = Math.max(0, Math.min(1, slider.value));
 					const fillW = slider.trackW * v;
+					slider.hit.clear();
+					slider.hit.beginFill(0xffffff, 0.001);
+					slider.hit.drawRect(slider.trackX - 8, slider.trackY - 8, slider.trackW + 16, slider.trackH + 16);
+					slider.hit.endFill();
 					slider.track.clear();
 					slider.track.beginFill(0x12251f, 0.96);
 					slider.track.lineStyle(1.2, 0x67efc9, 0.72);
@@ -2442,13 +2465,14 @@ async function boot() {
 					setFromEvent(event);
 				};
 
+				hit.on('pointerdown', beginDrag);
 				track.on('pointerdown', beginDrag);
 				knob.on('pointerdown', beginDrag);
 				slider.setValue = setValue;
 				slider.setFromEvent = setFromEvent;
 				slider.draw = draw;
 				draw();
-				soundPanel.addChild(label, track, fillGlow, fill, knob, valueText);
+				soundPanel.addChild(label, hit, track, fillGlow, fill, knob, valueText);
 				soundSliders.push(slider);
 				return slider;
 			};
@@ -2529,7 +2553,7 @@ async function boot() {
 
 			soundPanel.addChild(soundPanelGlow, soundPanelBg, soundPanelChrome, soundPanelDragStrip, soundPanelOrnament, soundPanelTitle, soundCloseBtn);
 			for (const slider of soundSliders) {
-				soundPanel.addChild(slider.label, slider.track, slider.fillGlow, slider.fill, slider.knob, slider.valueText);
+				soundPanel.addChild(slider.label, slider.hit, slider.track, slider.fillGlow, slider.fill, slider.knob, slider.valueText);
 			}
 			soundPanel.addChild(soundPanelDragStrip, soundPanelOrnament, soundPanelTitle, soundCloseBtn);
 			soundPanel.zIndex = 3300;
@@ -3333,7 +3357,11 @@ async function boot() {
 		const { filter: cursorPixelateFilter, update: updateCursorPixelate } = createPixelateFilter(app, { pixelSize: 2 });
 		cursorContainer.filters = [cursorPixelateFilter];
 		cursorContainer.zIndex = 5000;
+		cursorContainer.visible = SHOW_INGAME_CURSOR;
 		uiTopLayer.addChild(cursorContainer);
+		const setInGameCursorVisible = (visible) => {
+			cursorContainer.visible = SHOW_INGAME_CURSOR && Boolean(visible);
+		};
 
 		const transitionWipe = new PIXI.Graphics();
 		transitionWipe.eventMode = 'none';
@@ -4114,7 +4142,7 @@ async function boot() {
 			tvDesktopTransitionLayer.visible = true;
 			tvDesktopTransitionSprite.alpha = 1;
 			tvDesktopContentSprite.alpha = 0;
-			cursorContainer.visible = true;
+			setInGameCursorVisible(true);
 			cursorContainer.zIndex = 5000;
 			uiTopLayer.sortChildren();
 			layoutLivingRoom();
@@ -4620,7 +4648,7 @@ async function boot() {
 			livingRoomLayer.visible = true;
 			livingRoomLayer.eventMode = blend > 0.02 ? 'static' : 'none';
 			livingRoomLayer.alpha = 1;
-			cursorContainer.visible = true;
+			setInGameCursorVisible(true);
 			cursorContainer.zIndex = 5000;
 			uiTopLayer.sortChildren();
 			drawLivingRoomBackdrop(blend);
@@ -4939,7 +4967,7 @@ async function boot() {
 		window.addEventListener('blur', stopRingDrag);
 		window.addEventListener('pointerdown', async (e) => {
 			mouse.down = true;
-			cursorContainer.visible = true;
+			setInGameCursorVisible(true);
 			const point = toRendererPoint(e);
 			if (soundPanelOpen && point && !isPointInDisplayObject(soundPanel, point) && !isPointInDisplayObject(soundToggle, point)) {
 				closeSoundPanel();
@@ -4987,8 +5015,8 @@ async function boot() {
 			mouse.down = false;
 			pointerPressedIcon = null;
 		});
-		window.addEventListener('pointerleave', () => { cursorContainer.visible = false; });
-		window.addEventListener('pointerenter', () => { cursorContainer.visible = true; });
+		window.addEventListener('pointerleave', () => { setInGameCursorVisible(false); });
+		window.addEventListener('pointerenter', () => { setInGameCursorVisible(true); });
 
 		let time = 0;
 		let vineGrab = null;
@@ -5126,7 +5154,7 @@ async function boot() {
 				livingRoomLayer.visible = false;
 				livingRoomLayer.eventMode = 'none';
 				fullscreenTvContentLayer.visible = false;
-				cursorContainer.visible = true;
+				setInGameCursorVisible(true);
 				cursorContainer.position.set(
 					Math.max(0, Math.min(app.renderer.width, mouse.x)),
 					Math.max(0, Math.min(app.renderer.height, mouse.y)),

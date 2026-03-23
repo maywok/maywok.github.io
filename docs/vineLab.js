@@ -69,6 +69,14 @@ export function createVineLab(app, options = {}) {
 	const ui = new PIXI.Container();
 	ui.zIndex = 120;
 	const panelBg = new PIXI.Graphics();
+	const exitBtn = new PIXI.Container();
+	const exitBtnBg = new PIXI.Graphics();
+	const exitBtnLabel = new PIXI.Text('EXIT', {
+		fontFamily: 'Minecraft, monospace',
+		fontSize: 10,
+		fill: 0xe8fffa,
+		letterSpacing: 1,
+	});
 	const panelTitle = new PIXI.Text('LAB // SANDBOX', {
 		fontFamily: 'Minecraft, monospace',
 		fontSize: 12,
@@ -99,11 +107,15 @@ export function createVineLab(app, options = {}) {
 	labCursor.eventMode = 'none';
 	labCursor.addChild(labCursorOuter, labCursorDot);
 	labCursor.visible = false;
+	exitBtnLabel.anchor.set(0.5, 0.5);
+	exitBtn.addChild(exitBtnBg, exitBtnLabel);
+	exitBtn.eventMode = 'static';
+	exitBtn.cursor = 'pointer';
 	panelTitle.anchor.set(0, 0);
 	controlsText.anchor.set(0, 0);
 	terminalViewport.addChild(terminalContent, terminalMask);
 	terminalViewport.mask = terminalMask;
-	ui.addChild(panelBg, panelTitle, controlsText, terminalFrame, terminalViewport);
+	ui.addChild(panelBg, exitBtn, panelTitle, controlsText, terminalFrame, terminalViewport);
 
 	world.addChild(vineLightLayer, platformLayer, spawnLayer);
 	layer.addChild(background, grid, world, ui, labCursor);
@@ -260,7 +272,7 @@ export function createVineLab(app, options = {}) {
 			'E: attach swing point',
 			'1 crate  2 bouncy pad  3 wind zone',
 			'G gravity  L lamp mode  M level A/B',
-			`ESC exit lab   gravity=${statusText}  lamps=${lampMode ? 'on' : 'off'}`,
+			`ESC or EXIT: leave lab   gravity=${statusText}  lamps=${lampMode ? 'on' : 'off'}`,
 		].join('\n');
 	}
 
@@ -459,24 +471,33 @@ export function createVineLab(app, options = {}) {
 		panelBg.clear();
 		panelBg.beginFill(0x07111b, 0.9);
 		panelBg.lineStyle(1, accentColor, 0.58);
-		panelBg.drawRoundedRect(12, 12, 396, 286, 8);
+		panelBg.drawRect(12, 12, 396, 272);
 		panelBg.endFill();
-		panelTitle.position.set(24, 22);
-		controlsText.position.set(24, 46);
+
+		exitBtnBg.clear();
+		exitBtnBg.beginFill(0x132335, 0.95);
+		exitBtnBg.lineStyle(1, accentColor, 0.62);
+		exitBtnBg.drawRect(0, 0, 62, 22);
+		exitBtnBg.endFill();
+		exitBtn.position.set(24, 20);
+		exitBtnLabel.position.set(31, 11);
+
+		panelTitle.position.set(96, 22);
+		controlsText.position.set(24, 50);
 		labState.terminal.x = 24;
-		labState.terminal.y = 126;
+		labState.terminal.y = 144;
 		labState.terminal.w = 372;
-		labState.terminal.h = 160;
+		labState.terminal.h = 130;
 		labState.terminal.lineH = 13;
 		terminalFrame.clear();
 		terminalFrame.beginFill(0x051018, 0.94);
 		terminalFrame.lineStyle(1, accentColor, 0.46);
-		terminalFrame.drawRoundedRect(labState.terminal.x - 2, labState.terminal.y - 2, labState.terminal.w + 4, labState.terminal.h + 4, 6);
+		terminalFrame.drawRect(labState.terminal.x - 2, labState.terminal.y - 2, labState.terminal.w + 4, labState.terminal.h + 4);
 		terminalFrame.endFill();
 		terminalViewport.position.set(labState.terminal.x, labState.terminal.y);
 		terminalMask.clear();
 		terminalMask.beginFill(0xffffff, 1);
-		terminalMask.drawRoundedRect(0, 0, labState.terminal.w, labState.terminal.h, 5);
+		terminalMask.drawRect(0, 0, labState.terminal.w, labState.terminal.h);
 		terminalMask.endFill();
 		layoutTerminalLines();
 		if (!labState.cursor.active) {
@@ -899,6 +920,18 @@ export function createVineLab(app, options = {}) {
 		const g = event.data?.global || event.global;
 		if (!g) return;
 		setCursorPosition(g.x, g.y);
+	});
+
+	exitBtn.on('pointertap', () => {
+		if (!active) return;
+		onExit();
+	});
+	exitBtn.on('pointerover', () => {
+		if (!active) return;
+		exitBtn.scale.set(1.04);
+	});
+	exitBtn.on('pointerout', () => {
+		exitBtn.scale.set(1);
 	});
 	drawLabCursor();
 
