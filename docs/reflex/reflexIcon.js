@@ -276,12 +276,14 @@ export async function createReflexIcon(app, world, options = {}) {
 	container.eventMode = 'static';
 	container.cursor = 'pointer';
 	container.on('pointerover', () => {
+		if (state.dragEnabled) return;
 		state.hovered = true;
 		onHoverChange?.({ hovered: true, key: 'Reflex', container });
 		idleSprite.visible = false;
 		runSprite.visible = true;
 	});
 	container.on('pointermove', (event) => {
+		if (state.dragEnabled) return;
 		if (!state.hovered) return;
 		cardMotion.onPointerMove(event);
 	});
@@ -556,6 +558,7 @@ export async function createReflexIcon(app, world, options = {}) {
 	});
 
 	function setDragEnabled(enabled, options = {}) {
+		const wasHovered = state.hovered;
 		state.dragEnabled = Boolean(enabled);
 		const preserveMomentum = Boolean(options?.preserveMomentum);
 		if (!state.dragEnabled) state.dragging = false;
@@ -568,6 +571,11 @@ export async function createReflexIcon(app, world, options = {}) {
 		}
 		state.lastDragTime = 0;
 		state.grabbed = false;
+		state.hovered = false;
+		runSprite.visible = false;
+		idleSprite.visible = true;
+		cardMotion.reset();
+		if (wasHovered) onHoverChange?.({ hovered: false, key: 'Reflex', container });
 		if (!state.dragEnabled) {
 			state.free.x = state.base.x;
 			state.free.y = state.base.y;

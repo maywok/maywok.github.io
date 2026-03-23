@@ -356,6 +356,7 @@ export async function createBlogIcon(app, world, options = {}) {
 	container.eventMode = 'static';
 	container.cursor = 'pointer';
 	container.on('pointerover', () => {
+		if (state.dragEnabled) return;
 		state.hovered = true;
 		state.previewTarget = 1;
 		preview.visible = true;
@@ -365,6 +366,7 @@ export async function createBlogIcon(app, world, options = {}) {
 		hoverSprite.gotoAndPlay(0);
 	});
 	container.on('pointermove', (event) => {
+		if (state.dragEnabled) return;
 		if (!hoverSprite.visible) return;
 		cardMotion.onPointerMove(event);
 	});
@@ -643,6 +645,7 @@ export async function createBlogIcon(app, world, options = {}) {
 	});
 
 	function setDragEnabled(enabled, options = {}) {
+		const wasHovered = state.hovered;
 		state.dragEnabled = Boolean(enabled);
 		const preserveMomentum = Boolean(options?.preserveMomentum);
 		if (!state.dragEnabled) state.dragging = false;
@@ -655,6 +658,21 @@ export async function createBlogIcon(app, world, options = {}) {
 		}
 		state.lastDragTime = 0;
 		state.grabbed = false;
+		state.hovered = false;
+		state.previewTarget = 0;
+		state.previewAlpha = 0;
+		preview.alpha = 0;
+		preview.visible = false;
+		hoverSprite.stop();
+		hoverSprite.visible = false;
+		frozenSprite.visible = true;
+		frozenSprite.play();
+		cardMotion.reset();
+		if (wasHovered) onHoverChange?.({ hovered: false, key: 'Blog', container });
+		if (htmlPreview) {
+			htmlPreview.style.opacity = '0';
+			htmlPreview.style.display = 'none';
+		}
 		if (!state.dragEnabled) {
 			state.free.x = state.base.x;
 			state.free.y = state.base.y;

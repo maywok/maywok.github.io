@@ -174,10 +174,12 @@ export async function createWalklatroIcon(app, world, options = {}) {
 	container.eventMode = 'static';
 	container.cursor = 'pointer';
 	container.on('pointerover', () => {
+		if (state.dragEnabled) return;
 		state.hovered = true;
 		onHoverChange?.({ hovered: true, key: 'Walklatro', container });
 	});
 	container.on('pointermove', (event) => {
+		if (state.dragEnabled) return;
 		if (!state.hovered) return;
 		cardMotion.onPointerMove(event);
 	});
@@ -402,6 +404,7 @@ export async function createWalklatroIcon(app, world, options = {}) {
 	});
 
 	function setDragEnabled(enabled, options = {}) {
+		const wasHovered = state.hovered;
 		state.dragEnabled = Boolean(enabled);
 		const preserveMomentum = Boolean(options?.preserveMomentum);
 		if (!state.dragEnabled) state.dragging = false;
@@ -414,6 +417,9 @@ export async function createWalklatroIcon(app, world, options = {}) {
 		}
 		state.lastDragTime = 0;
 		state.grabbed = false;
+		state.hovered = false;
+		cardMotion.reset();
+		if (wasHovered) onHoverChange?.({ hovered: false, key: 'Walklatro', container });
 		if (!state.dragEnabled) {
 			state.free.x = state.base.x;
 			state.free.y = state.base.y;

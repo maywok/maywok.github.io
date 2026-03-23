@@ -572,6 +572,7 @@ export function createAppLauncher(app, world, options = {}) {
 			state.lastDragTime = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 		});
 		iconContainer.on('pointerover', () => {
+			if (dragState.enabled) return;
 			state.hovered = true;
 			tooltip.visible = true;
 			onHoverChange?.({
@@ -587,6 +588,7 @@ export function createAppLauncher(app, world, options = {}) {
 			}
 		});
 		iconContainer.on('pointermove', (event) => {
+			if (dragState.enabled) return;
 			cardMotion.onPointerMove(event);
 		});
 		iconContainer.on('pointerout', () => {
@@ -615,7 +617,7 @@ export function createAppLauncher(app, world, options = {}) {
 		};
 		iconContainer._updatePlatformRect();
 
-		return { container: iconContainer, state, drawIcon, glow, hoverWash, border, ornament, catWhiskers, statusLight, pictureHaze, mountainFar, mountainMid, mountainNear, labLiquid, labBubbles, labGlass, labTicks, cardMotion, iconSprite, hoverSprite, item };
+		return { container: iconContainer, state, drawIcon, glow, hoverWash, border, ornament, catWhiskers, statusLight, pictureHaze, mountainFar, mountainMid, mountainNear, labLiquid, labBubbles, labGlass, labTicks, cardMotion, iconSprite, hoverSprite, tooltip, item };
 	}
 
 	function layout(snap = true) {
@@ -814,6 +816,7 @@ export function createAppLauncher(app, world, options = {}) {
 			}
 			icon.container.scale.set(scale);
 			if (icon.state.hovered || icon.state.dragging || icon.state.grabbed) launcherHovered = true;
+			if (icon.tooltip) icon.tooltip.visible = icon.state.hovered && !dragState.enabled;
 			const baseZ = 100 + icon.state.index;
 			icon.container.zIndex = (icon.state.dragging || icon.state.grabbed) ? 1200 : (icon.state.hovered ? 999 : baseZ);
 			if (icon.glow) {
@@ -991,6 +994,25 @@ export function createAppLauncher(app, world, options = {}) {
 			dragState.grabbed = null;
 		}
 		icons.forEach((icon) => {
+			if (dragState.enabled && icon.state.hovered) {
+				onHoverChange?.({
+					hovered: false,
+					item: icon.item,
+					key: icon.item?.moodKey || icon.item?.displayName || icon.item?.label || '',
+					container: icon.container,
+				});
+			}
+			icon.state.hovered = false;
+			if (icon.tooltip) icon.tooltip.visible = false;
+			if (icon.hoverSprite) {
+				icon.hoverSprite.stop();
+				icon.hoverSprite.visible = false;
+			}
+			if (icon.iconSprite) {
+				icon.iconSprite.visible = true;
+				icon.iconSprite.play();
+			}
+			icon.cardMotion?.reset?.();
 			if (!preserveMomentum) {
 				icon.state.vx = 0;
 				icon.state.vy = 0;

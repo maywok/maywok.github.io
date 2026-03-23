@@ -175,6 +175,7 @@ export async function createLinkedinIcon(app, world, options = {}) {
 	container.eventMode = 'static';
 	container.cursor = 'pointer';
 	container.on('pointerover', () => {
+		if (state.dragEnabled) return;
 		state.hovered = true;
 		onHoverChange?.({ hovered: true, key: 'LinkedIn', container });
 		frozenSprite.visible = false;
@@ -182,6 +183,7 @@ export async function createLinkedinIcon(app, world, options = {}) {
 		hoverSprite.gotoAndPlay(0);
 	});
 	container.on('pointermove', (event) => {
+		if (state.dragEnabled) return;
 		if (!hoverSprite.visible) return;
 		cardMotion.onPointerMove(event);
 	});
@@ -410,6 +412,7 @@ export async function createLinkedinIcon(app, world, options = {}) {
 	});
 
 	function setDragEnabled(enabled, options = {}) {
+		const wasHovered = state.hovered;
 		state.dragEnabled = Boolean(enabled);
 		const preserveMomentum = Boolean(options?.preserveMomentum);
 		if (!state.dragEnabled) state.dragging = false;
@@ -422,6 +425,13 @@ export async function createLinkedinIcon(app, world, options = {}) {
 		}
 		state.lastDragTime = 0;
 		state.grabbed = false;
+		state.hovered = false;
+		hoverSprite.stop();
+		hoverSprite.visible = false;
+		frozenSprite.visible = true;
+		frozenSprite.play();
+		cardMotion.reset();
+		if (wasHovered) onHoverChange?.({ hovered: false, key: 'LinkedIn', container });
 		if (!state.dragEnabled) {
 			state.free.x = state.base.x;
 			state.free.y = state.base.y;

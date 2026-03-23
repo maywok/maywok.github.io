@@ -5498,29 +5498,14 @@ async function boot() {
 					const key = body.container;
 					let st = iconScoreState.get(key);
 					if (!st) {
-						st = { cooldown: 0, returnCooldown: 0 };
+						st = { cooldown: 0 };
 						iconScoreState.set(key, st);
 					}
 					st.cooldown = Math.max(0, st.cooldown - seconds);
-					st.returnCooldown = Math.max(0, st.returnCooldown - seconds);
 
 					const c = body.container;
 					const bodyState = body.state;
 					if (!c || !bodyState) continue;
-
-					if (c.position.y < arcadeState.dividerWorldY - toWorldSizeWithCamera(18)
-						&& st.returnCooldown <= 0
-						&& !bodyState.dragging
-						&& !bodyState.grabbed) {
-						c.position.y += toWorldSizeWithCamera(8);
-						bodyState.vx = (bodyState.vx ?? 0) * 0.92;
-						bodyState.vy = Math.max(bodyState.vy ?? 0, 420 / SCENE_SCALE);
-						if (bodyState.free) {
-							bodyState.free.x = c.position.x;
-							bodyState.free.y = c.position.y;
-						}
-						st.returnCooldown = 0.45;
-					}
 
 					if (countdownActive || arcadeFeedback.noGoVoided || st.cooldown > 0) continue;
 					const bodyRadius = (bodyState.radiusScaled ?? bodyState.radius ?? (24 / SCENE_SCALE)) * (c.scale?.x || 1);
