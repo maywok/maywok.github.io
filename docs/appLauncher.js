@@ -657,7 +657,8 @@ export function createAppLauncher(app, world, options = {}) {
 	function update(time, dtSeconds = 1 / 60, mouseWorld = null) {
 		const minX = screenToWorldX(PHYSICS.margin);
 		const maxX = screenToWorldX(app.renderer.width - PHYSICS.margin);
-		const minY = screenToWorldY(PHYSICS.margin);
+		const topMarginPx = dragState.enabled ? 0 : PHYSICS.margin;
+		const minY = screenToWorldY(topMarginPx);
 		const maxY = screenToWorldY(app.renderer.height - PHYSICS.margin);
 		const mouseR = screenToWorldSize(PHYSICS.mousePushRadius);
 		const mouseForce = PHYSICS.mousePushForce;
