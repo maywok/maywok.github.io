@@ -2270,7 +2270,7 @@ async function boot() {
 			const soundPanelTitle = new PIXI.Text('SOUND', {
 				fontFamily: 'Minecraft, monospace',
 				fontSize: 12,
-				fill: 0xd4fff2,
+				fill: 0x22f3c8,
 				letterSpacing: 1,
 			});
 			soundPanelTitle.anchor.set(0, 0.5);
@@ -2289,7 +2289,7 @@ async function boot() {
 
 			const soundPanelWidth = 248;
 			const soundPanelHeight = 144;
-			const soundPanelHeaderH = 24;
+			const soundPanelHeaderH = 26;
 			const sliderTrackWidth = 142;
 			const sliderTrackHeight = 11;
 			const sliderLeft = 90;
@@ -2340,13 +2340,13 @@ async function boot() {
 			const drawSoundCloseBtn = () => {
 				const hover = Math.max(0, Math.min(1, soundCloseHover));
 				soundCloseBtnBg.clear();
-				soundCloseBtnBg.beginFill(0xbc334a, 0.94 + hover * 0.06);
-				soundCloseBtnBg.lineStyle(1.5, 0x5f1828, 0.95);
-				soundCloseBtnBg.drawRect(0, 0, 24, 18);
+				soundCloseBtnBg.beginFill(0xff5667, 0.94 + hover * 0.06);
+				soundCloseBtnBg.lineStyle(1, 0x000000, 0.6);
+				soundCloseBtnBg.drawRoundedRect(0, 0, 28, 22, 5);
 				soundCloseBtnBg.endFill();
 				soundCloseBtn.scale.set(1 + hover * 0.05);
-				soundCloseBtn.pivot.set((24 * soundCloseBtn.scale.x - 24) * 0.5, (18 * soundCloseBtn.scale.y - 18) * 0.5);
-				soundCloseBtnText.position.set(12, 9);
+				soundCloseBtn.pivot.set((28 * soundCloseBtn.scale.x - 28) * 0.5, (22 * soundCloseBtn.scale.y - 22) * 0.5);
+				soundCloseBtnText.position.set(14, 11);
 			};
 
 			const createSoundSlider = (labelText, rowIndex, initialValue, onChange) => {
@@ -2470,36 +2470,33 @@ async function boot() {
 
 			const drawSoundPanel = () => {
 				soundPanelGlow.clear();
-				soundPanelGlow.beginFill(0x8effda, 0.07);
+				soundPanelGlow.beginFill(0x000000, 0.16);
 				soundPanelGlow.drawRect(-4, -4, soundPanelWidth + 8, soundPanelHeight + 8);
 				soundPanelGlow.endFill();
 
 				soundPanelBg.clear();
-				soundPanelBg.beginFill(0x091410, 0.95);
-				soundPanelBg.lineStyle(1.5, 0x22f3c8, 0.64);
+				soundPanelBg.beginFill(0x0b0f13, 0.98);
+				soundPanelBg.lineStyle(2, 0x1a1f27, 1);
 				soundPanelBg.drawRect(0, 0, soundPanelWidth, soundPanelHeight);
 				soundPanelBg.endFill();
 
 				soundPanelChrome.clear();
-				soundPanelChrome.beginFill(0x132c24, 0.96);
-				soundPanelChrome.lineStyle(1, 0x8ef8d8, 0.72);
-				soundPanelChrome.drawRect(1, 1, soundPanelWidth - 2, soundPanelHeaderH);
+				soundPanelChrome.beginFill(0x0f141a, 1);
+				soundPanelChrome.drawRect(0, 0, soundPanelWidth, soundPanelHeaderH);
+				soundPanelChrome.endFill();
+				soundPanelChrome.beginFill(0x1c2430, 1);
+				soundPanelChrome.drawRect(0, soundPanelHeaderH - 6, soundPanelWidth, 6);
 				soundPanelChrome.endFill();
 
 				soundPanelDragStrip.clear();
 				soundPanelDragStrip.beginFill(0xffffff, 0.001);
-				soundPanelDragStrip.drawRect(0, 0, soundPanelWidth - 32, soundPanelHeaderH);
+				soundPanelDragStrip.drawRect(0, 0, soundPanelWidth - 36, soundPanelHeaderH);
 				soundPanelDragStrip.endFill();
 
 				soundPanelOrnament.clear();
-				soundPanelOrnament.beginFill(0x9cffe2, 0.9);
-				soundPanelOrnament.drawRect(soundPanelWidth - 68, 11, 3, 3);
-				soundPanelOrnament.drawRect(soundPanelWidth - 62, 11, 3, 3);
-				soundPanelOrnament.drawRect(soundPanelWidth - 56, 11, 3, 3);
-				soundPanelOrnament.endFill();
 
-				soundPanelTitle.position.set(12, 13);
-				soundCloseBtn.position.set(soundPanelWidth - 34, 8);
+				soundPanelTitle.position.set(10, 6);
+				soundCloseBtn.position.set(soundPanelWidth - 34, 3);
 				drawSoundCloseBtn();
 				for (const slider of soundSliders) slider.draw?.();
 			};
@@ -2531,6 +2528,10 @@ async function boot() {
 			};
 
 			soundPanel.addChild(soundPanelGlow, soundPanelBg, soundPanelChrome, soundPanelDragStrip, soundPanelOrnament, soundPanelTitle, soundCloseBtn);
+			for (const slider of soundSliders) {
+				soundPanel.addChild(slider.label, slider.track, slider.fillGlow, slider.fill, slider.knob, slider.valueText);
+			}
+			soundPanel.addChild(soundPanelDragStrip, soundPanelOrnament, soundPanelTitle, soundCloseBtn);
 			soundPanel.zIndex = 3300;
 			soundPanel.visible = false;
 			soundPanel.eventMode = 'none';
