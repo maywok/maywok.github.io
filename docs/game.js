@@ -4693,6 +4693,18 @@ async function boot() {
 		livingRoomBackBtn.addChild(livingRoomBackBg, livingRoomBackLabel);
 		livingRoomBackBtn.eventMode = 'static';
 		livingRoomBackBtn.cursor = 'pointer';
+		const livingRoomFocusBtn = new PIXI.Container();
+		const livingRoomFocusBg = new PIXI.Graphics();
+		const livingRoomFocusLabel = new PIXI.Text('FOCUS', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 10,
+			fill: 0xf4e5cc,
+			letterSpacing: 1,
+		});
+		livingRoomFocusLabel.anchor.set(0.5, 0.5);
+		livingRoomFocusBtn.addChild(livingRoomFocusBg, livingRoomFocusLabel);
+		livingRoomFocusBtn.eventMode = 'static';
+		livingRoomFocusBtn.cursor = 'pointer';
 		const statusColorForTape = (status) => {
 			switch ((status || '').toLowerCase()) {
 				case 'released': return 0x6dff9a;
@@ -4815,6 +4827,14 @@ async function boot() {
 			dragOffsetY: 0,
 		};
 		const cartridgeViewportRect = { x: 0, y: 0, w: 0, h: 0 };
+		const livingRoomRackRect = { x: 0, y: 0, w: 0, h: 0 };
+		const livingRoomTvPanelRect = { x: 0, y: 0, w: 0, h: 0 };
+		const livingRoomLayoutFocus = {
+			mix: 0,
+			targetMix: 0,
+			velocity: 0,
+			lastAppliedMix: Number.NaN,
+		};
 		const TERMINAL_TYPE_RATE = 220;
 		const TERMINAL_BASE_COLOR = 0xf3f8ff;
 		const TERMINAL_BRO_COLOR = 0xffd56b;
@@ -5765,7 +5785,10 @@ async function boot() {
 				if (instantTerminal) revealTerminalTextNow();
 				return;
 			}
-			if (!force && userInitiated) playScreenshotScrollSfx();
+			if (!force && userInitiated) {
+				playScreenshotScrollSfx();
+				setLivingRoomDetailFocus(true);
+			}
 			closeMediaPopout();
 			if (!force) {
 				tvMediaPrevSprite.texture = tvDesktopContentSprite.texture;
@@ -5925,6 +5948,7 @@ async function boot() {
 			livingRoomState.playingMix = isEmptyProject ? 0 : 1;
 			setLivingRoomProjectForTape(tapeEntry.tape, { resetSlide: true, force: true, instantTerminal: true });
 			setDesktopTwoLoadedTape(tapeEntry.tape);
+			setLivingRoomDetailFocus(true);
 			layoutLivingRoom();
 			refreshPlacard();
 		};
@@ -5940,6 +5964,7 @@ async function boot() {
 				livingRoomState.insertedTapeId = defaultTapeId;
 				livingRoomState.emptyPreviewWord = pickBroPlaceholderWord();
 				livingRoomState.playingMix = 1;
+				setLivingRoomDetailFocus(false, { instant: true });
 			}
 			livingRoomState.inserting = null;
 			livingRoomState.hoverIndex = -1;
@@ -5965,6 +5990,7 @@ async function boot() {
 			closeMediaPopout();
 			livingRoomState.hoverIndex = -1;
 			livingRoomState.inserting = null;
+			setLivingRoomDetailFocus(false, { instant: true });
 			livingRoomState.overlayMode = OVERLAY_MODE_LIBRARY;
 			livingRoomState.viewMode = VIEW_FULLSCREEN;
 			livingRoomState.fullscreenFromTv = false;
@@ -5994,6 +6020,7 @@ async function boot() {
 		placard.zIndex = 70;
 		tvDesktopTransitionLayer.zIndex = 75;
 		livingRoomBackBtn.zIndex = 80;
+		livingRoomFocusBtn.zIndex = 80;
 		livingRoomForeground.zIndex = 60;
 		livingRoomTv.addChild(
 			tvBodyShadow,
@@ -6006,7 +6033,7 @@ async function boot() {
 		for (const tape of livingRoomTapes) {
 			cartridgeListContent.addChild(tape.node);
 		}
-		livingRoomLayer.addChild(roomBg, livingRoomForeground, leftShelf, cartridgeListViewport, cartridgeScrollUi, livingRoomTv, tvDesktopTransitionLayer, livingRoomBackBtn);
+		livingRoomLayer.addChild(roomBg, livingRoomForeground, leftShelf, cartridgeListViewport, cartridgeScrollUi, livingRoomTv, tvDesktopTransitionLayer, livingRoomBackBtn, livingRoomFocusBtn);
 		app.stage.addChild(livingRoomLayer);
 		let livingRoomTvSlotX = 0;
 		let livingRoomTvSlotY = 0;
@@ -6026,7 +6053,7 @@ async function boot() {
 			livingRoomBackdrop.endFill();
 		};
 
-		const layoutLivingRoom = () => {
+		const layoutLivingRoom = ({ instantTerminal = false } = {}) => {
 			const sw = app.renderer.width;
 			const sh = app.renderer.height;
 			const margin = Math.max(20, Math.round(sw * 0.028));
@@ -6034,8 +6061,13 @@ async function boot() {
 			const navRowY = margin;
 			const navRowGap = Math.max(10, Math.round(navRowH * 0.28));
 			const layoutTop = margin;
-			const colGap = Math.max(14, Math.round(sw * 0.02));
-			const rackW = Math.max(220, Math.min(Math.round(sw * 0.3), Math.round(sw * 0.32)));
+			const focusMixRaw = livingRoomLayoutFocus.mix;
+			const focusMix = Math.max(0, Math.min(1, focusMixRaw));
+			const browseRackRatio = sw < 980 ? 0.36 : 0.34;
+			const focusRackRatio = sw < 980 ? 0.24 : 0.22;
+			const rackRatio = browseRackRatio + (focusRackRatio - browseRackRatio) * focusMixRaw;
+			const colGap = Math.max(10, Math.round(sw * (0.02 - focusMix * 0.004)));
+			const rackW = Math.max(180, Math.min(Math.round(sw * 0.42), Math.round(sw * rackRatio)));
 			const panelW = Math.max(320, sw - margin * 2 - colGap - rackW);
 			const panelHCap = Math.min(Math.round(sh * 0.84), Math.round(sw * 0.72));
 			const panelH = Math.max(300, Math.min(panelHCap, Math.round(sh - margin * 2)));
@@ -6046,6 +6078,16 @@ async function boot() {
 			const activeAccent = getActiveAccentColor();
 			const shelfBorderColor = tintColor(activeAccent, 0.9);
 			const shelfLineColor = tintColor(activeAccent, 1.22);
+			livingRoomLayoutFocus.lastAppliedMix = focusMixRaw;
+
+			livingRoomRackRect.x = rackX;
+			livingRoomRackRect.y = rackY;
+			livingRoomRackRect.w = rackW;
+			livingRoomRackRect.h = panelH;
+			livingRoomTvPanelRect.x = panelX;
+			livingRoomTvPanelRect.y = panelY;
+			livingRoomTvPanelRect.w = panelW;
+			livingRoomTvPanelRect.h = panelH;
 
 			livingRoomLayer.position.set(0, 0);
 			livingRoomLayer.hitArea = new PIXI.Rectangle(0, 0, sw, sh);
@@ -6087,7 +6129,7 @@ async function boot() {
 			rightShelf.clear();
 			rightShelf.alpha = 0;
 
-			const rackPad = 12;
+			const rackPad = Math.max(8, Math.round(12 - focusMix * 3));
 			const scrollbarW = 8;
 			const scrollbarGap = 8;
 			const viewportX = rackX + rackPad;
@@ -6216,7 +6258,8 @@ async function boot() {
 			tvBroSubBaseY = tvBroSub.y;
 			tvTerminalLines.visible = true;
 			tvTerminalCursor.visible = true;
-			rebuildLivingRoomTerminalPanel();
+			rebuildLivingRoomTerminalPanel({ instant: instantTerminal });
+			renderTerminalTypedText(true);
 			redrawLivingRoomDots();
 
 			tvEmptyBg.clear();
@@ -6278,9 +6321,22 @@ async function boot() {
 			livingRoomBackBtn.position.set(margin + 2, Math.max(6, rackY - 36));
 			livingRoomBackLabel.position.set(44, 15);
 
-			livingRoomTapeW = Math.max(160, rackW * 0.8);
-			livingRoomTapeH = Math.max(64, livingRoomTapeW * 0.44);
-			const tapeSpacing = Math.max(10, Math.round(livingRoomTapeH * 0.12));
+			livingRoomFocusLabel.text = focusMix >= 0.5 ? 'BROWSE' : 'FOCUS';
+			const focusBtnW = Math.max(96, Math.ceil(livingRoomFocusLabel.width + 26));
+			livingRoomFocusBg.clear();
+			livingRoomFocusBg.beginFill(0x142334, 0.95);
+			livingRoomFocusBg.lineStyle(2, focusMix >= 0.5 ? tintColor(activeAccent, 1.22) : 0x7ed1ff, 0.82);
+			livingRoomFocusBg.drawRoundedRect(0, 0, focusBtnW, 30, 8);
+			livingRoomFocusBg.endFill();
+			const focusBtnX = Math.min(sw - margin - focusBtnW - 2, livingRoomBackBtn.x + 96);
+			livingRoomFocusBtn.position.set(Math.max(margin + 94, focusBtnX), livingRoomBackBtn.y);
+			livingRoomFocusLabel.position.set(focusBtnW * 0.5, 15);
+
+			const tapeWidthFactor = 0.8 - focusMix * 0.12;
+			const tapeMinW = Math.max(118, Math.round(160 - focusMix * 40));
+			livingRoomTapeW = Math.max(tapeMinW, rackW * tapeWidthFactor);
+			livingRoomTapeH = Math.max(Math.round(52 + (1 - focusMix) * 12), livingRoomTapeW * 0.44);
+			const tapeSpacing = Math.max(8, Math.round(livingRoomTapeH * (0.12 - focusMix * 0.03)));
 			const totalTapeH = livingRoomTapes.length * livingRoomTapeH + (livingRoomTapes.length - 1) * tapeSpacing;
 			const tapesTop = 10;
 			const rackCenterX = viewportW * 0.5;
@@ -6316,7 +6372,53 @@ async function boot() {
 
 			drawLivingRoomBackdrop(livingRoomState.blend);
 		};
-		layoutLivingRoom();
+		const setLivingRoomDetailFocus = (enabled, options = {}) => {
+			const instant = Boolean(options.instant);
+			livingRoomLayoutFocus.targetMix = enabled ? 1 : 0;
+			if (!instant) return;
+			livingRoomLayoutFocus.mix = livingRoomLayoutFocus.targetMix;
+			livingRoomLayoutFocus.velocity = 0;
+			livingRoomLayoutFocus.lastAppliedMix = Number.NaN;
+			layoutLivingRoom({ instantTerminal: true });
+		};
+		const stepLivingRoomDetailFocus = (dtSeconds) => {
+			const target = livingRoomLayoutFocus.targetMix;
+			let mix = livingRoomLayoutFocus.mix;
+			let velocity = livingRoomLayoutFocus.velocity;
+			const delta = target - mix;
+			const settling = Math.abs(delta) < 0.0008 && Math.abs(velocity) < 0.0008;
+
+			if (settling) {
+				if (mix !== target) {
+					mix = target;
+					velocity = 0;
+				}
+			} else {
+				const stiffness = 30;
+				const damping = 11;
+				const accel = delta * stiffness - velocity * damping;
+				velocity += accel * dtSeconds;
+				mix += velocity * dtSeconds;
+				if (mix < -0.06) {
+					mix = -0.06;
+					velocity = 0;
+				}
+				if (mix > 1.06) {
+					mix = 1.06;
+					velocity = 0;
+				}
+			}
+
+			livingRoomLayoutFocus.mix = mix;
+			livingRoomLayoutFocus.velocity = velocity;
+			const lastApplied = livingRoomLayoutFocus.lastAppliedMix;
+			const needsStepLayout = !Number.isFinite(lastApplied) || Math.abs(mix - lastApplied) > 0.003;
+			const needsFinalLayout = settling && Math.abs(target - lastApplied) > 0.0001;
+			if (needsStepLayout || needsFinalLayout) {
+				layoutLivingRoom({ instantTerminal: true });
+			}
+		};
+		layoutLivingRoom({ instantTerminal: true });
 		openPortfolioLibraryNow = () => {
 			if (desktopTwoActive || livingRoomActive) return;
 			enterLivingRoom();
@@ -6413,6 +6515,12 @@ async function boot() {
 		});
 		livingRoomBackBtn.on('pointerover', () => { livingRoomBackBtn.scale.set(1.04); });
 		livingRoomBackBtn.on('pointerout', () => { livingRoomBackBtn.scale.set(1); });
+		livingRoomFocusBtn.on('pointertap', () => {
+			if (livingRoomState.viewMode !== VIEW_TV_AREA) return;
+			setLivingRoomDetailFocus(livingRoomLayoutFocus.targetMix < 0.5);
+		});
+		livingRoomFocusBtn.on('pointerover', () => { livingRoomFocusBtn.scale.set(1.04); });
+		livingRoomFocusBtn.on('pointerout', () => { livingRoomFocusBtn.scale.set(1); });
 		const setCartridgeScrollFromThumbY = (thumbYLocal) => {
 			const maxThumbTravel = Math.max(0, cartridgeScrollState.trackH - cartridgeScrollState.thumbH);
 			const clampedThumbY = Math.max(cartridgeScrollState.trackY, Math.min(cartridgeScrollState.trackY + maxThumbTravel, thumbYLocal));
@@ -6426,11 +6534,13 @@ async function boot() {
 		cartridgeScrollThumb.cursor = 'grab';
 		cartridgeScrollTrack.on('pointerdown', (event) => {
 			if (!livingRoomActive || livingRoomState.viewMode !== VIEW_TV_AREA) return;
+			setLivingRoomDetailFocus(false);
 			const local = event.data.getLocalPosition(cartridgeScrollUi);
 			setCartridgeScrollFromThumbY(local.y - cartridgeScrollState.thumbH * 0.5);
 		});
 		cartridgeScrollThumb.on('pointerdown', (event) => {
 			if (!livingRoomActive || livingRoomState.viewMode !== VIEW_TV_AREA) return;
+			setLivingRoomDetailFocus(false);
 			event.stopPropagation?.();
 			const local = event.data.getLocalPosition(cartridgeScrollUi);
 			cartridgeScrollState.dragging = true;
@@ -6473,6 +6583,7 @@ async function boot() {
 				&& point.y <= (cartridgeViewportRect.y + cartridgeViewportRect.h);
 			if (!insideViewport) return;
 			event.preventDefault();
+			setLivingRoomDetailFocus(false);
 			cartridgeScrollState.scrollY += event.deltaY;
 			updateCartridgeScrollUi();
 		}, { passive: false });
@@ -6480,6 +6591,16 @@ async function boot() {
 			if (!livingRoomActive || livingRoomState.viewMode !== VIEW_TV_AREA) return;
 			const point = toRendererPoint(event);
 			if (!point) return;
+			const insideRack = point.x >= livingRoomRackRect.x
+				&& point.x <= (livingRoomRackRect.x + livingRoomRackRect.w)
+				&& point.y >= livingRoomRackRect.y
+				&& point.y <= (livingRoomRackRect.y + livingRoomRackRect.h);
+			const insideDetailPanel = point.x >= livingRoomTvPanelRect.x
+				&& point.x <= (livingRoomTvPanelRect.x + livingRoomTvPanelRect.w)
+				&& point.y >= livingRoomTvPanelRect.y
+				&& point.y <= (livingRoomTvPanelRect.y + livingRoomTvPanelRect.h);
+			if (insideRack) setLivingRoomDetailFocus(false);
+			if (insideDetailPanel) setLivingRoomDetailFocus(true);
 			if (mediaPopoutState.progress > 0.02 || mediaPopoutState.target > 0) {
 				const halfW = mediaPopoutState.cardW * 0.5;
 				const halfH = mediaPopoutState.cardH * 0.5;
@@ -6553,6 +6674,8 @@ async function boot() {
 			}
 			const blend = Math.max(0, Math.min(1, livingRoomState.blend));
 			const reveal = 1 - Math.pow(1 - blend, 3);
+			stepLivingRoomDetailFocus(dtSeconds);
+			const focusMix = Math.max(0, Math.min(1, livingRoomLayoutFocus.mix));
 			const desktopProxyMix = 1 - Math.pow(1 - blend, 2.35);
 			const shouldRefreshDesktopFeed = previewUsesDesktopFeed && (blend < 1 || livingRoomState.targetBlend < 1 || livingRoomState.viewMode === VIEW_TV_AREA);
 			if (shouldRefreshDesktopFeed) {
@@ -6592,20 +6715,24 @@ async function boot() {
 
 			livingRoomWallGlow.alpha = 0.2 + reveal * 0.8;
 			livingRoomFloor.alpha = 0.24 + reveal * 0.62;
-			leftShelf.alpha = 0.24 + reveal * 0.76;
+			leftShelf.alpha = (0.24 + reveal * 0.76) * (1 - focusMix * 0.08);
 			rightShelf.alpha = 0;
 			livingRoomForeground.alpha = 0;
 			placard.alpha = 0;
 			livingRoomBackBtn.alpha = Math.max(0, (reveal - 0.32) / 0.68);
 			livingRoomBackBtn.eventMode = reveal > 0.55 ? 'static' : 'none';
+			livingRoomFocusBtn.alpha = livingRoomBackBtn.alpha;
+			livingRoomFocusBtn.eventMode = reveal > 0.55 ? 'static' : 'none';
 			tvScreenHitArea.alpha = 0;
 			tvScreenHitArea.eventMode = 'none';
 			tvEjectBtn.alpha = 0;
 			tvEjectBtn.eventMode = 'none';
+			cartridgeListViewport.alpha = 1 - focusMix * 0.06;
+			cartridgeScrollUi.alpha = 1 - focusMix * 0.08;
 
 			const panelReveal = Math.max(0, (reveal - 0.04) / 0.96);
-			livingRoomTv.alpha = panelReveal;
-			livingRoomTv.scale.set(1);
+			livingRoomTv.alpha = Math.min(1, panelReveal + focusMix * 0.04);
+			livingRoomTv.scale.set(1 + focusMix * 0.008);
 
 			tvDesktopContentSprite.alpha = 1;
 			tvBroScreen.alpha = 1;
@@ -6752,7 +6879,7 @@ async function boot() {
 				tape.art.position.set(badgeX, badgeY);
 				tape.art.width = badgeW * 0.82;
 				tape.art.height = badgeH * 0.82;
-				tape.art.alpha = 0.85;
+				tape.art.alpha = 0.78 + focusMix * 0.16;
 				tape.screws.clear();
 				tape.screws.beginFill(0x7da1bb, 0.92);
 				tape.screws.drawCircle(-tw * 0.41, -th * 0.39, 2.1);
@@ -6772,10 +6899,12 @@ async function boot() {
 				tape.shellShadow.lineTo(tw * 0.46, th * 0.45);
 				tape.shellShadow.moveTo(tw * 0.46, -th * 0.45);
 				tape.shellShadow.lineTo(tw * 0.46, th * 0.45);
-				tape.title.position.set(tw * 0.12, th * 0.12);
-				tape.title.text = tape.tape.label;
+				tape.title.position.set(tw * (0.12 - focusMix * 0.06), th * 0.12);
+				const compactLabel = tape.tape.label.length > 7 ? `${tape.tape.label.slice(0, 7)}...` : tape.tape.label;
+				tape.title.text = focusMix > 0.58 ? compactLabel : tape.tape.label;
+				tape.title.alpha = selected ? 1 : (0.94 - focusMix * 0.22);
 				tape.title.style.fill = selected ? 0xf0fbff : 0xd0dce8;
-				tape.title.style.fontSize = Math.max(12, Math.round(th * 0.28));
+				tape.title.style.fontSize = Math.max(10, Math.round(th * (0.28 - focusMix * 0.05)));
 				tape.node.alpha = 0.16 + reveal * 0.84;
 			}
 
@@ -7733,7 +7862,7 @@ async function boot() {
 			// Keep shader uniforms in sync with new renderer size
 			layoutScene();
 			layoutLeftPortal();
-			layoutLivingRoom();
+			layoutLivingRoom({ instantTerminal: true });
 			scene.filterArea = new PIXI.Rectangle(0, 0, app.renderer.width, app.renderer.height);
 			if (desktopTwoEntryTransition.active || vineLabTransition.active) {
 				drawTransitionWipe(Math.max(desktopTwoEntryTransition.phase, vineLabTransition.phase));
