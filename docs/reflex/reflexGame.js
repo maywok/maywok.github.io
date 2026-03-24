@@ -1,4 +1,5 @@
 import { createCrimsonFlowBackground } from '../background.js';
+import { initSfx, loadSfx, playSfx } from '../sfx.js';
 
 const DEFAULTS = {
 	title: 'Reflex',
@@ -30,8 +31,33 @@ function randomBetween(min, max) {
 	return Math.random() * (max - min) + min;
 }
 
+const REFLEX_TAB_CLOSE_SFX_ID = 'reflexTabClose';
+const REFLEX_TAB_CLOSE_SFX_URL = './assets/audio/sounds/Exit_Tab.wav';
+let reflexTabCloseSfxLoadPromise = null;
+
+function ensureReflexTabCloseSfxLoaded() {
+	if (!reflexTabCloseSfxLoadPromise) {
+		reflexTabCloseSfxLoadPromise = initSfx()
+			.then(() => loadSfx({ [REFLEX_TAB_CLOSE_SFX_ID]: REFLEX_TAB_CLOSE_SFX_URL }))
+			.catch(() => {});
+	}
+	return reflexTabCloseSfxLoadPromise;
+}
+
+function playReflexTabCloseSfx() {
+	ensureReflexTabCloseSfxLoaded().then(() => {
+		try {
+			playSfx(REFLEX_TAB_CLOSE_SFX_ID, {
+				volume: 0.36 + Math.random() * 0.14,
+				rate: 0.9 + Math.random() * 0.18,
+			});
+		} catch (_) {}
+	});
+}
+
 export function createReflexGameWindow(options = {}) {
 	const config = { ...DEFAULTS, ...options };
+	ensureReflexTabCloseSfxLoaded();
 	const root = options.root || document.getElementById('game-root') || document.body;
 	const state = {
 		open: false,
@@ -430,7 +456,10 @@ export function createReflexGameWindow(options = {}) {
 	window.addEventListener('pointermove', onDragMove);
 	window.addEventListener('pointerup', stopDrag);
 
-	closeBtn.addEventListener('click', close);
+	closeBtn.addEventListener('click', () => {
+		playReflexTabCloseSfx();
+		close();
+	});
 	startBtn.addEventListener('click', beginRound);
 	window.addEventListener('keydown', onKeyDown);
 
@@ -439,6 +468,7 @@ export function createReflexGameWindow(options = {}) {
 
 export function createReflexGameOverlay(app, world, options = {}) {
 	const config = { ...DEFAULTS, ...options };
+	ensureReflexTabCloseSfxLoaded();
 	const screenScale = options.screenScale ?? 1;
 	const state = {
 		open: false,
@@ -1159,7 +1189,10 @@ export function createReflexGameOverlay(app, world, options = {}) {
 	addHoverScale(difficultyBtn, 1.04);
 	addHoverScale(closeBtn, 1.08);
 	startBtn.on('pointertap', beginRound);
-	closeBtn.on('pointertap', () => close());
+	closeBtn.on('pointertap', () => {
+		playReflexTabCloseSfx();
+		close();
+	});
 	window.addEventListener('keydown', onKeyDown);
 
 	const dragState = { active: false, offsetX: 0, offsetY: 0 };

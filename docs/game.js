@@ -114,6 +114,7 @@ async function boot() {
 		let vineLabActive = false;
 		let returnToTvAreaFromFullscreen = () => {};
 		let isFullscreenTvPlaybackActive = () => false;
+		let isScreenshotPopoutOpen = () => false;
 		const ensureDesktopTwoBackground = () => {
 			if (!desktopTwoRoot || desktopTwoApp) return;
 			const DESKTOP_TWO_BG = 0x090b10;
@@ -334,11 +335,106 @@ async function boot() {
 				letterSpacing: 0.8,
 			});
 			const portfolioTypingCursor = new PIXI.Graphics();
+			const portfolioPreviewPrev = new PIXI.Sprite(PIXI.Texture.WHITE);
+			portfolioPreviewPrev.anchor.set(0.5, 0.5);
+			portfolioPreviewPrev.alpha = 0;
+			portfolioPreviewPrev.visible = false;
+			portfolioPreviewPrev.mask = portfolioWindowGalleryMask;
 			const portfolioPreview = new PIXI.Sprite(PIXI.Texture.from('./assets/images/Uh-Oh.png'));
 			portfolioPreview.anchor.set(0.5, 0.5);
 			portfolioPreview.alpha = 0.9;
 			portfolioPreview.visible = false;
 			portfolioPreview.mask = portfolioWindowGalleryMask;
+			const portfolioDotNav = new PIXI.Container();
+			const portfolioArrowLeft = new PIXI.Container();
+			const portfolioArrowLeftBg = new PIXI.Graphics();
+			const portfolioArrowLeftGlyph = new PIXI.Text('<', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 11,
+				fill: 0xe9f6ff,
+				align: 'center',
+			});
+			portfolioArrowLeftGlyph.anchor.set(0.5, 0.5);
+			portfolioArrowLeft.addChild(portfolioArrowLeftBg, portfolioArrowLeftGlyph);
+			portfolioArrowLeft.eventMode = 'static';
+			portfolioArrowLeft.cursor = 'pointer';
+			const portfolioArrowRight = new PIXI.Container();
+			const portfolioArrowRightBg = new PIXI.Graphics();
+			const portfolioArrowRightGlyph = new PIXI.Text('>', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 11,
+				fill: 0xe9f6ff,
+				align: 'center',
+			});
+			portfolioArrowRightGlyph.anchor.set(0.5, 0.5);
+			portfolioArrowRight.addChild(portfolioArrowRightBg, portfolioArrowRightGlyph);
+			portfolioArrowRight.eventMode = 'static';
+			portfolioArrowRight.cursor = 'pointer';
+			const portfolioTerminalSlideTitle = new PIXI.Text('SLIDE', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 11,
+				fill: 0xffe5bb,
+				letterSpacing: 1,
+			});
+			const portfolioTerminalOverviewLabel = new PIXI.Text('OVERVIEW', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 9,
+				fill: 0x96bfdc,
+				letterSpacing: 1,
+			});
+			const portfolioTerminalOverviewText = new PIXI.Text('', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 8,
+				fill: 0xe9dfcd,
+				letterSpacing: 0.6,
+				wordWrap: true,
+				wordWrapWidth: 160,
+				lineHeight: 11,
+			});
+			const portfolioTerminalDesignLabel = new PIXI.Text('DESIGN', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 9,
+				fill: 0x96bfdc,
+				letterSpacing: 1,
+			});
+			const portfolioTerminalDesignText = new PIXI.Text('', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 8,
+				fill: 0xe9dfcd,
+				letterSpacing: 0.6,
+				wordWrap: true,
+				wordWrapWidth: 160,
+				lineHeight: 11,
+			});
+			const portfolioTerminalTechLabel = new PIXI.Text('TECH', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 9,
+				fill: 0x96bfdc,
+				letterSpacing: 1,
+			});
+			const portfolioTerminalTechText = new PIXI.Text('', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 8,
+				fill: 0xe9dfcd,
+				letterSpacing: 0.6,
+				wordWrap: true,
+				wordWrapWidth: 160,
+				lineHeight: 11,
+			});
+			const portfolioTerminalHighlightsLabel = new PIXI.Text('HIGHLIGHTS', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 9,
+				fill: 0x96bfdc,
+				letterSpacing: 1,
+			});
+			const portfolioTerminalHighlights = new PIXI.Container();
+			const portfolioTerminalLinksLabel = new PIXI.Text('LINKS', {
+				fontFamily: 'Minecraft, monospace',
+				fontSize: 9,
+				fill: 0x96bfdc,
+				letterSpacing: 1,
+			});
+			const portfolioTerminalLinks = new PIXI.Container();
 
 			portfolioWindow.addChild(
 				portfolioWindowGlow,
@@ -351,22 +447,88 @@ async function boot() {
 				portfolioWindowInfo,
 				portfolioWindowScanlines,
 				portfolioWindowSweep,
+				portfolioPreviewPrev,
 				portfolioPreview,
+				portfolioDotNav,
+				portfolioArrowLeft,
+				portfolioArrowRight,
 				portfolioWindowTitle,
 				portfolioWindowClose,
+				portfolioTerminalSlideTitle,
+				portfolioTerminalOverviewLabel,
+				portfolioTerminalOverviewText,
+				portfolioTerminalDesignLabel,
+				portfolioTerminalDesignText,
+				portfolioTerminalTechLabel,
+				portfolioTerminalTechText,
+				portfolioTerminalHighlightsLabel,
+				portfolioTerminalHighlights,
+				portfolioTerminalLinksLabel,
+				portfolioTerminalLinks,
 				portfolioTypingPrefix,
 				portfolioTypingWord,
 				portfolioTypingSuffix,
 				portfolioTypingCursor,
 				portfolioWindowHint,
 			);
+			const PORTFOLIO_MEDIA_IMAGE = 'image';
+			const PORTFOLIO_MEDIA_GIF = 'gif';
+			const PORTFOLIO_MEDIA_VIDEO = 'video';
+			const PORTFOLIO_HIGHLIGHT_RAINBOW = 'rainbow';
+			const PORTFOLIO_HIGHLIGHT_ACCENT = 'accent';
+			const PORTFOLIO_PROJECTS = [
+				{
+					id: 'tile-manager',
+					title: 'Tile Manager',
+					summary: 'A modular launcher workflow focused on legible states and fast handoff.',
+					stack: ['Tauri', 'Rust', 'TypeScript'],
+					links: [
+						{ label: 'Repository', url: 'https://github.com/maywok/maywok.github.io' },
+					],
+					slides: [
+						{
+							type: PORTFOLIO_MEDIA_IMAGE,
+							src: './assets/portfolio/launcher/home.png',
+							title: 'Home Surface',
+							overview: 'The landing surface emphasizes immediate orientation and direct action paths.',
+							design: 'UI philosophy prioritizes low-noise hierarchy: strong headline, restrained chrome, and fast visual scanning.',
+							technical: 'Implemented with TypeScript components layered for quick updates and deterministic state syncing.',
+							highlights: [
+								{ text: 'UI philosophy', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+								{ text: 'TypeScript', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+								{ text: 'Rust', style: PORTFOLIO_HIGHLIGHT_RAINBOW },
+							],
+							links: [
+								{ label: 'home.png', url: './assets/portfolio/launcher/home.png' },
+							],
+						},
+						{
+							type: PORTFOLIO_MEDIA_IMAGE,
+							src: './assets/portfolio/launcher/menu.png',
+							title: 'Menu State',
+							overview: 'Secondary actions are grouped into a compact command surface for faster recall.',
+							design: 'Contrast and spacing keep dense options readable while preserving the cyber-neon tone.',
+							technical: 'State transitions are synchronized so menu focus, cursor mode, and content rendering stay deterministic.',
+							highlights: [
+								{ text: 'Tauri', style: PORTFOLIO_HIGHLIGHT_RAINBOW },
+								{ text: 'filesystem scanning', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+								{ text: 'registry queries', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+							],
+							links: [
+								{ label: 'menu.png', url: './assets/portfolio/launcher/menu.png' },
+							],
+						},
+					],
+				},
+			];
+			const portfolioProjectsById = new Map(PORTFOLIO_PROJECTS.map((project) => [project.id, project]));
 			const projectCartridgeDefs = [
-				{ label: 'BLOG', tint: 0x5c9d6f, rare: false },
-				{ label: 'REFLEX', tint: 0xcf5f8f, rare: false },
-				{ label: 'WALKLATRO', tint: 0xd5a063, rare: true },
-				{ label: 'RESUME', tint: 0xb58a59, rare: false },
-				{ label: 'LINKEDIN', tint: 0x4f80bf, rare: false },
-				{ label: 'GITHUB', tint: 0x7a659d, rare: true },
+				{ label: 'TILE MGR', projectId: 'tile-manager', tint: 0x69c4ff, rare: false },
+				{ label: 'EMPTY', projectId: null, tint: 0xcf5f8f, rare: false },
+				{ label: 'EMPTY', projectId: null, tint: 0xd5a063, rare: true },
+				{ label: 'EMPTY', projectId: null, tint: 0xb58a59, rare: false },
+				{ label: 'EMPTY', projectId: null, tint: 0x4f80bf, rare: false },
+				{ label: 'EMPTY', projectId: null, tint: 0x7a659d, rare: true },
 			];
 			const DEFAULT_PORTFOLIO_SUB_LABEL = 'Select a cartridge to load';
 			const DEFAULT_PORTFOLIO_STATUS_LABEL = 'EMPTY BAY : 6 SLOTS';
@@ -411,7 +573,7 @@ async function boot() {
 				const labelStrip = new PIXI.Graphics();
 				const details = new PIXI.Graphics();
 				const led = new PIXI.Graphics();
-				const label = new PIXI.Text('EMPTY', slotLabelStyle);
+				const label = new PIXI.Text(project.label || 'EMPTY', slotLabelStyle);
 				label.anchor.set(0.5, 0.5);
 				node.eventMode = 'static';
 				node.cursor = 'pointer';
@@ -482,6 +644,315 @@ async function boot() {
 			let portfolioTypingChars = 0;
 			let portfolioTypingTimer = 0;
 			let portfolioCursorTimer = 0;
+			const portfolioWindowLayout = {
+				galleryX: 0,
+				galleryY: 0,
+				galleryW: 0,
+				galleryH: 0,
+				infoX: 0,
+				infoY: 0,
+				infoW: 0,
+				infoH: 0,
+				dotY: 0,
+			};
+			const PORTFOLIO_EMPTY_SLIDE = {
+				type: PORTFOLIO_MEDIA_IMAGE,
+				src: './assets/images/Uh-Oh.png',
+				title: 'Empty Slot',
+				overview: 'No media has been attached to this project slot yet.',
+				design: 'Reserve this slot for future mockups, flows, or visual experiments.',
+				technical: 'Attach a slides array to this project entry to activate full walkthrough mode.',
+				highlights: [],
+				links: [],
+			};
+			let portfolioSelectedProjectId = projectCartridgeDefs.find((entry) => entry.projectId)?.projectId || null;
+			let portfolioActiveProject = portfolioProjectsById.get(portfolioSelectedProjectId) || {
+				id: 'empty',
+				title: 'EMPTY SLOT',
+				summary: 'No project is assigned to this cartridge.',
+				stack: [],
+				links: [],
+				slides: [PORTFOLIO_EMPTY_SLIDE],
+			};
+			let portfolioSlideIndex = 0;
+			let portfolioDotNodes = [];
+			let portfolioArrowLeftHover = 0;
+			let portfolioArrowRightHover = 0;
+			let portfolioCurrentVideoSource = null;
+			const portfolioMediaTransition = {
+				active: false,
+				progress: 1,
+				duration: 0.22,
+			};
+
+			const destroyPortfolioChildren = (container) => {
+				const nodes = container.removeChildren();
+				for (const node of nodes) node.destroy?.({ children: true });
+			};
+			const isVideoElement = (source) => typeof HTMLVideoElement !== 'undefined' && source instanceof HTMLVideoElement;
+			const stopPortfolioVideo = (video) => {
+				if (!video) return;
+				try { video.pause(); } catch (_) {}
+			};
+			const playPortfolioVideo = (video) => {
+				if (!video) return;
+				video.loop = true;
+				video.muted = true;
+				video.playsInline = true;
+				video.autoplay = true;
+				const playPromise = video.play?.();
+				if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
+			};
+			const getActiveSlides = () => (Array.isArray(portfolioActiveProject?.slides) && portfolioActiveProject.slides.length
+				? portfolioActiveProject.slides
+				: [PORTFOLIO_EMPTY_SLIDE]);
+			const getActiveSlide = () => {
+				const slides = getActiveSlides();
+				if (!slides.length) return PORTFOLIO_EMPTY_SLIDE;
+				const index = ((portfolioSlideIndex % slides.length) + slides.length) % slides.length;
+				return slides[index] || PORTFOLIO_EMPTY_SLIDE;
+			};
+			const getTextureSize = (texture) => {
+				if (!texture) return { width: 1, height: 1 };
+				const src = texture.baseTexture?.resource?.source;
+				if (isVideoElement(src) && src.videoWidth && src.videoHeight) {
+					return { width: src.videoWidth, height: src.videoHeight };
+				}
+				const width = texture.orig?.width || texture.width || texture.baseTexture?.width || 1;
+				const height = texture.orig?.height || texture.height || texture.baseTexture?.height || 1;
+				return { width, height };
+			};
+			const fitMediaSprite = (sprite, texture) => {
+				const { galleryX, galleryY, galleryW, galleryH } = portfolioWindowLayout;
+				if (galleryW <= 0 || galleryH <= 0) return;
+				const pad = 12;
+				const fitW = Math.max(1, galleryW - pad * 2);
+				const fitH = Math.max(1, galleryH - pad * 2);
+				const size = getTextureSize(texture);
+				const scale = Math.min(fitW / Math.max(1, size.width), fitH / Math.max(1, size.height));
+				sprite.texture = texture;
+				sprite.width = Math.max(1, size.width * scale);
+				sprite.height = Math.max(1, size.height * scale);
+				sprite.position.set(galleryX + galleryW * 0.5, galleryY + galleryH * 0.5);
+				if (!texture.baseTexture?.valid) {
+					texture.baseTexture?.once?.('loaded', () => fitMediaSprite(sprite, texture));
+				}
+			};
+			const normalizeHighlight = (entry) => {
+				if (!entry) return null;
+				if (typeof entry === 'string') return { text: entry, style: PORTFOLIO_HIGHLIGHT_ACCENT };
+				if (!entry.text) return null;
+				return {
+					text: entry.text,
+					style: entry.style === PORTFOLIO_HIGHLIGHT_RAINBOW ? PORTFOLIO_HIGHLIGHT_RAINBOW : PORTFOLIO_HIGHLIGHT_ACCENT,
+				};
+			};
+			const rebuildTerminalMeta = () => {
+				const slide = getActiveSlide();
+				const projectTitle = (portfolioActiveProject?.title || 'PROJECT').toUpperCase();
+				portfolioWindowTitle.text = `${projectTitle} // WALKTHROUGH`;
+				portfolioWindowHint.text = portfolioActiveProject?.summary || DEFAULT_PORTFOLIO_WINDOW_HINT;
+				portfolioSub.text = `Project: ${portfolioActiveProject?.title || 'Empty Slot'}`;
+				portfolioStatusText.text = (portfolioActiveProject?.stack?.length
+					? portfolioActiveProject.stack.join(' / ')
+					: DEFAULT_PORTFOLIO_STATUS_LABEL).toUpperCase();
+
+				const infoX = portfolioWindowLayout.infoX + 12;
+				const infoY = portfolioWindowLayout.infoY + 12;
+				const infoW = Math.max(60, portfolioWindowLayout.infoW - 24);
+				portfolioTerminalOverviewText.style.wordWrapWidth = infoW;
+				portfolioTerminalDesignText.style.wordWrapWidth = infoW;
+				portfolioTerminalTechText.style.wordWrapWidth = infoW;
+
+				portfolioTerminalSlideTitle.text = `SLIDE: ${(slide.title || 'Untitled').toUpperCase()}`;
+				portfolioTerminalSlideTitle.position.set(infoX, infoY);
+
+				let y = infoY + 18;
+				portfolioTerminalOverviewLabel.position.set(infoX, y);
+				y += 11;
+				portfolioTerminalOverviewText.text = slide.overview || 'No overview provided.';
+				portfolioTerminalOverviewText.position.set(infoX, y);
+				y += portfolioTerminalOverviewText.height + 8;
+
+				portfolioTerminalDesignLabel.position.set(infoX, y);
+				y += 11;
+				portfolioTerminalDesignText.text = slide.design || 'No design notes provided.';
+				portfolioTerminalDesignText.position.set(infoX, y);
+				y += portfolioTerminalDesignText.height + 8;
+
+				portfolioTerminalTechLabel.position.set(infoX, y);
+				y += 11;
+				portfolioTerminalTechText.text = slide.technical || 'No technical notes provided.';
+				portfolioTerminalTechText.position.set(infoX, y);
+				y += portfolioTerminalTechText.height + 8;
+
+				portfolioTerminalHighlightsLabel.position.set(infoX, y);
+				y += 12;
+				destroyPortfolioChildren(portfolioTerminalHighlights);
+				let chipX = 0;
+				let chipY = 0;
+				const maxChipW = infoW;
+				for (const rawHighlight of (slide.highlights || [])) {
+					const highlight = normalizeHighlight(rawHighlight);
+					if (!highlight) continue;
+					const chip = new PIXI.Container();
+					const chipBg = new PIXI.Graphics();
+					const chipText = new PIXI.Text(highlight.text, {
+						fontFamily: 'Minecraft, monospace',
+						fontSize: 8,
+						fill: highlight.style === PORTFOLIO_HIGHLIGHT_RAINBOW
+							? ['#ff5f9c', '#ffd56b', '#6dff9a', '#6ec6f7']
+							: 0xc7f5ff,
+						letterSpacing: 0.5,
+					});
+					chipText.anchor.set(0, 0.5);
+					const chipPadX = 6;
+					const chipW = Math.ceil(chipText.width + chipPadX * 2);
+					const chipH = 14;
+					if (chipX > 0 && chipX + chipW > maxChipW) {
+						chipX = 0;
+						chipY += chipH + 4;
+					}
+					chipBg.beginFill(highlight.style === PORTFOLIO_HIGHLIGHT_RAINBOW ? 0x5a2f66 : 0x2e5162, 0.72);
+					chipBg.lineStyle(1, highlight.style === PORTFOLIO_HIGHLIGHT_RAINBOW ? 0xff7fc1 : 0x7fc9ff, 0.82);
+					chipBg.drawRoundedRect(0, 0, chipW, chipH, 4);
+					chipBg.endFill();
+					chipText.position.set(chipPadX, chipH * 0.5);
+					chip.addChild(chipBg, chipText);
+					chip.position.set(chipX, chipY);
+					chipX += chipW + 5;
+					portfolioTerminalHighlights.addChild(chip);
+				}
+				portfolioTerminalHighlights.position.set(infoX, y);
+				y += (portfolioTerminalHighlights.height || 0) + 8;
+
+				portfolioTerminalLinksLabel.position.set(infoX, y);
+				y += 12;
+				destroyPortfolioChildren(portfolioTerminalLinks);
+				const linkDefs = [...(slide.links || []), ...(portfolioActiveProject?.links || [])];
+				let linkY = 0;
+				for (const linkDef of linkDefs) {
+					if (!linkDef?.label || !linkDef?.url) continue;
+					const linkText = new PIXI.Text(`> ${linkDef.label}`, {
+						fontFamily: 'Minecraft, monospace',
+						fontSize: 8,
+						fill: 0x8ad7ff,
+						letterSpacing: 0.5,
+					});
+					linkText.position.set(0, linkY);
+					linkText.eventMode = 'static';
+					linkText.cursor = 'pointer';
+					linkText.on('pointerover', () => { linkText.style.fill = 0xffffff; });
+					linkText.on('pointerout', () => { linkText.style.fill = 0x8ad7ff; });
+					linkText.on('pointertap', () => {
+						try {
+							window.open(linkDef.url, '_blank', 'noopener');
+						} catch (_) {}
+					});
+					portfolioTerminalLinks.addChild(linkText);
+					linkY += linkText.height + 4;
+				}
+				portfolioTerminalLinks.position.set(infoX, y);
+			};
+			const rebuildDotNavigation = () => {
+				destroyPortfolioChildren(portfolioDotNav);
+				portfolioDotNodes = [];
+				const slides = getActiveSlides();
+				const count = slides.length;
+				if (!count) return;
+				const spacing = 16;
+				const totalW = (count - 1) * spacing;
+				for (let i = 0; i < count; i++) {
+					const dot = new PIXI.Graphics();
+					dot.position.set(i * spacing - totalW * 0.5, 0);
+					dot.eventMode = 'static';
+					dot.cursor = 'pointer';
+					dot.__hover = 0;
+					dot.on('pointerover', () => { dot.__hover = 1; });
+					dot.on('pointerout', () => { dot.__hover = 0; });
+					dot.on('pointertap', () => setActivePortfolioSlide(i));
+					portfolioDotNav.addChild(dot);
+					portfolioDotNodes.push(dot);
+				}
+			};
+			const redrawDotNavigation = () => {
+				for (let i = 0; i < portfolioDotNodes.length; i++) {
+					const dot = portfolioDotNodes[i];
+					const active = i === portfolioSlideIndex;
+					dot.clear();
+					dot.beginFill(active ? 0x8de8ff : 0x355d7f, active ? 0.96 : (0.5 + dot.__hover * 0.35));
+					dot.drawCircle(0, 0, active ? 4.2 : 3.2);
+					dot.endFill();
+					if (active) {
+						dot.lineStyle(1, 0xd8f8ff, 0.85);
+						dot.drawCircle(0, 0, 6.1);
+					}
+				}
+			};
+			const setActivePortfolioSlide = (nextIndex, options = {}) => {
+				const force = Boolean(options.force);
+				const slides = getActiveSlides();
+				if (!slides.length) return;
+				const normalized = ((nextIndex % slides.length) + slides.length) % slides.length;
+				if (!force && normalized === portfolioSlideIndex) return;
+				if (!force) playScreenshotScrollSfx();
+				if (!force) {
+					portfolioPreviewPrev.texture = portfolioPreview.texture;
+					fitMediaSprite(portfolioPreviewPrev, portfolioPreviewPrev.texture);
+					portfolioPreviewPrev.visible = true;
+					portfolioPreviewPrev.alpha = 1;
+				}
+				stopPortfolioVideo(portfolioCurrentVideoSource);
+				portfolioSlideIndex = normalized;
+				const slide = getActiveSlide();
+				const texture = PIXI.Texture.from(slide.src || './assets/images/Uh-Oh.png');
+				const source = texture.baseTexture?.resource?.source;
+				portfolioCurrentVideoSource = isVideoElement(source) ? source : null;
+				playPortfolioVideo(portfolioCurrentVideoSource);
+				fitMediaSprite(portfolioPreview, texture);
+				portfolioPreview.visible = true;
+				portfolioPreview.alpha = force ? 1 : 0;
+				portfolioMediaTransition.active = !force;
+				portfolioMediaTransition.progress = force ? 1 : 0;
+				if (force) {
+					portfolioPreviewPrev.visible = false;
+					portfolioPreviewPrev.alpha = 0;
+				}
+				rebuildTerminalMeta();
+				redrawDotNavigation();
+			};
+			const setActivePortfolioProjectByCartridge = (cartridgeIndex, options = {}) => {
+				const slotDef = projectCartridgeDefs[cartridgeIndex] || projectCartridgeDefs[0];
+				portfolioSelectedProjectId = slotDef?.projectId || null;
+				const resolved = portfolioSelectedProjectId
+					? portfolioProjectsById.get(portfolioSelectedProjectId)
+					: null;
+				portfolioActiveProject = resolved || {
+					id: `empty-${slotDef?.label || 'slot'}`,
+					title: slotDef?.label || 'EMPTY SLOT',
+					summary: 'This slot is waiting for project media and notes.',
+					stack: [],
+					links: [],
+					slides: [PORTFOLIO_EMPTY_SLIDE],
+				};
+				portfolioSlideIndex = 0;
+				rebuildDotNavigation();
+				setActivePortfolioSlide(0, { force: true });
+			};
+			const stepPortfolioMediaTransition = (dtSeconds) => {
+				if (!portfolioMediaTransition.active) return;
+				portfolioMediaTransition.progress += dtSeconds / Math.max(0.001, portfolioMediaTransition.duration);
+				const t = Math.max(0, Math.min(1, portfolioMediaTransition.progress));
+				const eased = 1 - Math.pow(1 - t, 3);
+				portfolioPreview.alpha = eased;
+				portfolioPreviewPrev.alpha = 1 - eased;
+				if (t >= 1) {
+					portfolioMediaTransition.active = false;
+					portfolioPreviewPrev.visible = false;
+					portfolioPreviewPrev.alpha = 0;
+					portfolioPreview.alpha = 1;
+				}
+			};
 
 			const applyPortfolioTypedLine = () => {
 				const full = `${portfolioTypingPrefixSrc}${portfolioTypingWordSrc}${portfolioTypingSuffixSrc}`;
@@ -503,12 +974,13 @@ async function boot() {
 				portfolioTypingCursor.position.set(portfolioTypingSuffix.x + portfolioTypingSuffix.width + 4, portfolioTypingPrefix.y + 1);
 			};
 
-			const openPortfolioWindow = () => {
+			const openPortfolioWindow = (cartridgeIndex = 0) => {
 				portfolioWindowOpen = true;
 				portfolioWindowScanPhase = 0;
-				portfolioTypingPrefixSrc = desktopTwoLoadedTape?.hasContent ? 'Loading tape, ' : 'Nothing here yet, ';
-				portfolioTypingWordSrc = pickBroPlaceholderWord();
-				portfolioTypingSuffixSrc = desktopTwoLoadedTape?.hasContent ? '...' : '.';
+				setActivePortfolioProjectByCartridge(cartridgeIndex, { force: true });
+				portfolioTypingPrefixSrc = 'Loading slide, ';
+				portfolioTypingWordSrc = 'bro';
+				portfolioTypingSuffixSrc = '...';
 				portfolioTypingChars = 0;
 				portfolioTypingTimer = 0;
 				portfolioCursorTimer = 0;
@@ -517,6 +989,7 @@ async function boot() {
 
 			const closePortfolioWindow = () => {
 				portfolioWindowOpen = false;
+				stopPortfolioVideo(portfolioCurrentVideoSource);
 			};
 
 			tryCloseDesktopTwoPortfolioWindow = () => {
@@ -527,19 +1000,33 @@ async function boot() {
 
 			const setDesktopTwoCartridgeHover = (index, hovered) => {
 				if (hovered) {
+					if (desktopTwoLastCartridgeHover !== index) {
+						playCartridgeHoverSfx();
+						desktopTwoLastCartridgeHover = index;
+					}
 					desktopTwoCartridgeHover = index;
 					return;
 				}
 				if (desktopTwoCartridgeHover === index) desktopTwoCartridgeHover = -1;
+				if (desktopTwoLastCartridgeHover === index) desktopTwoLastCartridgeHover = -1;
 			};
 			for (const cartridge of portfolioCartridges) {
 				cartridge.node.on('pointerover', () => setDesktopTwoCartridgeHover(cartridge.index, true));
 				cartridge.node.on('pointerout', () => setDesktopTwoCartridgeHover(cartridge.index, false));
-				cartridge.node.on('pointertap', openPortfolioWindow);
+				cartridge.node.on('pointertap', () => {
+					playCartridgeSelectSfx();
+					openPortfolioWindow(cartridge.index);
+				});
 			}
 			portfolioWindowClose.on('pointerover', () => { portfolioWindowCloseHover = 1; });
 			portfolioWindowClose.on('pointerout', () => { portfolioWindowCloseHover = 0; });
 			portfolioWindowClose.on('pointertap', closePortfolioWindow);
+			portfolioArrowLeft.on('pointerover', () => { portfolioArrowLeftHover = 1; });
+			portfolioArrowLeft.on('pointerout', () => { portfolioArrowLeftHover = 0; });
+			portfolioArrowLeft.on('pointertap', () => setActivePortfolioSlide(portfolioSlideIndex - 1));
+			portfolioArrowRight.on('pointerover', () => { portfolioArrowRightHover = 1; });
+			portfolioArrowRight.on('pointerout', () => { portfolioArrowRightHover = 0; });
+			portfolioArrowRight.on('pointertap', () => setActivePortfolioSlide(portfolioSlideIndex + 1));
 
 			const drawPortfolioCartridges = (dtSeconds, timeNow = 0) => {
 				portfolioFocusRails.clear();
@@ -767,6 +1254,15 @@ async function boot() {
 				const infoX = galleryX + galleryW + 18;
 				const infoW = winW - (infoX + winW * 0.5) - 22;
 				const infoH = galleryH;
+				portfolioWindowLayout.galleryX = galleryX;
+				portfolioWindowLayout.galleryY = galleryY;
+				portfolioWindowLayout.galleryW = galleryW;
+				portfolioWindowLayout.galleryH = galleryH;
+				portfolioWindowLayout.infoX = infoX;
+				portfolioWindowLayout.infoY = galleryY;
+				portfolioWindowLayout.infoW = infoW;
+				portfolioWindowLayout.infoH = infoH;
+				portfolioWindowLayout.dotY = galleryY + galleryH - 18;
 
 				portfolioWindowGallery.clear();
 				portfolioWindowGallery.beginFill(0x101720, 0.95);
@@ -802,18 +1298,37 @@ async function boot() {
 				portfolioWindowCloseBg.endFill();
 				portfolioWindowCloseX.position.set(0, 0);
 
-				portfolioPreview.width = Math.min(galleryW * 0.74, galleryH * 0.74);
-				portfolioPreview.height = portfolioPreview.width;
-				portfolioPreview.position.set(galleryX + galleryW * 0.5, galleryY + galleryH * 0.5);
+				fitMediaSprite(portfolioPreviewPrev, portfolioPreviewPrev.texture || PIXI.Texture.WHITE);
+				fitMediaSprite(portfolioPreview, portfolioPreview.texture || PIXI.Texture.WHITE);
+				portfolioDotNav.position.set(galleryX + galleryW * 0.5, portfolioWindowLayout.dotY);
+				const arrowSize = 18;
+				portfolioArrowLeft.position.set(galleryX + 16, galleryY + galleryH * 0.5);
+				portfolioArrowRight.position.set(galleryX + galleryW - 16, galleryY + galleryH * 0.5);
+				portfolioArrowLeftBg.clear();
+				portfolioArrowLeftBg.beginFill(0x2a3f55, 0.62 + portfolioArrowLeftHover * 0.22);
+				portfolioArrowLeftBg.lineStyle(1, 0x9bd7ff, 0.76);
+				portfolioArrowLeftBg.drawRoundedRect(-arrowSize * 0.5, -arrowSize * 0.5, arrowSize, arrowSize, 5);
+				portfolioArrowLeftBg.endFill();
+				portfolioArrowRightBg.clear();
+				portfolioArrowRightBg.beginFill(0x2a3f55, 0.62 + portfolioArrowRightHover * 0.22);
+				portfolioArrowRightBg.lineStyle(1, 0x9bd7ff, 0.76);
+				portfolioArrowRightBg.drawRoundedRect(-arrowSize * 0.5, -arrowSize * 0.5, arrowSize, arrowSize, 5);
+				portfolioArrowRightBg.endFill();
+				portfolioArrowLeftGlyph.position.set(0, 0);
+				portfolioArrowRightGlyph.position.set(0, 0);
 
-				portfolioTypingPrefix.position.set(infoX + 14, galleryY + 22);
-				portfolioTypingWord.position.set(portfolioTypingPrefix.x, portfolioTypingPrefix.y);
-				portfolioTypingSuffix.position.set(portfolioTypingPrefix.x, portfolioTypingPrefix.y);
-				portfolioWindowHint.position.set(infoX + 14, galleryY + 52);
+				portfolioTypingPrefix.visible = false;
+				portfolioTypingWord.visible = false;
+				portfolioTypingSuffix.visible = false;
+				portfolioTypingCursor.visible = false;
+				portfolioWindowHint.position.set(infoX + 14, galleryY + infoH - 20);
+				rebuildTerminalMeta();
+				redrawDotNavigation();
 				applyPortfolioTypedLine();
 			};
 			layoutPortfolioPanel();
 			applyDesktopTwoLoadedTape();
+			setActivePortfolioProjectByCartridge(0, { force: true });
 
 			const rightPortal = new PIXI.Container();
 			const rightGlowSoft = new PIXI.Graphics();
@@ -825,10 +1340,16 @@ async function boot() {
 			desktopTwoScene.addChild(rightPortal);
 			rightArrow.eventMode = 'static';
 			rightArrow.cursor = 'pointer';
-			rightArrow.on('pointertap', () => setDesktopTwoActive(false));
+			rightArrow.on('pointertap', () => {
+				playExitToMenuSfx();
+				setDesktopTwoActive(false);
+			});
 			rightPortalHitZone.eventMode = 'static';
 			rightPortalHitZone.cursor = 'pointer';
-			rightPortalHitZone.on('pointertap', () => setDesktopTwoActive(false));
+			rightPortalHitZone.on('pointertap', () => {
+				playExitToMenuSfx();
+				setDesktopTwoActive(false);
+			});
 
 			let rightPortalWidth = 84;
 			let rightPortalProgress = 0;
@@ -857,6 +1378,17 @@ async function boot() {
 			desktopTwoApp.view.addEventListener('pointermove', updateDesktopTwoMouse);
 			desktopTwoApp.view.addEventListener('pointerdown', updateDesktopTwoMouse);
 			desktopTwoApp.view.addEventListener('pointerenter', updateDesktopTwoMouse);
+			window.addEventListener('keydown', (event) => {
+				if (!desktopTwoActive || !portfolioWindowOpen) return;
+				if (event.key === 'ArrowLeft') {
+					event.preventDefault();
+					setActivePortfolioSlide(portfolioSlideIndex - 1);
+				}
+				if (event.key === 'ArrowRight') {
+					event.preventDefault();
+					setActivePortfolioSlide(portfolioSlideIndex + 1);
+				}
+			});
 
 			const desktopTwoCursor = new PIXI.Container();
 			const desktopTwoCursorSprite = new PIXI.Sprite(cursorTexture);
@@ -998,6 +1530,17 @@ async function boot() {
 					} else {
 						portfolioTypingCursor.alpha = 0;
 					}
+					portfolioPreviewPrev.visible = portfolioPreviewPrev.visible || portfolioMediaTransition.active;
+					portfolioDotNav.visible = true;
+					portfolioArrowLeft.visible = portfolioDotNodes.length > 1;
+					portfolioArrowRight.visible = portfolioDotNodes.length > 1;
+					stepPortfolioMediaTransition(dtSeconds);
+					redrawDotNavigation();
+				} else {
+					portfolioPreviewPrev.visible = false;
+					portfolioDotNav.visible = false;
+					portfolioArrowLeft.visible = false;
+					portfolioArrowRight.visible = false;
 				}
 
 				if (portfolioLayout.cardW <= 0 || portfolioLayout.cardH <= 0) {
@@ -1033,6 +1576,7 @@ async function boot() {
 
 				if (!desktopTwoActive) {
 					desktopTwoCartridgeHover = -1;
+					desktopTwoLastCartridgeHover = -1;
 					portfolioWindowOpen = false;
 					rightPortalProgress += (0 - rightPortalProgress) * 0.2;
 					rightGlowSoft.alpha = 0;
@@ -1091,6 +1635,7 @@ async function boot() {
 		};
 		window.addEventListener('keydown', (event) => {
 			if (event.key !== 'Escape') return;
+			if (isScreenshotPopoutOpen()) return;
 			if (vineLabActive) {
 				closeVineLabNow();
 				return;
@@ -1099,6 +1644,7 @@ async function boot() {
 				return;
 			}
 			if (desktopTwoActive) {
+				playExitToMenuSfx();
 				setDesktopTwoActive(false);
 				return;
 			}
@@ -1481,6 +2027,14 @@ async function boot() {
 			const ICON_SFX = {
 				hover: 'hoverIcon',
 				click: 'clickIcon',
+				exitToMenu: 'exitToMenu',
+				exitTab: 'exitTab',
+				cartridgeHover: 'hoverCartridge',
+				cartridgeSelect: 'selectCartridge',
+				enlargeScreenshot: 'enlargeScreenshot',
+				returnScreenshot: 'returnScreenshot',
+				screenshotScrollA: 'screenshotScrollA',
+				screenshotScrollB: 'screenshotScrollB',
 				grab: 'grabIcon',
 				release: 'releaseIcon',
 				spin: 'spinIcon',
@@ -1493,6 +2047,14 @@ async function boot() {
 			const SFX_ASSETS = {
 				[ICON_SFX.hover]: './assets/audio/sounds/Hover_Icon.mp3',
 				[ICON_SFX.click]: './assets/audio/sounds/Click_Icon.mp3',
+				[ICON_SFX.exitToMenu]: './assets/audio/sounds/Exit.wav',
+				[ICON_SFX.exitTab]: './assets/audio/sounds/Exit_Tab.wav',
+				[ICON_SFX.cartridgeHover]: './assets/audio/sounds/Hover_Cartridge.wav',
+				[ICON_SFX.cartridgeSelect]: './assets/audio/sounds/Select_Cartridge.wav',
+				[ICON_SFX.enlargeScreenshot]: './assets/audio/sounds/Enlarge_Screenshot.wav',
+				[ICON_SFX.returnScreenshot]: './assets/audio/sounds/Return_Screenshot.wav',
+				[ICON_SFX.screenshotScrollA]: './assets/audio/sounds/Screenshot_Scroll.wav',
+				[ICON_SFX.screenshotScrollB]: './assets/audio/sounds/Screenshot_Scroll2.wav',
 				[ICON_SFX.grab]: './assets/audio/sounds/Grab_Icon.mp3',
 				[ICON_SFX.release]: './assets/audio/sounds/Release_Icon.mp3',
 				[ICON_SFX.spin]: './assets/audio/sounds/Spin_Icon.mp3',
@@ -1504,11 +2066,13 @@ async function boot() {
 			const MUSIC_TRACKS = {
 				menu: 'menu',
 				lab: 'lab',
+				portfolio: 'portfolio',
 				targetTest: 'targetTest',
 			};
 			const MUSIC_ASSETS = {
 				[MUSIC_TRACKS.menu]: { url: './assets/audio/music/Menu.mp3' },
 				[MUSIC_TRACKS.lab]: { url: './assets/audio/music/The_Lab.mp3' },
+				[MUSIC_TRACKS.portfolio]: { url: './assets/audio/music/Portfolio.mp3' },
 				[MUSIC_TRACKS.targetTest]: { url: './assets/audio/music/Target_Test.mp3' },
 			};
 			const MUSIC_VOLUME_STORAGE_KEY = 'mw_musicVolume';
@@ -1560,8 +2124,9 @@ async function boot() {
 				return musicLoadPromise;
 			};
 			const resolveMusicTrack = () => {
-				if (basketballMode && dragEnabled) return MUSIC_TRACKS.targetTest;
 				if (vineLabActive) return MUSIC_TRACKS.lab;
+				if (livingRoomActive || desktopTwoActive) return MUSIC_TRACKS.portfolio;
+				if (basketballMode && dragEnabled) return MUSIC_TRACKS.targetTest;
 				return MUSIC_TRACKS.menu;
 			};
 			const syncMusicTrack = () => {
@@ -1605,6 +2170,54 @@ async function boot() {
 				try {
 					playSfx(id, options);
 				} catch (_) {}
+			};
+			const playCartridgeHoverSfx = () => {
+				playSfxSafe(ICON_SFX.cartridgeHover, {
+					volume: 0.34 + Math.random() * 0.12,
+					rate: 0.95 + Math.random() * 0.12,
+				});
+			};
+			let activeScreenshotScrollSfx = Math.random() < 0.5 ? ICON_SFX.screenshotScrollA : ICON_SFX.screenshotScrollB;
+			const pickScreenshotScrollSfxForCartridge = () => {
+				activeScreenshotScrollSfx = Math.random() < 0.5 ? ICON_SFX.screenshotScrollA : ICON_SFX.screenshotScrollB;
+				return activeScreenshotScrollSfx;
+			};
+			const playCartridgeSelectSfx = () => {
+				pickScreenshotScrollSfxForCartridge();
+				playSfxSafe(ICON_SFX.cartridgeSelect, {
+					volume: 0.54 + Math.random() * 0.16,
+					rate: 0.93 + Math.random() * 0.14,
+				});
+			};
+			const playEnlargeScreenshotSfx = () => {
+				playSfxSafe(ICON_SFX.enlargeScreenshot, {
+					volume: 0.46 + Math.random() * 0.14,
+					rate: 0.92 + Math.random() * 0.16,
+				});
+			};
+			const playReturnScreenshotSfx = () => {
+				playSfxSafe(ICON_SFX.returnScreenshot, {
+					volume: 0.4 + Math.random() * 0.16,
+					rate: 0.9 + Math.random() * 0.16,
+				});
+			};
+			const playScreenshotScrollSfx = () => {
+				playSfxSafe(activeScreenshotScrollSfx, {
+					volume: 0.38 + Math.random() * 0.14,
+					rate: 0.92 + Math.random() * 0.16,
+				});
+			};
+			const playExitToMenuSfx = () => {
+				playSfxSafe(ICON_SFX.exitToMenu, {
+					volume: 0.48 + Math.random() * 0.16,
+					rate: 0.9 + Math.random() * 0.18,
+				});
+			};
+			const playExitTabSfx = () => {
+				playSfxSafe(ICON_SFX.exitTab, {
+					volume: 0.36 + Math.random() * 0.14,
+					rate: 0.9 + Math.random() * 0.18,
+				});
 			};
 			const startSfxLoopSafe = (id, key, options = {}) => {
 				if (!id || !key) return;
@@ -2606,7 +3219,7 @@ async function boot() {
 			soundCloseBtn.on('pointerover', () => { soundCloseHoverTarget = 1; });
 			soundCloseBtn.on('pointerout', () => { soundCloseHoverTarget = 0; });
 			soundCloseBtn.on('pointertap', () => {
-				playSfxSafe(ICON_SFX.click, { volume: 0.38, rate: 1.02 });
+				playExitTabSfx();
 				closeSoundPanel();
 			});
 
@@ -3487,6 +4100,7 @@ async function boot() {
 		};
 		const startDesktopTwoExitTransition = () => {
 			if (!livingRoomActive || desktopTwoActive || desktopTwoEntryTransition.active) return;
+			playExitToMenuSfx();
 			desktopTwoEntryTransition.active = true;
 			desktopTwoEntryTransition.phase = 0;
 			desktopTwoEntryTransition.duration = 0.3;
@@ -3651,27 +4265,124 @@ async function boot() {
 		}
 		layoutLeftPortal();
 
-		// Scene B asset metadata: keep paths here so WIP placeholders are easy to swap later.
-		const LIVING_ROOM_ASSETS = {
-			tvSpritePath: '',
-			tapeSpritePath: './assets/images/Uh-Oh.png',
-			tapeLabelById: {
-				'default-home': './assets/images/background.gif',
-				'slot-b': './assets/images/Uh-Oh.png',
-				'slot-c': './assets/images/Uh-Oh.png',
-				'slot-d': './assets/images/Uh-Oh.png',
-				'slot-e': './assets/images/Uh-Oh.png',
-				'slot-f': './assets/images/Uh-Oh.png',
-			},
+		const PORTFOLIO_MEDIA_IMAGE = 'image';
+		const PORTFOLIO_MEDIA_GIF = 'gif';
+		const PORTFOLIO_MEDIA_VIDEO = 'video';
+		const PORTFOLIO_HIGHLIGHT_ACCENT = 'accent';
+		const PORTFOLIO_HIGHLIGHT_RAINBOW = 'rainbow';
+		const PORTFOLIO_EMPTY_SLIDE = {
+			type: PORTFOLIO_MEDIA_IMAGE,
+			src: './assets/images/Uh-Oh.png',
+			title: 'Empty Slot',
+			overview: 'No media has been attached to this slot yet.',
+			design: 'Use this slot for future mockups, flow captures, or concept art.',
+			technical: 'Attach a slides array to activate the full walkthrough for this project.',
+			highlights: [],
+			links: [],
 		};
-		const VHS_TAPE_LIBRARY = [
-			{ id: 'default-home', label: 'MAIN PAGE', title: 'MAIN PAGE', status: 'ready', contentType: 'BRO_MEME', hasContent: true, accent: 0x8eb8ff, summary: 'the magic happens here' },
-			{ id: 'slot-b', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'EMPTY', hasContent: false, accent: 0xcf5f8f, summary: 'Nothing here yet.' },
-			{ id: 'slot-c', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'EMPTY', hasContent: false, accent: 0xd5a063, summary: 'Nothing here yet.' },
-			{ id: 'slot-d', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'EMPTY', hasContent: false, accent: 0xb58a59, summary: 'Nothing here yet.' },
-			{ id: 'slot-e', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'EMPTY', hasContent: false, accent: 0x4f80bf, summary: 'Nothing here yet.' },
-			{ id: 'slot-f', label: 'EMPTY', title: 'EMPTY', status: 'empty', contentType: 'EMPTY', hasContent: false, accent: 0x7a659d, summary: 'Nothing here yet.' },
+		const PORTFOLIO_PROJECTS = [
+			{
+				id: 'default-home',
+				label: 'MAIN PAGE',
+				title: 'Main Page',
+				summary: 'Thanks for visiting my page! There might be some cool stuff if you poke around a bit :)',
+				status: 'ready',
+				accent: 0x8eb8ff,
+				useDesktopFeed: true,
+				stack: ['Portfolio', 'PIXI', 'WebGL'],
+				links: [],
+				slides: [
+					{
+						type: PORTFOLIO_MEDIA_IMAGE,
+						src: './assets/images/logo.png',
+						title: 'masonwalker.tech',
+						overview: 'Thanks for visiting my page! There might be some cool stuff if you poke around a bit :)',
+						design: '',
+						technical: '',
+						highlights: [
+							{ text: 'bro-link synced', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+						],
+						links: [],
+					},
+				],
+			},
+			{
+				id: 'slot-b',
+				label: 'LAUNCHER',
+				title: 'Tile Manager',
+				summary: 'A modular launcher workflow focused on legible states and quick handoff.',
+				status: 'ready',
+				accent: 0xcf5f8f,
+				stack: ['Tauri', 'Rust', 'TypeScript'],
+				links: [
+					{ label: 'Repository', url: 'https://github.com/maywok/maywok.github.io' },
+				],
+				slides: [
+					{
+						type: PORTFOLIO_MEDIA_IMAGE,
+						src: './assets/portfolio/launcher/home.png',
+						title: 'Home Surface',
+						overview: 'This is the main page where you get to choose what system you want to launch.',
+						design: 'I was inspired by the clean Frutiger Aero design of many Nintendo frontends such as the Wii and 3DS home menu, my main goal was to have style and substance work together so I focused on making sure the UI hierarchy was clear and the launcher actions were easy to understand at a glance.',
+						technical: 'Nothing here yet :)',
+						highlights: [
+							{ text: 'UI hierarchy', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+							{ text: 'TypeScript', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+							{ text: 'Rust', style: PORTFOLIO_HIGHLIGHT_RAINBOW },
+						],
+						links: [
+							{ label: 'home.png', url: './assets/portfolio/launcher/home.png' },
+						],
+					},
+					{
+						type: PORTFOLIO_MEDIA_IMAGE,
+						src: './assets/portfolio/launcher/menu.png',
+						title: 'Menu State',
+						overview: 'This is the menu that appears after clicking a system, it shows the games detected for that system and allows you to launch them! There is also bonus customization for your games such as custom icons.',
+						design: 'Nothing here yet :)',
+						technical: 'Nothing here yet :)',
+						highlights: [
+							{ text: 'Tauri', style: PORTFOLIO_HIGHLIGHT_RAINBOW },
+							{ text: 'filesystem scanning', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+							{ text: 'registry queries', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+						],
+						links: [
+							{ label: 'menu.png', url: './assets/portfolio/launcher/menu.png' },
+						],
+					},
+					{
+						type: PORTFOLIO_MEDIA_IMAGE,
+						src: './assets/images/Uh-Oh.png',
+						title: 'Uh-Oh Test Slide',
+						overview: 'Test for different media sizes',
+						design: 'This is a test!',
+						technical: 'How are you? Remember to drink water',
+						highlights: [
+							{ text: 'cross-platform', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+							{ text: 'animation system', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+						],
+						links: [
+							{ label: 'Uh-Oh.png', url: './assets/images/Uh-Oh.png' },
+						],
+					},
+				],
+			},
+			{ id: 'slot-c', label: 'EMPTY', title: 'Empty Slot', summary: 'No project assigned yet.', status: 'empty', accent: 0xd5a063, stack: [], links: [], slides: [PORTFOLIO_EMPTY_SLIDE] },
+			{ id: 'slot-d', label: 'EMPTY', title: 'Empty Slot', summary: 'No project assigned yet.', status: 'empty', accent: 0xb58a59, stack: [], links: [], slides: [PORTFOLIO_EMPTY_SLIDE] },
+			{ id: 'slot-e', label: 'EMPTY', title: 'Empty Slot', summary: 'No project assigned yet.', status: 'empty', accent: 0x4f80bf, stack: [], links: [], slides: [PORTFOLIO_EMPTY_SLIDE] },
+			{ id: 'slot-f', label: 'EMPTY', title: 'Empty Slot', summary: 'No project assigned yet.', status: 'empty', accent: 0x7a659d, stack: [], links: [], slides: [PORTFOLIO_EMPTY_SLIDE] },
 		];
+		const portfolioProjectsById = new Map(PORTFOLIO_PROJECTS.map((project) => [project.id, project]));
+		const VHS_TAPE_LIBRARY = PORTFOLIO_PROJECTS.map((project) => ({
+			id: project.id,
+			projectId: project.id,
+			label: project.label,
+			title: project.title,
+			status: project.status,
+			hasContent: project.status !== 'empty',
+			accent: project.accent,
+			summary: project.summary,
+		}));
 		const STATE_DESKTOP_FULLSCREEN = 'STATE_DESKTOP_FULLSCREEN';
 		const STATE_LIVING_ROOM_IDLE = 'STATE_LIVING_ROOM_IDLE';
 		const STATE_LIVING_ROOM_PLAYING = 'STATE_LIVING_ROOM_PLAYING';
@@ -3730,7 +4441,6 @@ async function boot() {
 		const tvBody = new PIXI.Graphics();
 		const tvBezelRimLight = new PIXI.Graphics();
 		const tvBezelRimShade = new PIXI.Graphics();
-		const tvInnerFrame = new PIXI.Graphics();
 		const tvGlassReflection = new PIXI.Graphics();
 		const livingRoomTvFrame = new PIXI.Graphics();
 		const livingRoomTvArt = new PIXI.Sprite(PIXI.Texture.WHITE);
@@ -3738,7 +4448,22 @@ async function boot() {
 		const tvScreenMask = new PIXI.Graphics();
 		const tvContentContainer = new PIXI.Container();
 		const tvScreenBaseBg = new PIXI.Graphics();
+		const tvMediaFrameGlow = new PIXI.Graphics();
+		const tvMediaFrame = new PIXI.Graphics();
+		const tvMediaPrevSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
 		const tvDesktopContentSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
+		const tvSlideDotNav = new PIXI.Container();
+		const tvMediaZoomHint = new PIXI.Text('CLICK TO ZOOM', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 8,
+			fill: 0x8fd8ff,
+			letterSpacing: 0.8,
+			align: 'center',
+		});
+		tvMediaPrevSprite.anchor.set(0.5);
+		tvDesktopContentSprite.anchor.set(0.5);
+		tvMediaZoomHint.anchor.set(0.5, 0);
+		tvMediaZoomHint.alpha = 0.82;
 		const tvDesktopTransitionLayer = new PIXI.Container();
 		const tvDesktopTransitionSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
 		tvDesktopTransitionLayer.addChild(tvDesktopTransitionSprite);
@@ -3760,14 +4485,97 @@ async function boot() {
 			letterSpacing: 1,
 		});
 		tvBroSub.anchor.set(0.5, 0.5);
+		const tvTerminalMask = new PIXI.Graphics();
 		const tvTerminalLines = new PIXI.Container();
 		const tvTerminalCursor = new PIXI.Graphics();
+		const tvTerminalSlideTitle = new PIXI.Text('SLIDE', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 12,
+			fill: 0xffe4bc,
+			letterSpacing: 1,
+		});
+		const tvTerminalSlideValue = new PIXI.Text('', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 10,
+			fill: 0xe9dfcd,
+			letterSpacing: 0.6,
+			wordWrap: true,
+			wordWrapWidth: 160,
+			lineHeight: 14,
+		});
+		const tvTerminalOverviewLabel = new PIXI.Text('OVERVIEW', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 9,
+			fill: 0x96bfdc,
+			letterSpacing: 1,
+		});
+		const tvTerminalOverviewText = new PIXI.Text('', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 9,
+			fill: 0xe9dfcd,
+			letterSpacing: 0.5,
+			wordWrap: true,
+			wordWrapWidth: 160,
+			lineHeight: 14,
+		});
+		const tvTerminalDesignLabel = new PIXI.Text('DESIGN', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 9,
+			fill: 0x96bfdc,
+			letterSpacing: 1,
+		});
+		const tvTerminalDesignText = new PIXI.Text('', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 9,
+			fill: 0xe9dfcd,
+			letterSpacing: 0.5,
+			wordWrap: true,
+			wordWrapWidth: 160,
+			lineHeight: 14,
+		});
+		const tvTerminalDesignWaveCover = new PIXI.Graphics();
+		const tvTerminalDesignWave = new PIXI.Container();
+		const tvTerminalDesignWaveMask = new PIXI.Graphics();
+		tvTerminalDesignWave.mask = tvTerminalDesignWaveMask;
+		tvTerminalDesignWaveMask.renderable = false;
+		tvTerminalDesignWave.visible = false;
+		const tvTerminalTechLabel = new PIXI.Text('TECHNICAL', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 9,
+			fill: 0x96bfdc,
+			letterSpacing: 1,
+		});
+		const tvTerminalTechText = new PIXI.Text('', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 9,
+			fill: 0xe9dfcd,
+			letterSpacing: 0.5,
+			wordWrap: true,
+			wordWrapWidth: 160,
+			lineHeight: 14,
+		});
+		const tvTerminalHighlightsLabel = new PIXI.Text('HIGHLIGHTS', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 9,
+			fill: 0x96bfdc,
+			letterSpacing: 1,
+		});
+		const tvTerminalHighlights = new PIXI.Container();
+		const tvTerminalLinksLabel = new PIXI.Text('LINKS', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 9,
+			fill: 0x96bfdc,
+			letterSpacing: 1,
+		});
+		const tvTerminalLinks = new PIXI.Container();
+		const livingRoomMediaLayout = { x: 0, y: 0, w: 0, h: 0, dotY: 0 };
+		const livingRoomTerminalLayout = { x: 0, y: 0, w: 0, h: 0 };
 		let tvBroTitleBaseY = 0;
 		let tvBroSubBaseY = 0;
 		let tvTerminalStartX = 0;
 		let tvTerminalStartY = 0;
-		let tvTerminalLineHeight = 15;
-		let tvTerminalFontSize = 11;
+		let tvTerminalLineHeight = 18;
+		let tvTerminalFontSize = 12;
 		let tvDesktopRenderTexture = PIXI.RenderTexture.create({
 			width: Math.max(1, app.renderer.width),
 			height: Math.max(1, app.renderer.height),
@@ -3775,11 +4583,36 @@ async function boot() {
 		tvDesktopContentSprite.texture = tvDesktopRenderTexture;
 		tvDesktopTransitionSprite.texture = tvDesktopRenderTexture;
 		tvDesktopTransitionSprite.alpha = 0;
-		tvBroScreen.addChild(tvBroBg, tvBroTitle, tvTerminalLines, tvTerminalCursor, tvBroSub);
+		tvBroScreen.addChild(
+			tvBroBg,
+			tvTerminalMask,
+			tvBroTitle,
+			tvTerminalLines,
+			tvTerminalCursor,
+			tvBroSub,
+			tvTerminalSlideTitle,
+			tvTerminalSlideValue,
+			tvTerminalOverviewLabel,
+			tvTerminalOverviewText,
+			tvTerminalDesignLabel,
+			tvTerminalDesignText,
+			tvTerminalDesignWaveCover,
+			tvTerminalDesignWaveMask,
+			tvTerminalDesignWave,
+			tvTerminalTechLabel,
+			tvTerminalTechText,
+			tvTerminalHighlightsLabel,
+			tvTerminalHighlights,
+			tvTerminalLinksLabel,
+			tvTerminalLinks,
+		);
+		tvBroScreen.mask = tvTerminalMask;
+		tvTerminalLines.visible = false;
+		tvTerminalCursor.visible = false;
 		const tvEmptyScreen = new PIXI.Container();
 		const tvEmptyBg = new PIXI.Graphics();
 		const tvEmptySprite = new PIXI.Sprite(PIXI.Texture.WHITE);
-		const tvEmptyText = new PIXI.Text('Nothing here yet bro', {
+		const tvEmptyText = new PIXI.Text('Nothing here yet', {
 			fontFamily: 'Minecraft, monospace',
 			fontSize: 10,
 			fill: 0xf4d06d,
@@ -3789,7 +4622,7 @@ async function boot() {
 		tvEmptyText.anchor.set(0.5, 0.5);
 		tvEmptyScreen.alpha = 0;
 		tvEmptyScreen.addChild(tvEmptyBg, tvEmptySprite, tvEmptyText);
-		tvContentContainer.addChild(tvScreenBaseBg, tvDesktopContentSprite, tvBroScreen, tvEmptyScreen);
+		tvContentContainer.addChild(tvScreenBaseBg, tvMediaFrameGlow, tvMediaFrame, tvMediaPrevSprite, tvDesktopContentSprite, tvSlideDotNav, tvMediaZoomHint, tvBroScreen, tvEmptyScreen);
 		const tvScreensaverLayer = new PIXI.Container();
 		const tvScreensaverBg = new PIXI.Graphics();
 		const tvScreensaverNoise = new PIXI.Graphics();
@@ -3931,8 +4764,29 @@ async function boot() {
 		fullscreenExitBtn.cursor = 'pointer';
 		fullscreenTvContentLayer.addChild(fullscreenTvContentBg, fullscreenTvContentTitle, fullscreenTvContentSub, fullscreenExitBtn);
 		app.stage.addChild(fullscreenTvContentLayer);
-		applyWipSpriteTexture(livingRoomTvArt, LIVING_ROOM_ASSETS.tvSpritePath);
-		applyWipSpriteTexture(tvEmptySprite, LIVING_ROOM_ASSETS.tapeSpritePath);
+		const mediaPopoutLayer = new PIXI.Container();
+		mediaPopoutLayer.zIndex = 9000;
+		mediaPopoutLayer.visible = false;
+		mediaPopoutLayer.eventMode = 'none';
+		const mediaPopoutDim = new PIXI.Graphics();
+		const mediaPopoutCard = new PIXI.Container();
+		const mediaPopoutShadow = new PIXI.Graphics();
+		const mediaPopoutFrame = new PIXI.Graphics();
+		const mediaPopoutSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
+		mediaPopoutSprite.anchor.set(0.5);
+		const mediaPopoutGloss = new PIXI.Graphics();
+		const mediaPopoutHint = new PIXI.Text('Click outside or press ESC', {
+			fontFamily: 'Minecraft, monospace',
+			fontSize: 10,
+			fill: 0xb7dfff,
+			letterSpacing: 0.8,
+		});
+		mediaPopoutHint.anchor.set(0.5, 0);
+		mediaPopoutCard.addChild(mediaPopoutShadow, mediaPopoutFrame, mediaPopoutSprite, mediaPopoutGloss);
+		mediaPopoutLayer.addChild(mediaPopoutDim, mediaPopoutCard, mediaPopoutHint);
+		app.stage.addChild(mediaPopoutLayer);
+		applyWipSpriteTexture(livingRoomTvArt, '');
+		applyWipSpriteTexture(tvEmptySprite, PORTFOLIO_EMPTY_SLIDE.src);
 		let terminalFullText = '';
 		let terminalTypedIndex = 0;
 		let terminalTypeTimer = 0;
@@ -3940,6 +4794,12 @@ async function boot() {
 		let terminalCursorBlinkTimer = 0;
 		let terminalTypingHold = false;
 		let terminalSourceKey = '';
+		let terminalOverviewFullText = '';
+		let terminalOverviewTypedIndex = 0;
+		let terminalOverviewTypeTimer = 0;
+		let terminalOverviewSourceKey = '';
+		let terminalKeywordRules = [];
+		let terminalLinkLabelSet = new Set();
 		let previewSourceKey = '';
 		let previewUsesDesktopFeed = false;
 		const cartridgeScrollState = {
@@ -3955,19 +4815,65 @@ async function boot() {
 			dragOffsetY: 0,
 		};
 		const cartridgeViewportRect = { x: 0, y: 0, w: 0, h: 0 };
-		const TERMINAL_TYPE_RATE = 54;
+		const TERMINAL_TYPE_RATE = 220;
 		const TERMINAL_BASE_COLOR = 0xf3f8ff;
 		const TERMINAL_BRO_COLOR = 0xffd56b;
+		const TERMINAL_LABEL_COLORS = {
+			SLIDE: 0xffd56b,
+			OVERVIEW: 0x8be7ff,
+			DESIGN: 0xff8ec8,
+			TECHNICAL: 0xffb08b,
+			HIGHLIGHTS: 0x9effcc,
+			LINKS: 0x8ad7ff,
+		};
+		const TERMINAL_LINK_COLOR = 0x7fd9ff;
+		const TERMINAL_ACCENT_COLOR = 0xf6d27a;
+		const TERMINAL_RAINBOW_FILL = ['#ff5f9c', '#ffd56b', '#6dff9a', '#6ec6f7'];
+		const TERMINAL_AERO_WAVE_TEXT = 'Frutiger Aero';
+		const TERMINAL_AERO_WAVE_SEA_BLUE = 0x74d3ff;
+		const TERMINAL_AERO_WAVE_LIGHT_PURPLE = 0xc9bbff;
+		const TERMINAL_AERO_WAVE_AMPLITUDE = 1.35;
+		const TERMINAL_AERO_WAVE_SPEED = 1.1;
+		const TERMINAL_AERO_WAVE_COLOR_SPEED = 2.15;
+		const TERMINAL_AERO_HIDE_COLOR = 0x071322;
+		let terminalDesignWaveGlyphs = [];
+		const STATIC_TERMINAL_KEYWORDS = [
+			{ text: 'Tauri', style: PORTFOLIO_HIGHLIGHT_RAINBOW },
+			{ text: 'Rust', style: PORTFOLIO_HIGHLIGHT_RAINBOW },
+			{ text: 'TypeScript', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+			{ text: 'UI hierarchy', style: PORTFOLIO_HIGHLIGHT_RAINBOW },
+			{ text: 'filesystem scanning', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+			{ text: 'registry queries', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+			{ text: 'Firebase', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+			{ text: 'Steam API', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+			{ text: 'cross-platform', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+			{ text: 'animation system', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+		];
+		const mediaPopoutState = {
+			target: 0,
+			progress: 0,
+			tiltX: 0,
+			tiltY: 0,
+			targetTiltX: 0,
+			targetTiltY: 0,
+			cardX: 0,
+			cardY: 0,
+			cardW: 0,
+			cardH: 0,
+			textureKey: '',
+		};
+		const MEDIA_POPOUT_GLOSS_BASE_ALPHA = 0.05;
+		isScreenshotPopoutOpen = () => mediaPopoutState.progress > 0.02 || mediaPopoutState.target > 0;
 		const DEFAULT_NEON_ACCENT = 0x6ec6f7;
 		const DEFAULT_TERMINAL_TEXT = [
-			'> MAIN PAGE READY',
+			'MAIN PAGE',
 			'the magic happens here',
-			'> bro-link synced',
+			'Thanks for visiting my page! There might be some cool stuff if you poke around a bit :)',
 		].join('\n');
 		const getTapeById = (tapeId) => VHS_TAPE_LIBRARY.find((tape) => tape.id === tapeId) || null;
 		const getSelectedTape = () => {
 			const selectedId = livingRoomState.insertedTapeId || livingRoomState.activeTapeId;
-			return getTapeById(selectedId) || getTapeById('default-home');
+			return getTapeById(selectedId) || VHS_TAPE_LIBRARY[0] || null;
 		};
 		const getActiveAccentColor = () => {
 			const selectedTape = getSelectedTape();
@@ -3979,22 +4885,116 @@ async function boot() {
 				node.destroy?.({ children: true });
 			}
 		};
+		const tintColor = (hexColor, factor = 1) => {
+			const r = Math.max(0, Math.min(255, Math.round(((hexColor >> 16) & 0xff) * factor)));
+			const g = Math.max(0, Math.min(255, Math.round(((hexColor >> 8) & 0xff) * factor)));
+			const b = Math.max(0, Math.min(255, Math.round((hexColor & 0xff) * factor)));
+			return (r << 16) | (g << 8) | b;
+		};
+		const revealTerminalTextNow = () => {
+			if (terminalTypedIndex < terminalFullText.length) {
+				terminalTypedIndex = terminalFullText.length;
+				terminalTypeTimer = 0;
+				renderTerminalTypedText(true);
+			}
+			if (terminalOverviewTypedIndex < terminalOverviewFullText.length) {
+				terminalOverviewTypedIndex = terminalOverviewFullText.length;
+				terminalOverviewTypeTimer = 0;
+				tvTerminalOverviewText.text = terminalOverviewFullText;
+			}
+		};
+		const dedupeKeywordRules = (rules) => {
+			const seen = new Set();
+			const output = [];
+			for (const rule of rules) {
+				if (!rule?.text) continue;
+				const key = rule.text.toLowerCase();
+				if (seen.has(key)) continue;
+				seen.add(key);
+				output.push({
+					text: rule.text,
+					style: rule.style === PORTFOLIO_HIGHLIGHT_RAINBOW ? PORTFOLIO_HIGHLIGHT_RAINBOW : PORTFOLIO_HIGHLIGHT_ACCENT,
+				});
+			}
+			return output.sort((a, b) => b.text.length - a.text.length);
+		};
 		const renderTerminalTypedText = (force = false) => {
 			const typedText = terminalFullText.slice(0, terminalTypedIndex);
 			if (!force && terminalRenderedSnapshot === typedText) return;
 			terminalRenderedSnapshot = typedText;
 			destroyContainerChildren(tvTerminalLines);
-			const lines = typedText.length ? typedText.split('\n') : [''];
+			const measureTerminalWidth = (sampleText) => {
+				const text = String(sampleText || '');
+				if (!text) return 0;
+				// Width estimate avoids depending on TextMetrics in environments where it isn't available.
+				return text.length * (tvTerminalFontSize * 0.62 + 0.8);
+			};
+			const wrapTypedLine = (lineText, maxWidth) => {
+				const raw = String(lineText || '');
+				if (!raw) return [''];
+				if (measureTerminalWidth(raw) <= maxWidth) return [raw];
+				const leading = raw.match(/^\s+/)?.[0] || '';
+				const words = raw.trim().split(/\s+/).filter(Boolean);
+				if (!words.length) return [raw];
+				const continuationLeading = (!leading && /:$/.test(words[0])) ? '  ' : leading;
+				const linesOut = [];
+				let line = leading;
+				for (const word of words) {
+					const prefix = line.trim().length ? ' ' : '';
+					const candidate = `${line}${prefix}${word}`;
+					if (measureTerminalWidth(candidate) <= maxWidth || !line.trim().length) {
+						line = candidate;
+						continue;
+					}
+					linesOut.push(line);
+					line = `${continuationLeading}${word}`;
+				}
+				if (line) linesOut.push(line);
+				return linesOut;
+			};
+			const rawLines = typedText.length ? typedText.split('\n') : [''];
+			const maxTypedLineWidth = Math.max(64, livingRoomTerminalLayout.w - 18);
+			const lines = [];
+			for (const rawLine of rawLines) {
+				lines.push(...wrapTypedLine(rawLine, maxTypedLineWidth));
+			}
 			let cursorX = tvTerminalStartX;
 			let cursorY = tvTerminalStartY;
+			const makeKeywordChunks = (input, baseFill) => {
+				const text = String(input || '');
+				if (!text) return [];
+				const chunks = [];
+				let cursor = 0;
+				while (cursor < text.length) {
+					let next = null;
+					for (const rule of terminalKeywordRules) {
+						const index = text.toLowerCase().indexOf(rule.text.toLowerCase(), cursor);
+						if (index === -1) continue;
+						if (!next || index < next.index || (index === next.index && rule.text.length > next.rule.text.length)) {
+							next = { index, rule };
+						}
+					}
+					if (!next) {
+						chunks.push({ text: text.slice(cursor), fill: baseFill });
+						break;
+					}
+					if (next.index > cursor) {
+						chunks.push({ text: text.slice(cursor, next.index), fill: baseFill });
+					}
+					const matchText = text.slice(next.index, next.index + next.rule.text.length);
+					chunks.push({
+						text: matchText,
+						fill: next.rule.style === PORTFOLIO_HIGHLIGHT_RAINBOW ? TERMINAL_RAINBOW_FILL : TERMINAL_ACCENT_COLOR,
+					});
+					cursor = next.index + next.rule.text.length;
+				}
+				return chunks;
+			};
 			for (let lineIndex = 0; lineIndex < lines.length; lineIndex++) {
 				const lineText = lines[lineIndex] || '';
 				const line = new PIXI.Container();
 				line.position.set(tvTerminalStartX, tvTerminalStartY + lineIndex * tvTerminalLineHeight);
 				let lineX = 0;
-				const regex = /bro/ig;
-				let last = 0;
-				let match = null;
 				const appendChunk = (chunkText, color) => {
 					if (!chunkText) return;
 					const chunk = new PIXI.Text(chunkText, {
@@ -4007,12 +5007,32 @@ async function boot() {
 					line.addChild(chunk);
 					lineX += chunk.width;
 				};
-				while ((match = regex.exec(lineText)) !== null) {
-					appendChunk(lineText.slice(last, match.index), TERMINAL_BASE_COLOR);
-					appendChunk(match[0], TERMINAL_BRO_COLOR);
-					last = regex.lastIndex;
+				const trimmedLine = lineText.trim();
+				const labelMatch = lineText.match(/^([A-Z ]+):\s*(.*)$/);
+				const standaloneLabelColor = TERMINAL_LABEL_COLORS[trimmedLine.toUpperCase()];
+				if (!labelMatch && standaloneLabelColor && trimmedLine.length > 0 && !/^>/.test(trimmedLine)) {
+					appendChunk(trimmedLine.toUpperCase(), standaloneLabelColor);
+				} else if (labelMatch) {
+					const rawLabel = (labelMatch[1] || '').trim();
+					const body = labelMatch[2] || '';
+					appendChunk(`${rawLabel}:`, TERMINAL_LABEL_COLORS[rawLabel] || 0x96bfdc);
+					if (body) {
+						appendChunk(' ', TERMINAL_BASE_COLOR);
+						for (const chunk of makeKeywordChunks(body, TERMINAL_BASE_COLOR)) {
+							appendChunk(chunk.text, chunk.fill);
+						}
+					}
+				} else if (/^\s{2,}>\s+/.test(lineText)) {
+					appendChunk(lineText, TERMINAL_LINK_COLOR);
+				} else if (/^>\s+/.test(lineText)) {
+					for (const chunk of makeKeywordChunks(lineText, 0xffe1bb)) {
+						appendChunk(chunk.text, chunk.fill);
+					}
+				} else {
+					for (const chunk of makeKeywordChunks(lineText, TERMINAL_BASE_COLOR)) {
+						appendChunk(chunk.text, chunk.fill);
+					}
 				}
-				appendChunk(lineText.slice(last), TERMINAL_BASE_COLOR);
 				tvTerminalLines.addChild(line);
 				cursorX = tvTerminalStartX + lineX;
 				cursorY = tvTerminalStartY + lineIndex * tvTerminalLineHeight;
@@ -4022,6 +5042,150 @@ async function boot() {
 			tvTerminalCursor.drawRect(0, 0, Math.max(6, Math.round(tvTerminalFontSize * 0.52)), Math.max(10, Math.round(tvTerminalFontSize * 0.98)));
 			tvTerminalCursor.endFill();
 			tvTerminalCursor.position.set(cursorX + 6, cursorY + Math.max(1, Math.round(tvTerminalFontSize * 0.06)));
+		};
+		const setTerminalText = (nextText, sourceKey = nextText, { instant = false } = {}) => {
+			if (terminalSourceKey === sourceKey && terminalFullText === nextText) return;
+			terminalSourceKey = sourceKey;
+			terminalFullText = nextText;
+			terminalTypeTimer = 0;
+			terminalRenderedSnapshot = '';
+			terminalTypedIndex = instant ? terminalFullText.length : 0;
+			renderTerminalTypedText(true);
+		};
+		const setTerminalOverviewText = (nextText, sourceKey = nextText, { instant = false } = {}) => {
+			if (terminalOverviewSourceKey === sourceKey && terminalOverviewFullText === nextText) return;
+			terminalOverviewSourceKey = sourceKey;
+			terminalOverviewFullText = String(nextText || '');
+			terminalOverviewTypeTimer = 0;
+			terminalOverviewTypedIndex = instant ? terminalOverviewFullText.length : 0;
+			tvTerminalOverviewText.text = terminalOverviewFullText.slice(0, terminalOverviewTypedIndex);
+		};
+		const stepTerminalOverviewTyping = (dtSeconds) => {
+			if (!tvTerminalOverviewText.visible) return;
+			if (terminalOverviewTypedIndex >= terminalOverviewFullText.length) return;
+			if (terminalTypingHold) return;
+			terminalOverviewTypeTimer += dtSeconds * TERMINAL_TYPE_RATE;
+			const charsToAdd = Math.floor(terminalOverviewTypeTimer);
+			if (charsToAdd <= 0) return;
+			terminalOverviewTypeTimer -= charsToAdd;
+			terminalOverviewTypedIndex = Math.min(terminalOverviewFullText.length, terminalOverviewTypedIndex + charsToAdd);
+			tvTerminalOverviewText.text = terminalOverviewFullText.slice(0, terminalOverviewTypedIndex);
+		};
+		const wrapTerminalText = (value, maxChars = 40) => {
+			const text = String(value || '').trim();
+			if (!text) return [];
+			const words = text.split(/\s+/);
+			const lines = [];
+			let line = '';
+			for (const word of words) {
+				const candidate = line ? `${line} ${word}` : word;
+				if (candidate.length <= maxChars || !line) {
+					line = candidate;
+					continue;
+				}
+				lines.push(line);
+				line = word;
+			}
+			if (line) lines.push(line);
+			return lines;
+		};
+		const clearTerminalDesignWave = () => {
+			destroyContainerChildren(tvTerminalDesignWave);
+			tvTerminalDesignWaveCover.clear();
+			tvTerminalDesignWaveCover.visible = false;
+			tvTerminalDesignWaveMask.clear();
+			terminalDesignWaveGlyphs = [];
+			tvTerminalDesignWave.visible = false;
+			tvTerminalDesignText.alpha = 1;
+		};
+		const buildTerminalDesignWave = (sourceText, { fontSize, lineHeight, wrapWidth }) => {
+			clearTerminalDesignWave();
+			const source = String(sourceText || '');
+			const preserveTrailingSpaces = (value) => String(value || '').replace(/ +$/g, (spaces) => '\u00A0'.repeat(spaces.length));
+			const phraseLower = TERMINAL_AERO_WAVE_TEXT.toLowerCase();
+			const lowerSource = source.toLowerCase();
+			const startIndex = lowerSource.indexOf(phraseLower);
+			if (startIndex === -1) return source;
+
+			const phraseText = source.slice(startIndex, startIndex + TERMINAL_AERO_WAVE_TEXT.length);
+			if (!phraseText.trim().length || !PIXI.TextMetrics?.measureText) return source;
+
+			const glyphStyle = {
+				fontFamily: 'Minecraft, monospace',
+				fontSize,
+				fill: 0xffffff,
+				letterSpacing: 0.5,
+			};
+			const measureStyle = new PIXI.TextStyle({
+				...glyphStyle,
+				wordWrap: true,
+				wordWrapWidth: wrapWidth,
+				lineHeight,
+			});
+			tvTerminalDesignWaveCover.beginFill(TERMINAL_AERO_HIDE_COLOR, 1);
+
+			for (let i = 0; i < phraseText.length; i++) {
+				const char = phraseText[i];
+				if (char === '\n') continue;
+				const beforeText = source.slice(0, startIndex + i);
+				const withCharText = source.slice(0, startIndex + i + 1);
+				const beforeMetrics = PIXI.TextMetrics.measureText(preserveTrailingSpaces(beforeText), measureStyle);
+				const withCharMetrics = PIXI.TextMetrics.measureText(preserveTrailingSpaces(withCharText), measureStyle);
+				const lineIndex = Math.max(0, withCharMetrics.lines.length - 1);
+				const beforeLineIndex = Math.max(0, beforeMetrics.lines.length - 1);
+				const x = lineIndex === beforeLineIndex ? (beforeMetrics.lineWidths[beforeLineIndex] || 0) : 0;
+				const y = lineIndex * lineHeight;
+				if (!char.trim().length) continue;
+
+				const glyph = new PIXI.Text(char, glyphStyle);
+				glyph.position.set(x, y);
+				tvTerminalDesignWave.addChild(glyph);
+				const hidePadX = 1.1;
+				const hidePadY = 0.65;
+				tvTerminalDesignWaveCover.drawRect(
+					x - hidePadX,
+					y - hidePadY,
+					glyph.width + hidePadX * 2,
+					lineHeight + hidePadY * 2,
+				);
+				terminalDesignWaveGlyphs.push({
+					node: glyph,
+					baseY: y,
+					phase: i * 0.58,
+					colorPhase: i * 0.33,
+				});
+			}
+			tvTerminalDesignWaveCover.endFill();
+
+			tvTerminalDesignWave.visible = terminalDesignWaveGlyphs.length > 0;
+			if (!tvTerminalDesignWave.visible) return source;
+			tvTerminalDesignWaveCover.visible = true;
+			tvTerminalDesignText.alpha = 1;
+
+			return source;
+		};
+		const stepTerminalDesignWave = (pulseTime) => {
+			if (!tvTerminalDesignWave.visible || !terminalDesignWaveGlyphs.length) return;
+			for (const glyph of terminalDesignWaveGlyphs) {
+				const yWave = Math.sin(pulseTime * TERMINAL_AERO_WAVE_SPEED + glyph.phase);
+				const colorMix = 0.5 + 0.5 * Math.sin(pulseTime * TERMINAL_AERO_WAVE_COLOR_SPEED + glyph.colorPhase);
+				glyph.node.y = glyph.baseY + yWave * TERMINAL_AERO_WAVE_AMPLITUDE;
+				glyph.node.tint = mixColors(TERMINAL_AERO_WAVE_SEA_BLUE, TERMINAL_AERO_WAVE_LIGHT_PURPLE, colorMix);
+			}
+		};
+		const sectionToTerminalLines = (label, body, maxChars = 40, { inlineLabel = false } = {}) => {
+			const text = String(body || '').trim();
+			if (!text) return inlineLabel ? [`${label}: none`] : [label, 'none'];
+			const wrapped = wrapTerminalText(text, Math.max(14, maxChars));
+			if (!wrapped.length) return inlineLabel ? [`${label}: none`] : [label, 'none'];
+			if (inlineLabel) {
+				const lines = [`${label}: ${wrapped[0]}`];
+				for (let i = 1; i < wrapped.length; i++) {
+					lines.push(`  ${wrapped[i]}`);
+				}
+				return lines;
+			}
+			return [label, ...wrapped];
 		};
 		const updateCartridgeScrollUi = () => {
 			const maxScroll = Math.max(0, cartridgeScrollState.maxScroll);
@@ -4041,42 +5205,639 @@ async function boot() {
 			cartridgeScrollThumb.endFill();
 			cartridgeScrollThumb.visible = maxScroll > 0;
 		};
-		const getTerminalTextForTape = (tape) => {
-			if (!tape) return 'No cartridge selected.';
-			if (tape.id === 'default-home') return DEFAULT_TERMINAL_TEXT;
-			return `Nothing here yet ${livingRoomState.emptyPreviewWord}`;
+		let livingRoomActiveProjectId = VHS_TAPE_LIBRARY[0]?.projectId || null;
+		let livingRoomSlideIndex = 0;
+		let livingRoomDotNodes = [];
+		let livingRoomActiveVideoSource = null;
+		let livingRoomMediaExpanded = false;
+		const LIVING_ROOM_MEDIA_SCALE_BASE = 1.05;
+		const LIVING_ROOM_MEDIA_SCALE_EXPANDED = 1.18;
+		const livingRoomMediaTransition = {
+			active: false,
+			progress: 1,
+			duration: 0.2,
 		};
-		const setTerminalText = (nextText, sourceKey = nextText) => {
-			if (terminalSourceKey === sourceKey && terminalFullText === nextText) return;
-			terminalSourceKey = sourceKey;
-			terminalFullText = nextText;
-			terminalTypedIndex = 0;
-			terminalTypeTimer = 0;
-			terminalRenderedSnapshot = '';
-			renderTerminalTypedText(true);
+		const getLivingRoomMediaScale = () => (livingRoomMediaExpanded ? LIVING_ROOM_MEDIA_SCALE_EXPANDED : LIVING_ROOM_MEDIA_SCALE_BASE);
+		const updateLivingRoomMediaZoomHint = () => {
+			const zoomAllowed = !getActiveProject()?.useDesktopFeed;
+			const accent = getActiveAccentColor();
+			tvMediaZoomHint.visible = zoomAllowed;
+			tvMediaZoomHint.text = 'CLICK TO EXPAND';
+			tvMediaZoomHint.style.fill = tintColor(accent, 1.25);
+			tvDesktopContentSprite.eventMode = zoomAllowed ? 'static' : 'none';
+			tvMediaPrevSprite.eventMode = zoomAllowed ? 'static' : 'none';
+			tvDesktopContentSprite.cursor = zoomAllowed ? 'zoom-in' : 'default';
+			tvMediaPrevSprite.cursor = tvDesktopContentSprite.cursor;
 		};
-		const setPreviewForTape = (tape) => {
-			const nextPreviewKey = tape?.id || 'none';
-			if (previewSourceKey === nextPreviewKey) return;
-			previewSourceKey = nextPreviewKey;
-			if (tape?.id === 'default-home') {
-				previewUsesDesktopFeed = true;
-				tvDesktopContentSprite.texture = tvDesktopRenderTexture;
-				tvDesktopContentSprite.tint = 0xffffff;
+		const toggleLivingRoomMediaZoom = () => {
+			openMediaPopout();
+		};
+		const livingRoomBezelAnim = {
+			x: 0,
+			y: 0,
+			w: 0,
+			h: 0,
+			targetX: 0,
+			targetY: 0,
+			targetW: 0,
+			targetH: 0,
+			accent: DEFAULT_NEON_ACCENT,
+			ready: false,
+		};
+		const drawLivingRoomBezel = () => {
+			if (!livingRoomBezelAnim.ready || livingRoomBezelAnim.w <= 0 || livingRoomBezelAnim.h <= 0) return;
+			const frameX = livingRoomBezelAnim.x;
+			const frameY = livingRoomBezelAnim.y;
+			const frameW = livingRoomBezelAnim.w;
+			const frameH = livingRoomBezelAnim.h;
+			const accent = livingRoomBezelAnim.accent;
+			tvMediaFrameGlow.clear();
+			tvMediaFrameGlow.beginFill(accent, 0.08);
+			tvMediaFrameGlow.drawRoundedRect(frameX - 4, frameY - 4, frameW + 8, frameH + 8, 11);
+			tvMediaFrameGlow.endFill();
+			tvMediaFrame.clear();
+			tvMediaFrame.beginFill(0x0a1624, 0.38);
+			tvMediaFrame.lineStyle(2, tintColor(accent, 1.2), 0.82);
+			tvMediaFrame.drawRoundedRect(frameX, frameY, frameW, frameH, 9);
+			tvMediaFrame.endFill();
+			tvMediaFrame.lineStyle(1, tintColor(accent, 0.78), 0.85);
+			tvMediaFrame.drawRoundedRect(frameX + 5, frameY + 5, Math.max(4, frameW - 10), Math.max(4, frameH - 10), 7);
+		};
+		const setLivingRoomBezelTarget = (frameX, frameY, frameW, frameH, accent) => {
+			livingRoomBezelAnim.targetX = frameX;
+			livingRoomBezelAnim.targetY = frameY;
+			livingRoomBezelAnim.targetW = frameW;
+			livingRoomBezelAnim.targetH = frameH;
+			livingRoomBezelAnim.accent = accent;
+			if (!livingRoomBezelAnim.ready) {
+				livingRoomBezelAnim.x = frameX;
+				livingRoomBezelAnim.y = frameY;
+				livingRoomBezelAnim.w = frameW;
+				livingRoomBezelAnim.h = frameH;
+				livingRoomBezelAnim.ready = true;
+				drawLivingRoomBezel();
+			}
+		};
+		const stepLivingRoomBezelAnimation = (dtSeconds) => {
+			if (!livingRoomBezelAnim.ready) return;
+			const blend = Math.min(1, dtSeconds * 10);
+			livingRoomBezelAnim.x += (livingRoomBezelAnim.targetX - livingRoomBezelAnim.x) * blend;
+			livingRoomBezelAnim.y += (livingRoomBezelAnim.targetY - livingRoomBezelAnim.y) * blend;
+			livingRoomBezelAnim.w += (livingRoomBezelAnim.targetW - livingRoomBezelAnim.w) * blend;
+			livingRoomBezelAnim.h += (livingRoomBezelAnim.targetH - livingRoomBezelAnim.h) * blend;
+			drawLivingRoomBezel();
+		};
+		const isVideoSource = (source) => typeof HTMLVideoElement !== 'undefined' && source instanceof HTMLVideoElement;
+		const stopLivingRoomVideoSource = (video) => {
+			if (!video) return;
+			try { video.pause(); } catch (_) {}
+		};
+		const playLivingRoomVideoSource = (video) => {
+			if (!video) return;
+			video.loop = true;
+			video.muted = true;
+			video.playsInline = true;
+			video.autoplay = true;
+			const playPromise = video.play?.();
+			if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
+		};
+		const getProjectForTape = (tape) => {
+			if (!tape?.projectId) return PORTFOLIO_PROJECTS[0];
+			return portfolioProjectsById.get(tape.projectId) || PORTFOLIO_PROJECTS[0];
+		};
+		const getSlidesForProject = (project) => (Array.isArray(project?.slides) && project.slides.length
+			? project.slides
+			: [PORTFOLIO_EMPTY_SLIDE]);
+		const LAUNCHER_TAPE_COVER = './assets/images/launcherLogo.png';
+		const getTapeCoverForProject = (project) => {
+			if (project?.id === 'slot-b' || String(project?.label || '').toUpperCase() === 'LAUNCHER') {
+				return LAUNCHER_TAPE_COVER;
+			}
+			return getSlidesForProject(project)[0]?.src || PORTFOLIO_EMPTY_SLIDE.src;
+		};
+		const getActiveProject = () => portfolioProjectsById.get(livingRoomActiveProjectId) || PORTFOLIO_PROJECTS[0];
+		const getActiveSlide = () => {
+			const slides = getSlidesForProject(getActiveProject());
+			if (!slides.length) return PORTFOLIO_EMPTY_SLIDE;
+			const clampedIndex = ((livingRoomSlideIndex % slides.length) + slides.length) % slides.length;
+			return slides[clampedIndex] || PORTFOLIO_EMPTY_SLIDE;
+		};
+		const getTextureNaturalSize = (texture) => {
+			if (!texture) return { width: 1, height: 1 };
+			const source = texture.baseTexture?.resource?.source;
+			if (isVideoSource(source) && source.videoWidth && source.videoHeight) {
+				return { width: source.videoWidth, height: source.videoHeight };
+			}
+			return {
+				width: texture.orig?.width || texture.width || texture.baseTexture?.width || 1,
+				height: texture.orig?.height || texture.height || texture.baseTexture?.height || 1,
+			};
+		};
+		const layoutMediaPopoutCard = () => {
+			const sw = app.renderer.width;
+			const sh = app.renderer.height;
+			const accent = getActiveAccentColor();
+			const accentStrong = tintColor(accent, 1.24);
+			const accentSoft = tintColor(accent, 0.92);
+			mediaPopoutDim.clear();
+			mediaPopoutDim.beginFill(0x04070d, 0.72 * mediaPopoutState.progress);
+			mediaPopoutDim.drawRect(0, 0, sw, sh);
+			mediaPopoutDim.endFill();
+			const tex = mediaPopoutSprite.texture || PIXI.Texture.WHITE;
+			const sourceSize = getTextureNaturalSize(tex);
+			const maxW = Math.max(260, Math.round(sw * 0.72));
+			const maxH = Math.max(220, Math.round(sh * 0.72));
+			const cardPad = 24;
+			const fitW = Math.max(140, maxW - cardPad * 2);
+			const fitH = Math.max(120, maxH - cardPad * 2);
+			const mediaScale = Math.min(fitW / Math.max(1, sourceSize.width), fitH / Math.max(1, sourceSize.height));
+			const mediaW = Math.max(120, sourceSize.width * mediaScale);
+			const mediaH = Math.max(90, sourceSize.height * mediaScale);
+			const cardW = Math.max(220, mediaW + cardPad * 2);
+			const cardH = Math.max(170, mediaH + cardPad * 2);
+			mediaPopoutState.cardX = sw * 0.5;
+			mediaPopoutState.cardY = sh * 0.5;
+			mediaPopoutState.cardW = cardW;
+			mediaPopoutState.cardH = cardH;
+			mediaPopoutCard.position.set(mediaPopoutState.cardX, mediaPopoutState.cardY);
+			mediaPopoutShadow.clear();
+			mediaPopoutShadow.beginFill(0x000000, 0.36);
+			mediaPopoutShadow.drawRoundedRect(-cardW * 0.5 + 10, -cardH * 0.5 + 12, cardW, cardH, 14);
+			mediaPopoutShadow.beginFill(accent, 0.08 * mediaPopoutState.progress);
+			mediaPopoutShadow.drawRoundedRect(-cardW * 0.5 + 4, -cardH * 0.5 + 5, cardW, cardH, 14);
+			mediaPopoutShadow.endFill();
+			mediaPopoutFrame.clear();
+			mediaPopoutFrame.beginFill(0x0a1422, 0.94);
+			mediaPopoutFrame.lineStyle(2, accentStrong, 0.9);
+			mediaPopoutFrame.drawRoundedRect(-cardW * 0.5, -cardH * 0.5, cardW, cardH, 12);
+			mediaPopoutFrame.endFill();
+			mediaPopoutFrame.lineStyle(1, accentSoft, 0.5);
+			mediaPopoutFrame.drawRoundedRect(-cardW * 0.5 + 8, -cardH * 0.5 + 8, cardW - 16, cardH - 16, 10);
+			mediaPopoutSprite.width = mediaW;
+			mediaPopoutSprite.height = mediaH;
+			mediaPopoutSprite.position.set(0, 0);
+			mediaPopoutGloss.clear();
+			const glossW = Math.max(80, cardW * 0.42);
+			const glossH = Math.max(26, cardH * 0.22);
+			mediaPopoutGloss.beginFill(0xffffff, 0.08);
+			mediaPopoutGloss.drawRoundedRect(-cardW * 0.5 + 14, -cardH * 0.5 + 12, glossW, glossH, 10);
+			mediaPopoutGloss.endFill();
+			mediaPopoutHint.position.set(sw * 0.5, mediaPopoutState.cardY + cardH * 0.5 + 12);
+			mediaPopoutHint.style.fill = tintColor(accent, 1.25);
+			mediaPopoutHint.alpha = 0.78 * mediaPopoutState.progress;
+		};
+		const openMediaPopout = () => {
+			if (!livingRoomActive || livingRoomState.viewMode !== VIEW_TV_AREA) return;
+			const project = getActiveProject();
+			if (project?.useDesktopFeed) return;
+			const wasClosed = mediaPopoutState.target <= 0.02 && mediaPopoutState.progress <= 0.02;
+			const slide = getActiveSlide();
+			const texture = PIXI.Texture.from(slide?.src || PORTFOLIO_EMPTY_SLIDE.src);
+			if (!texture) return;
+			mediaPopoutSprite.texture = texture;
+			mediaPopoutState.textureKey = `${project?.id || 'project'}:${livingRoomSlideIndex}:${slide?.src || ''}`;
+			mediaPopoutState.target = 1;
+			mediaPopoutLayer.visible = true;
+			mediaPopoutLayer.eventMode = 'static';
+			mediaPopoutState.targetTiltX = 0;
+			mediaPopoutState.targetTiltY = 0;
+			if (wasClosed) playEnlargeScreenshotSfx();
+			layoutMediaPopoutCard();
+		};
+		const closeMediaPopout = (options = {}) => {
+			const playReturnSfx = Boolean(options.playReturnSfx);
+			const wasOpen = mediaPopoutState.target > 0.02;
+			mediaPopoutState.target = 0;
+			mediaPopoutState.targetTiltX = 0;
+			mediaPopoutState.targetTiltY = 0;
+			if (playReturnSfx && wasOpen) playReturnScreenshotSfx();
+		};
+		const stepMediaPopout = (dtSeconds) => {
+			const blend = Math.min(1, dtSeconds * 10);
+			mediaPopoutState.progress += (mediaPopoutState.target - mediaPopoutState.progress) * blend;
+			if (mediaPopoutState.progress < 0.002 && mediaPopoutState.target <= 0) {
+				mediaPopoutLayer.visible = false;
+				mediaPopoutLayer.eventMode = 'none';
+				mediaPopoutState.progress = 0;
 				return;
 			}
-			previewUsesDesktopFeed = false;
-			const previewPath = LIVING_ROOM_ASSETS.tapeLabelById[tape?.id] || LIVING_ROOM_ASSETS.tapeSpritePath;
-			applyWipSpriteTexture(tvDesktopContentSprite, previewPath);
+			mediaPopoutLayer.visible = true;
+			layoutMediaPopoutCard();
+			const ease = 1 - Math.pow(1 - Math.max(0, Math.min(1, mediaPopoutState.progress)), 3);
+			mediaPopoutState.tiltX = 0;
+			mediaPopoutState.tiltY = 0;
+			mediaPopoutCard.scale.set(0.94 + ease * 0.06);
+			mediaPopoutCard.alpha = ease;
+			mediaPopoutCard.position.set(mediaPopoutState.cardX, mediaPopoutState.cardY);
+			mediaPopoutCard.skew.set(0, 0);
+			mediaPopoutGloss.alpha = MEDIA_POPOUT_GLOSS_BASE_ALPHA * ease;
+		};
+		const fitLivingRoomMediaSprite = (sprite, texture) => {
+			const { x, y, w, h } = livingRoomMediaLayout;
+			if (w <= 0 || h <= 0) return;
+			const framePad = 0;
+			const maxW = Math.max(1, w - framePad * 2);
+			const maxH = Math.max(1, h - framePad * 2);
+			const size = getTextureNaturalSize(texture);
+			const ratio = size.width / Math.max(1, size.height);
+			const scale = Math.min(maxW / Math.max(1, size.width), maxH / Math.max(1, size.height)) * getLivingRoomMediaScale();
+			sprite.texture = texture;
+			sprite.width = Math.max(1, size.width * scale);
+			sprite.height = Math.max(1, size.height * scale);
+			sprite.position.set(x + w * 0.5, y + h * 0.5);
+			if (sprite === tvDesktopContentSprite) {
+				const accent = getActiveAccentColor();
+				const isWide = ratio > 1.45;
+				const isPortrait = ratio < 0.85;
+				const bezelPadX = isWide ? 5 : (isPortrait ? 10 : 8);
+				const bezelPadY = isWide ? 8 : (isPortrait ? 8 : 9);
+				const frameX = sprite.position.x - sprite.width * 0.5 - bezelPadX;
+				const frameY = sprite.position.y - sprite.height * 0.5 - bezelPadY;
+				const frameW = sprite.width + bezelPadX * 2;
+				const frameH = sprite.height + bezelPadY * 2;
+				setLivingRoomBezelTarget(frameX, frameY, frameW, frameH, accent);
+			}
+			if (!texture.baseTexture?.valid) {
+				texture.baseTexture?.once?.('loaded', () => fitLivingRoomMediaSprite(sprite, texture));
+			}
+		};
+		const normalizeHighlight = (entry) => {
+			if (!entry) return null;
+			if (typeof entry === 'string') return { text: entry, style: PORTFOLIO_HIGHLIGHT_ACCENT };
+			if (!entry.text) return null;
+			return {
+				text: entry.text,
+				style: entry.style === PORTFOLIO_HIGHLIGHT_RAINBOW ? PORTFOLIO_HIGHLIGHT_RAINBOW : PORTFOLIO_HIGHLIGHT_ACCENT,
+			};
+		};
+		const rebuildLivingRoomTerminalPanel = ({ instant = false } = {}) => {
+			const project = getActiveProject();
+			const slide = getActiveSlide();
+			const approxChars = Math.max(16, Math.floor((livingRoomTerminalLayout.w - 16) / 9.8));
+			const linkDefs = [...(slide.links || []), ...(project.links || [])]
+				.filter((link) => link?.label && link?.url);
+			terminalLinkLabelSet = new Set(linkDefs.map((link) => String(link.label).toLowerCase()));
+			terminalKeywordRules = dedupeKeywordRules([
+				...STATIC_TERMINAL_KEYWORDS,
+				...(slide.highlights || []).map((entry) => normalizeHighlight(entry)).filter(Boolean),
+				{ text: 'bro', style: PORTFOLIO_HIGHLIGHT_ACCENT },
+			]);
+			tvBroTitle.text = 'TERMINAL';
+			tvBroSub.visible = false;
+			tvTerminalSlideTitle.visible = false;
+			tvTerminalSlideValue.visible = false;
+			tvTerminalOverviewLabel.visible = false;
+			tvTerminalOverviewText.visible = false;
+			tvTerminalDesignLabel.visible = false;
+			tvTerminalDesignText.visible = false;
+			tvTerminalTechLabel.visible = false;
+			tvTerminalTechText.visible = false;
+			tvTerminalHighlightsLabel.visible = false;
+			tvTerminalHighlights.visible = false;
+			tvTerminalLinksLabel.visible = false;
+			tvTerminalLinks.visible = false;
+			tvTerminalDesignWaveCover.visible = false;
+			tvTerminalDesignWave.visible = false;
+			tvTerminalLines.visible = true;
+			destroyContainerChildren(tvTerminalHighlights);
+			destroyContainerChildren(tvTerminalLinks);
+			clearTerminalDesignWave();
+
+			let nextText = null;
+			let nextSourceKey = `${project.id}:${livingRoomSlideIndex}:${livingRoomState.emptyPreviewWord}`;
+			const useHomeStructuredMinimal = project.useDesktopFeed && project.id === 'default-home';
+			if (project.status === 'empty') {
+				nextText = `Nothing here yet ${livingRoomState.emptyPreviewWord}`;
+				setTerminalOverviewText('', `${nextSourceKey}:overview-empty`, { instant: true });
+			} else if (project.useDesktopFeed && !useHomeStructuredMinimal) {
+				nextText = DEFAULT_TERMINAL_TEXT;
+				setTerminalOverviewText('', `${nextSourceKey}:overview-home`, { instant: true });
+			} else {
+				const showExtendedSections = !useHomeStructuredMinimal;
+				tvTerminalLines.visible = false;
+				tvTerminalCursor.visible = false;
+				tvTerminalDesignLabel.visible = showExtendedSections;
+				tvTerminalDesignText.visible = showExtendedSections;
+				tvTerminalTechLabel.visible = showExtendedSections;
+				tvTerminalTechText.visible = showExtendedSections;
+				tvTerminalSlideTitle.visible = true;
+				tvTerminalSlideValue.visible = true;
+				tvTerminalOverviewLabel.visible = true;
+				tvTerminalOverviewText.visible = true;
+				tvTerminalHighlightsLabel.visible = showExtendedSections;
+				tvTerminalHighlights.visible = showExtendedSections;
+				tvTerminalLinksLabel.visible = showExtendedSections;
+				tvTerminalLinks.visible = showExtendedSections;
+				setTerminalText('', `${project.id}:${livingRoomSlideIndex}:structured-clear`, { instant: true });
+
+				const terminalX = tvTerminalStartX;
+				let y = tvTerminalStartY;
+				const infoWidth = Math.max(90, livingRoomTerminalLayout.w - 4);
+				const sectionLabelSize = Math.max(10, tvTerminalFontSize - 1);
+				const sectionBodySize = Math.max(11, tvTerminalFontSize);
+				const sectionLineHeight = Math.max(16, Math.round(sectionBodySize * 1.55));
+				const sectionLabelGap = 14;
+				const sectionGap = 14;
+				tvTerminalSlideTitle.style.fill = TERMINAL_LABEL_COLORS.SLIDE;
+				tvTerminalOverviewLabel.style.fill = TERMINAL_LABEL_COLORS.OVERVIEW;
+				tvTerminalDesignLabel.style.fill = TERMINAL_LABEL_COLORS.DESIGN;
+				tvTerminalTechLabel.style.fill = TERMINAL_LABEL_COLORS.TECHNICAL;
+				tvTerminalHighlightsLabel.style.fill = TERMINAL_LABEL_COLORS.HIGHLIGHTS;
+				tvTerminalLinksLabel.style.fill = TERMINAL_LABEL_COLORS.LINKS;
+				tvTerminalSlideTitle.style.fontSize = sectionLabelSize;
+				tvTerminalOverviewLabel.style.fontSize = sectionLabelSize;
+				tvTerminalDesignLabel.style.fontSize = sectionLabelSize;
+				tvTerminalTechLabel.style.fontSize = sectionLabelSize;
+				tvTerminalSlideValue.style.fontSize = sectionBodySize;
+				tvTerminalSlideValue.style.lineHeight = sectionLineHeight;
+				tvTerminalSlideValue.style.wordWrapWidth = infoWidth;
+				tvTerminalSlideValue.style.fill = useHomeStructuredMinimal ? 0xffffff : 0xe9dfcd;
+				tvTerminalOverviewText.style.fontSize = sectionBodySize;
+				tvTerminalOverviewText.style.lineHeight = sectionLineHeight;
+				tvTerminalOverviewText.style.wordWrapWidth = infoWidth;
+				tvTerminalDesignText.style.fontSize = sectionBodySize;
+				tvTerminalDesignText.style.lineHeight = sectionLineHeight;
+				tvTerminalTechText.style.fontSize = sectionBodySize;
+				tvTerminalTechText.style.lineHeight = sectionLineHeight;
+				tvTerminalDesignText.style.wordWrapWidth = infoWidth;
+				tvTerminalTechText.style.wordWrapWidth = infoWidth;
+
+				tvTerminalSlideTitle.text = 'SLIDE';
+				tvTerminalSlideTitle.position.set(terminalX, y);
+				y += sectionLabelGap;
+				tvTerminalSlideValue.text = useHomeStructuredMinimal
+					? String(project.title || slide.title || 'Main Page')
+					: String(slide.title || 'Untitled');
+				tvTerminalSlideValue.position.set(terminalX, y);
+				y += tvTerminalSlideValue.height + sectionGap;
+
+				tvTerminalOverviewLabel.text = 'OVERVIEW';
+				tvTerminalOverviewLabel.position.set(terminalX, y);
+				y += sectionLabelGap;
+				tvTerminalOverviewText.position.set(terminalX, y);
+				const overviewBody = useHomeStructuredMinimal
+					? (slide.overview || project.summary || 'Thanks for visiting my page!')
+					: (slide.overview || project.summary || 'No overview provided.');
+				const overviewLineCount = Math.max(1, wrapTerminalText(overviewBody, approxChars).length);
+				const overviewReservedHeight = overviewLineCount * sectionLineHeight;
+				setTerminalOverviewText(overviewBody, `${project.id}:${livingRoomSlideIndex}:overview`, { instant });
+				y += overviewReservedHeight + sectionGap;
+
+				if (showExtendedSections) {
+					tvTerminalDesignLabel.position.set(terminalX, y);
+					y += sectionLabelGap;
+					const designBody = slide.design || 'No design notes provided.';
+					tvTerminalDesignText.text = buildTerminalDesignWave(designBody, {
+						fontSize: sectionBodySize,
+						lineHeight: sectionLineHeight,
+						wrapWidth: infoWidth,
+					});
+					tvTerminalDesignText.position.set(terminalX, y);
+					tvTerminalDesignWaveCover.position.set(terminalX, y);
+					tvTerminalDesignWave.position.set(terminalX, y);
+					tvTerminalDesignWave.visible = tvTerminalDesignText.visible && terminalDesignWaveGlyphs.length > 0;
+					tvTerminalDesignWaveMask.clear();
+					if (terminalDesignWaveGlyphs.length > 0) {
+						const waveMaskPadY = Math.max(1, TERMINAL_AERO_WAVE_AMPLITUDE + 1.1);
+						tvTerminalDesignWaveMask.beginFill(0xffffff, 1);
+						tvTerminalDesignWaveMask.drawRect(
+							terminalX - 1,
+							y - waveMaskPadY,
+							infoWidth + 2,
+							tvTerminalDesignText.height + waveMaskPadY * 2,
+						);
+						tvTerminalDesignWaveMask.endFill();
+					}
+					y += tvTerminalDesignText.height + sectionGap;
+
+					tvTerminalTechLabel.position.set(terminalX, y);
+					y += sectionLabelGap;
+					tvTerminalTechText.text = slide.technical || 'No technical notes provided.';
+					tvTerminalTechText.position.set(terminalX, y);
+					y += tvTerminalTechText.height + 12;
+
+					let chipX = 0;
+					let chipY = 0;
+					const highlightText = (slide.highlights || [])
+						.map((entry) => normalizeHighlight(entry)?.text)
+						.filter(Boolean)
+						.join(' / ');
+					for (const rawHighlight of (slide.highlights || [])) {
+						const highlight = normalizeHighlight(rawHighlight);
+						if (!highlight) continue;
+						const chip = new PIXI.Container();
+						const chipBg = new PIXI.Graphics();
+						const chipText = new PIXI.Text(highlight.text, {
+							fontFamily: 'Minecraft, monospace',
+							fontSize: 9,
+							fill: highlight.style === PORTFOLIO_HIGHLIGHT_RAINBOW ? TERMINAL_RAINBOW_FILL : TERMINAL_ACCENT_COLOR,
+							letterSpacing: 0.5,
+						});
+						const chipPadX = 7;
+						const chipW = Math.ceil(chipText.width + chipPadX * 2);
+						const chipH = 16;
+						if (chipX > 0 && chipX + chipW > infoWidth) {
+							chipX = 0;
+							chipY += chipH + 5;
+						}
+						chipBg.beginFill(0x2e5162, 0.72);
+						chipBg.lineStyle(1, highlight.style === PORTFOLIO_HIGHLIGHT_RAINBOW ? 0xff7fc1 : 0x7fc9ff, 0.82);
+						chipBg.drawRoundedRect(0, 0, chipW, chipH, 4);
+						chipBg.endFill();
+						chipText.position.set(chipPadX, 4);
+						chip.addChild(chipBg, chipText);
+						chip.position.set(chipX, chipY);
+						chipX += chipW + 6;
+						tvTerminalHighlights.addChild(chip);
+					}
+
+					let linkY = 0;
+					for (const linkDef of linkDefs) {
+						const row = new PIXI.Container();
+						const linkText = new PIXI.Text(`> ${linkDef.label}`, {
+							fontFamily: 'Minecraft, monospace',
+							fontSize: 9,
+							fill: TERMINAL_LINK_COLOR,
+							letterSpacing: 0.5,
+						});
+						const underline = new PIXI.Graphics();
+						underline.lineStyle(1, TERMINAL_LINK_COLOR, 0.72);
+						underline.moveTo(0, linkText.height + 1);
+						underline.lineTo(linkText.width, linkText.height + 1);
+						row.addChild(linkText, underline);
+						row.position.set(0, linkY);
+						row.eventMode = 'static';
+						row.cursor = 'pointer';
+						row.on('pointerover', () => {
+							linkText.style.fill = 0xffffff;
+							underline.tint = 0xffffff;
+						});
+						row.on('pointerout', () => {
+							linkText.style.fill = TERMINAL_LINK_COLOR;
+							underline.tint = TERMINAL_LINK_COLOR;
+						});
+						row.on('pointertap', () => {
+							try {
+								window.open(linkDef.url, '_blank', 'noopener');
+							} catch (_) {}
+						});
+						tvTerminalLinks.addChild(row);
+						linkY += linkText.height + 7;
+					}
+
+					const terminalBottom = livingRoomTerminalLayout.y + livingRoomTerminalLayout.h - 6;
+					const highlightsBlockHeight = tvTerminalHighlightsLabel.height + 6 + (tvTerminalHighlights.height || (highlightText ? 16 : 0));
+					const linksBlockHeight = tvTerminalLinksLabel.height + 6 + (tvTerminalLinks.height || 0);
+					const footerGap = 12;
+					const footerTotal = highlightsBlockHeight + footerGap + linksBlockHeight;
+					const footerStartY = Math.max(y + 10, terminalBottom - footerTotal);
+
+					tvTerminalHighlightsLabel.position.set(terminalX, footerStartY);
+					tvTerminalHighlights.position.set(terminalX, footerStartY + tvTerminalHighlightsLabel.height + 6);
+
+					const linksStartY = tvTerminalHighlights.position.y + (tvTerminalHighlights.height || (highlightText ? 16 : 0)) + footerGap;
+					tvTerminalLinksLabel.position.set(terminalX, linksStartY);
+					tvTerminalLinks.position.set(terminalX, linksStartY + tvTerminalLinksLabel.height + 6);
+				}
+			}
+
+			if (nextText !== null) {
+				setTerminalText(nextText, nextSourceKey, { instant });
+			}
+		};
+		const redrawLivingRoomDots = () => {
+			const accent = getActiveAccentColor();
+			const activeColor = tintColor(accent, 1.22);
+			const inactiveColor = tintColor(accent, 0.5);
+			const ringColor = tintColor(accent, 1.45);
+			for (let i = 0; i < livingRoomDotNodes.length; i++) {
+				const dot = livingRoomDotNodes[i];
+				const active = i === livingRoomSlideIndex;
+				dot.clear();
+				dot.beginFill(active ? activeColor : inactiveColor, active ? 0.96 : (0.45 + dot.__hover * 0.35));
+				dot.drawCircle(0, 0, active ? 4.1 : 3.1);
+				dot.endFill();
+				if (active) {
+					dot.lineStyle(1, ringColor, 0.9);
+					dot.drawCircle(0, 0, 6);
+				}
+			}
+		};
+		const rebuildLivingRoomDots = () => {
+			destroyContainerChildren(tvSlideDotNav);
+			livingRoomDotNodes = [];
+			const slides = getSlidesForProject(getActiveProject());
+			const count = slides.length;
+			if (!count) return;
+			const spacing = 15;
+			const totalW = (count - 1) * spacing;
+			for (let i = 0; i < count; i++) {
+				const dot = new PIXI.Graphics();
+				dot.position.set(i * spacing - totalW * 0.5, 0);
+				dot.eventMode = 'static';
+				dot.cursor = 'pointer';
+				dot.__hover = 0;
+				dot.on('pointerover', () => {
+					dot.__hover = 1;
+					redrawLivingRoomDots();
+				});
+				dot.on('pointerout', () => {
+					dot.__hover = 0;
+					redrawLivingRoomDots();
+				});
+				dot.on('pointertap', () => {
+					setLivingRoomSlide(i, { instantTerminal: true, userInitiated: true });
+				});
+				tvSlideDotNav.addChild(dot);
+				livingRoomDotNodes.push(dot);
+			}
+			redrawLivingRoomDots();
+		};
+		const setLivingRoomSlide = (nextSlideIndex, options = {}) => {
+			const force = Boolean(options.force);
+			const instantTerminal = Boolean(options.instantTerminal);
+			const userInitiated = Boolean(options.userInitiated);
+			const activeProject = getActiveProject();
+			const slides = getSlidesForProject(activeProject);
+			if (!slides.length) return;
+			const normalized = ((nextSlideIndex % slides.length) + slides.length) % slides.length;
+			if (!force && normalized === livingRoomSlideIndex) {
+				if (instantTerminal) revealTerminalTextNow();
+				return;
+			}
+			if (!force && userInitiated) playScreenshotScrollSfx();
+			closeMediaPopout();
+			if (!force) {
+				tvMediaPrevSprite.texture = tvDesktopContentSprite.texture;
+				fitLivingRoomMediaSprite(tvMediaPrevSprite, tvMediaPrevSprite.texture);
+				tvMediaPrevSprite.visible = true;
+				tvMediaPrevSprite.alpha = 1;
+			}
+			livingRoomMediaExpanded = false;
+			updateLivingRoomMediaZoomHint();
+			stopLivingRoomVideoSource(livingRoomActiveVideoSource);
+			livingRoomSlideIndex = normalized;
+			const slide = getActiveSlide();
+			previewUsesDesktopFeed = Boolean(activeProject?.useDesktopFeed);
+			if (previewUsesDesktopFeed) {
+				refreshDesktopTvTexture();
+			}
+			const texture = previewUsesDesktopFeed
+				? tvDesktopRenderTexture
+				: PIXI.Texture.from(slide.src || PORTFOLIO_EMPTY_SLIDE.src);
+			const source = texture.baseTexture?.resource?.source;
+			livingRoomActiveVideoSource = (!previewUsesDesktopFeed && slide.type === PORTFOLIO_MEDIA_VIDEO && isVideoSource(source)) ? source : null;
+			playLivingRoomVideoSource(livingRoomActiveVideoSource);
+			fitLivingRoomMediaSprite(tvDesktopContentSprite, texture);
+			tvDesktopContentSprite.visible = true;
+			tvDesktopContentSprite.alpha = force ? 1 : 0;
+			livingRoomMediaTransition.active = !force;
+			livingRoomMediaTransition.progress = force ? 1 : 0;
+			if (force) {
+				tvMediaPrevSprite.visible = false;
+				tvMediaPrevSprite.alpha = 0;
+			}
+			rebuildLivingRoomTerminalPanel({ instant: instantTerminal });
+			redrawLivingRoomDots();
+		};
+		const setLivingRoomProjectForTape = (tape, options = {}) => {
+			const resetSlide = options.resetSlide !== false;
+			const force = Boolean(options.force);
+			const instantTerminal = Boolean(options.instantTerminal);
+			const nextProject = getProjectForTape(tape);
+			const projectChanged = nextProject.id !== livingRoomActiveProjectId;
+			if (nextProject.status === 'empty' && (projectChanged || resetSlide)) {
+				livingRoomState.emptyPreviewWord = pickBroPlaceholderWord();
+			}
+			livingRoomActiveProjectId = nextProject.id;
+			if (projectChanged || resetSlide) {
+				closeMediaPopout();
+				livingRoomSlideIndex = 0;
+				rebuildLivingRoomDots();
+			}
+			setLivingRoomSlide(livingRoomSlideIndex, {
+				force: force || projectChanged || resetSlide,
+				instantTerminal,
+			});
+		};
+		const stepLivingRoomMediaTransition = (dtSeconds) => {
+			if (!livingRoomMediaTransition.active) return;
+			livingRoomMediaTransition.progress += dtSeconds / Math.max(0.001, livingRoomMediaTransition.duration);
+			const t = Math.max(0, Math.min(1, livingRoomMediaTransition.progress));
+			const eased = 1 - Math.pow(1 - t, 3);
+			tvDesktopContentSprite.alpha = eased;
+			tvMediaPrevSprite.alpha = 1 - eased;
+			if (t >= 1) {
+				livingRoomMediaTransition.active = false;
+				tvDesktopContentSprite.alpha = 1;
+				tvMediaPrevSprite.alpha = 0;
+				tvMediaPrevSprite.visible = false;
+			}
 		};
 		const refreshPlacard = () => {
-			const hoveredTape = VHS_TAPE_LIBRARY[livingRoomState.hoverIndex] || null;
-			const selectedTape = getTapeById(livingRoomState.activeTapeId) || getTapeById('default-home');
-			const focusTape = hoveredTape || selectedTape;
-			if (!focusTape) return;
-			setPreviewForTape(focusTape);
-			const sourceKey = `${hoveredTape ? 'hover' : 'selected'}:${focusTape.id}:${livingRoomState.emptyPreviewWord}`;
-			setTerminalText(getTerminalTextForTape(focusTape), sourceKey);
+			const selectedTape = getSelectedTape();
+			if (!selectedTape) return;
+			setLivingRoomProjectForTape(selectedTape, { resetSlide: false });
 			updateCartridgeScrollUi();
 		};
 		const createTapeNode = (tape, index) => {
@@ -4091,6 +5852,7 @@ async function boot() {
 			const badge = new PIXI.Graphics();
 			const badgeSpec = new PIXI.Graphics();
 			const art = new PIXI.Sprite(PIXI.Texture.WHITE);
+			art.anchor.set(0.5);
 			const labelStrip = new PIXI.Graphics();
 			const title = new PIXI.Text('EMPTY', {
 				fontFamily: 'Minecraft, monospace',
@@ -4102,24 +5864,25 @@ async function boot() {
 			});
 			title.anchor.set(0.5, 0.5);
 			title.text = tape.label;
-			applyWipSpriteTexture(art, LIVING_ROOM_ASSETS.tapeLabelById[tape.id] || LIVING_ROOM_ASSETS.tapeSpritePath);
+			applyWipSpriteTexture(art, getTapeCoverForProject(getProjectForTape(tape)));
 			art.alpha = 0.6;
 			node.addChild(aura, shadow, body, notch, labelStrip, badge, art, badgeSpec, screws, shellHighlight, shellShadow, title);
 			node.eventMode = 'static';
 			node.cursor = 'pointer';
 			node.on('pointerover', () => {
 				if (livingRoomState.viewMode !== VIEW_TV_AREA || livingRoomState.inserting || livingRoomState.targetBlend < 1) return;
-				if (!tape.hasContent || tape.contentType === CONTENT_EMPTY) {
-					livingRoomState.emptyPreviewWord = pickBroPlaceholderWord();
+				if (livingRoomState.hoverIndex !== index) {
+					playCartridgeHoverSfx();
 				}
 				livingRoomState.hoverIndex = index;
-				refreshPlacard();
 			});
 			node.on('pointerout', () => {
 				if (livingRoomState.hoverIndex === index) livingRoomState.hoverIndex = -1;
-				refreshPlacard();
 			});
 			node.on('pointertap', () => {
+				if (livingRoomState.inserting || livingRoomState.blend < 0.98) return;
+				if (livingRoomState.viewMode !== VIEW_TV_AREA) return;
+				playCartridgeSelectSfx();
 				playTape(tape.id);
 			});
 			return {
@@ -4155,29 +5918,26 @@ async function boot() {
 			livingRoomState.insertedTapeId = tapeEntry.tape.id;
 			livingRoomState.inserting = null;
 			livingRoomState.staticBurst = 0.05 + Math.random() * 0.04;
-			if (!tapeEntry.tape.hasContent || tapeEntry.tape.contentType === CONTENT_EMPTY) {
-				livingRoomState.mode = STATE_LIVING_ROOM_IDLE;
-				livingRoomState.contentMode = CONTENT_EMPTY;
-				livingRoomState.emptyPreviewWord = pickBroPlaceholderWord();
-				livingRoomState.playingMix = 0;
-				refreshPlacard();
-				return;
-			}
+			const selectedProject = getProjectForTape(tapeEntry.tape);
+			const isEmptyProject = selectedProject?.status === 'empty';
 			livingRoomState.mode = STATE_LIVING_ROOM_PLAYING;
-			livingRoomState.contentMode = CONTENT_BRO_MEME;
-			livingRoomState.playingMix = 1;
+			livingRoomState.contentMode = isEmptyProject ? CONTENT_EMPTY : CONTENT_BRO_MEME;
+			livingRoomState.playingMix = isEmptyProject ? 0 : 1;
+			setLivingRoomProjectForTape(tapeEntry.tape, { resetSlide: true, force: true, instantTerminal: true });
 			setDesktopTwoLoadedTape(tapeEntry.tape);
 			layoutLivingRoom();
 			refreshPlacard();
 		};
 		const enterLivingRoom = ({ preserveContent = false } = {}) => {
+			closeMediaPopout();
 			livingRoomState.overlayMode = OVERLAY_MODE_LIBRARY;
 			livingRoomState.viewMode = VIEW_TV_AREA;
+			const defaultTapeId = VHS_TAPE_LIBRARY[0]?.id || null;
 			if (!preserveContent) {
 				livingRoomState.mode = STATE_LIVING_ROOM_PLAYING;
 				livingRoomState.contentMode = CONTENT_BRO_MEME;
-				livingRoomState.activeTapeId = 'default-home';
-				livingRoomState.insertedTapeId = 'default-home';
+				livingRoomState.activeTapeId = defaultTapeId;
+				livingRoomState.insertedTapeId = defaultTapeId;
 				livingRoomState.emptyPreviewWord = pickBroPlaceholderWord();
 				livingRoomState.playingMix = 1;
 			}
@@ -4194,6 +5954,7 @@ async function boot() {
 			cursorContainer.zIndex = 5000;
 			uiTopLayer.sortChildren();
 			layoutLivingRoom();
+			setLivingRoomProjectForTape(getSelectedTape(), { resetSlide: true, force: true });
 			refreshPlacard();
 		};
 		returnToTvAreaFromFullscreen = () => {
@@ -4201,6 +5962,7 @@ async function boot() {
 		};
 		isFullscreenTvPlaybackActive = () => livingRoomState.overlayMode === OVERLAY_MODE_TV && livingRoomState.viewMode === VIEW_FULLSCREEN && livingRoomState.fullscreenFromTv;
 		const exitLivingRoom = () => {
+			closeMediaPopout();
 			livingRoomState.hoverIndex = -1;
 			livingRoomState.inserting = null;
 			livingRoomState.overlayMode = OVERLAY_MODE_LIBRARY;
@@ -4223,8 +5985,7 @@ async function boot() {
 		tvBody.zIndex = 20;
 		tvBezelRimLight.zIndex = 21;
 		tvBezelRimShade.zIndex = 22;
-		tvInnerFrame.zIndex = 30;
-		livingRoomTvFrame.zIndex = 31;
+		livingRoomTvFrame.zIndex = 30;
 		tvScreenGroup.zIndex = 40;
 		tvGlassReflection.zIndex = 45;
 		tvSlotForeground.zIndex = 46;
@@ -4237,7 +5998,6 @@ async function boot() {
 		livingRoomTv.addChild(
 			tvBodyShadow,
 			tvBody,
-			tvInnerFrame,
 			livingRoomTvFrame,
 			tvScreenGroup,
 			tvGlassReflection,
@@ -4246,7 +6006,7 @@ async function boot() {
 		for (const tape of livingRoomTapes) {
 			cartridgeListContent.addChild(tape.node);
 		}
-		livingRoomLayer.addChild(roomBg, leftShelf, cartridgeListViewport, cartridgeScrollUi, livingRoomTv, tvDesktopTransitionLayer, livingRoomBackBtn);
+		livingRoomLayer.addChild(roomBg, livingRoomForeground, leftShelf, cartridgeListViewport, cartridgeScrollUi, livingRoomTv, tvDesktopTransitionLayer, livingRoomBackBtn);
 		app.stage.addChild(livingRoomLayer);
 		let livingRoomTvSlotX = 0;
 		let livingRoomTvSlotY = 0;
@@ -4270,14 +6030,22 @@ async function boot() {
 			const sw = app.renderer.width;
 			const sh = app.renderer.height;
 			const margin = Math.max(20, Math.round(sw * 0.028));
+			const navRowH = Math.max(34, Math.min(52, Math.round(sh * 0.06)));
+			const navRowY = margin;
+			const navRowGap = Math.max(10, Math.round(navRowH * 0.28));
+			const layoutTop = margin;
 			const colGap = Math.max(14, Math.round(sw * 0.02));
 			const rackW = Math.max(220, Math.min(Math.round(sw * 0.3), Math.round(sw * 0.32)));
 			const panelW = Math.max(320, sw - margin * 2 - colGap - rackW);
-			const panelH = Math.max(300, Math.min(Math.round(sh * 0.8), Math.round(sw * 0.62)));
+			const panelHCap = Math.min(Math.round(sh * 0.84), Math.round(sw * 0.72));
+			const panelH = Math.max(300, Math.min(panelHCap, Math.round(sh - margin * 2)));
 			const rackX = margin;
-			const rackY = Math.round((sh - panelH) * 0.5);
+			const rackY = layoutTop;
 			const panelX = rackX + rackW + colGap;
-			const panelY = Math.round((sh - panelH) * 0.5);
+			const panelY = layoutTop;
+			const activeAccent = getActiveAccentColor();
+			const shelfBorderColor = tintColor(activeAccent, 0.9);
+			const shelfLineColor = tintColor(activeAccent, 1.22);
 
 			livingRoomLayer.position.set(0, 0);
 			livingRoomLayer.hitArea = new PIXI.Rectangle(0, 0, sw, sh);
@@ -4296,12 +6064,21 @@ async function boot() {
 			livingRoomFloor.drawRect(0, sh * 0.7, sw, sh * 0.3);
 			livingRoomFloor.endFill();
 
+			livingRoomForeground.clear();
+			livingRoomForeground.beginFill(0x0d1624, 0.88);
+			livingRoomForeground.lineStyle(1.5, 0x6fb8e6, 0.52);
+			livingRoomForeground.drawRoundedRect(margin, navRowY, sw - margin * 2, navRowH, 8);
+			livingRoomForeground.endFill();
+			livingRoomForeground.beginFill(getActiveAccentColor(), 0.18);
+			livingRoomForeground.drawRoundedRect(margin + 10, navRowY + navRowH - 3, Math.max(24, sw - margin * 2 - 20), 2, 1);
+			livingRoomForeground.endFill();
+
 			leftShelf.clear();
 			leftShelf.beginFill(0x0f1720, 0.88);
-			leftShelf.lineStyle(2, 0x39556f, 0.85);
+			leftShelf.lineStyle(2, shelfBorderColor, 0.85);
 			leftShelf.drawRoundedRect(rackX, rackY, rackW, panelH, 10);
 			leftShelf.endFill();
-			leftShelf.lineStyle(1, 0x7ab2cf, 0.16);
+			leftShelf.lineStyle(1, shelfLineColor, 0.16);
 			for (let y = rackY + 22; y < rackY + panelH - 20; y += 14) {
 				leftShelf.moveTo(rackX + 10, y);
 				leftShelf.lineTo(rackX + rackW - 10, y);
@@ -4344,11 +6121,6 @@ async function boot() {
 			tvBody.lineStyle(2, getActiveAccentColor(), 0.65);
 			tvBody.drawRoundedRect(0, 0, panelW, panelH, 12);
 			tvBody.endFill();
-			tvInnerFrame.clear();
-			tvInnerFrame.beginFill(0x0d1e2f, 0.84);
-			tvInnerFrame.lineStyle(1, 0x9fdefc, 0.38);
-			tvInnerFrame.drawRoundedRect(10, 10, panelW - 20, panelH - 20, 10);
-			tvInnerFrame.endFill();
 			livingRoomTvFrame.clear();
 
 			const innerPad = Math.max(14, Math.round(panelW * 0.03));
@@ -4357,7 +6129,7 @@ async function boot() {
 			const contentW = panelW - innerPad * 2;
 			const contentH = panelH - innerPad * 2;
 			const paneGap = Math.max(10, Math.round(contentW * 0.02));
-			const previewW = Math.round(contentW * 0.58);
+			const previewW = Math.round(contentW * 0.56);
 			const terminalW = contentW - previewW - paneGap;
 			const previewX = contentX;
 			const terminalX = previewX + previewW + paneGap;
@@ -4376,7 +6148,13 @@ async function boot() {
 			tvScreenGroup.position.set(0, 0);
 			tvScreenMask.clear();
 			tvScreenMask.beginFill(0xffffff, 1);
-			tvScreenMask.drawRoundedRect(contentX, contentY, contentW, contentH, 10);
+			const screenMaskBleed = 40;
+			tvScreenMask.drawRect(
+				contentX - screenMaskBleed,
+				contentY - screenMaskBleed,
+				contentW + screenMaskBleed * 2,
+				contentH + screenMaskBleed * 2,
+			);
 			tvScreenMask.endFill();
 			tvScreenHitArea.clear();
 			tvScreenHitArea.eventMode = 'none';
@@ -4384,39 +6162,62 @@ async function boot() {
 
 			tvContentContainer.position.set(0, 0);
 			tvScreenBaseBg.clear();
-			tvScreenBaseBg.beginFill(0x07101a, 1);
-			tvScreenBaseBg.drawRoundedRect(previewX, contentY, previewW, contentH, 8);
-			tvScreenBaseBg.endFill();
 
-			const desktopSrcW = Math.max(1, tvDesktopRenderTexture.width);
-			const desktopSrcH = Math.max(1, tvDesktopRenderTexture.height);
-			const previewTargetW = previewW * 0.94;
-			const previewTargetH = contentH * 0.94;
-			const desktopScale = Math.min(previewTargetW / desktopSrcW, previewTargetH / desktopSrcH);
-			const desktopFitW = desktopSrcW * desktopScale;
-			const desktopFitH = desktopSrcH * desktopScale;
-			tvDesktopContentSprite.position.set(previewX + (previewW - desktopFitW) * 0.5, contentY + (contentH - desktopFitH) * 0.5);
-			tvDesktopContentSprite.width = desktopFitW;
-			tvDesktopContentSprite.height = desktopFitH;
+			const mediaTopPad = Math.max(1, Math.round(contentH * 0.005));
+			const mediaBottomPad = Math.max(18, Math.round(contentH * 0.05));
+			const mediaSidePad = Math.max(6, Math.round(previewW * 0.02));
+			livingRoomMediaLayout.x = previewX + mediaSidePad;
+			livingRoomMediaLayout.y = contentY + mediaTopPad;
+			livingRoomMediaLayout.w = Math.max(1, previewW - mediaSidePad * 2);
+			livingRoomMediaLayout.h = Math.max(1, contentH - mediaTopPad - mediaBottomPad);
+			livingRoomMediaLayout.dotY = livingRoomMediaLayout.y + livingRoomMediaLayout.h + 14;
+			tvScreenBaseBg.clear();
+			tvScreenBaseBg.beginFill(0x040912, 0.2);
+			tvScreenBaseBg.drawRoundedRect(
+				livingRoomMediaLayout.x - 2,
+				livingRoomMediaLayout.y - 2,
+				livingRoomMediaLayout.w + 4,
+				livingRoomMediaLayout.h + 4,
+				9,
+			);
+			tvScreenBaseBg.endFill();
+			fitLivingRoomMediaSprite(tvMediaPrevSprite, tvMediaPrevSprite.texture || PIXI.Texture.WHITE);
+			fitLivingRoomMediaSprite(tvDesktopContentSprite, tvDesktopContentSprite.texture || PIXI.Texture.WHITE);
+			tvSlideDotNav.position.set(previewX + previewW * 0.5, livingRoomMediaLayout.dotY);
+			tvMediaZoomHint.position.set(previewX + previewW * 0.5, livingRoomMediaLayout.dotY + 10);
+			updateLivingRoomMediaZoomHint();
+			tvMediaPrevSprite.visible = livingRoomMediaTransition.active;
+			tvMediaPrevSprite.alpha = livingRoomMediaTransition.active ? tvMediaPrevSprite.alpha : 0;
 
 			tvBroBg.clear();
 			tvBroBg.beginFill(0x060e18, 0.96);
 			tvBroBg.lineStyle(1, getActiveAccentColor(), 0.48);
 			tvBroBg.drawRoundedRect(terminalX, contentY, terminalW, contentH, 8);
 			tvBroBg.endFill();
+			tvTerminalMask.clear();
+			tvTerminalMask.beginFill(0xffffff, 1);
+			tvTerminalMask.drawRoundedRect(terminalX + 2, contentY + 2, Math.max(8, terminalW - 4), Math.max(8, contentH - 4), 7);
+			tvTerminalMask.endFill();
 			tvBroTitle.anchor.set(0, 0);
 			tvBroTitle.style.fontSize = Math.max(11, Math.round(Math.min(16, terminalW * 0.07)));
 			tvBroTitle.style.fill = 0x9fdfff;
 			tvBroTitle.text = 'TERMINAL';
 			tvBroTitle.position.set(terminalX + 12, contentY + 10);
-			tvBroSub.visible = false;
-			tvTerminalFontSize = Math.max(10, Math.round(Math.min(13, terminalW * 0.058)));
-			tvTerminalLineHeight = Math.max(13, Math.round(tvTerminalFontSize * 1.24));
+			tvBroSub.visible = true;
+			tvTerminalFontSize = Math.max(11, Math.round(Math.min(15, terminalW * 0.07)));
+			tvTerminalLineHeight = Math.max(18, Math.round(tvTerminalFontSize * 1.55));
 			tvTerminalStartX = terminalX + 12;
-			tvTerminalStartY = contentY + 34;
+			tvTerminalStartY = contentY + 42;
+			livingRoomTerminalLayout.x = terminalX + 12;
+			livingRoomTerminalLayout.y = contentY + 40;
+			livingRoomTerminalLayout.w = Math.max(70, terminalW - 24);
+			livingRoomTerminalLayout.h = Math.max(40, contentH - 54);
 			tvBroTitleBaseY = tvBroTitle.y;
 			tvBroSubBaseY = tvBroSub.y;
-			renderTerminalTypedText(true);
+			tvTerminalLines.visible = true;
+			tvTerminalCursor.visible = true;
+			rebuildLivingRoomTerminalPanel();
+			redrawLivingRoomDots();
 
 			tvEmptyBg.clear();
 			tvEmptyScreen.alpha = 0;
@@ -4445,13 +6246,23 @@ async function boot() {
 			}
 
 			tvGlassReflection.clear();
+			const terminalSlideBandX = terminalX + 8;
+			const terminalSlideBandY = tvTerminalStartY - 9;
+			const terminalSlideBandW = Math.max(24, terminalW - 16);
+			const terminalSlideBandH = Math.max(30, Math.round(tvTerminalLineHeight * 2.25));
 			tvGlassReflection.beginFill(0xb0e6ff, 0.12);
-			tvGlassReflection.drawRoundedRect(contentX + 10, contentY + 8, contentW - 20, Math.max(16, contentH * 0.08), 6);
+			tvGlassReflection.drawRoundedRect(
+				terminalSlideBandX,
+				terminalSlideBandY,
+				terminalSlideBandW,
+				terminalSlideBandH,
+				6,
+			);
 			tvGlassReflection.endFill();
 
 			tvSlotForeground.clear();
 			tvSlotForeground.beginFill(0x8bd9ff, 0.14);
-			tvSlotForeground.drawRoundedRect(contentX + 10, contentY + 8, contentW - 20, 3, 2);
+			tvSlotForeground.drawRoundedRect(terminalSlideBandX, terminalSlideBandY, terminalSlideBandW, 3, 2);
 			tvSlotForeground.endFill();
 
 			tvEjectBtn.visible = false;
@@ -4464,7 +6275,7 @@ async function boot() {
 			livingRoomBackBg.lineStyle(2, 0x7ed1ff, 0.82);
 			livingRoomBackBg.drawRoundedRect(0, 0, 88, 30, 8);
 			livingRoomBackBg.endFill();
-			livingRoomBackBtn.position.set(margin, margin);
+			livingRoomBackBtn.position.set(margin + 2, Math.max(6, rackY - 36));
 			livingRoomBackLabel.position.set(44, 15);
 
 			livingRoomTapeW = Math.max(160, rackW * 0.8);
@@ -4507,7 +6318,7 @@ async function boot() {
 		};
 		layoutLivingRoom();
 		openPortfolioLibraryNow = () => {
-			if (desktopTwoActive) return;
+			if (desktopTwoActive || livingRoomActive) return;
 			enterLivingRoom();
 		};
 		closePortfolioLibraryNow = () => {
@@ -4554,6 +6365,7 @@ async function boot() {
 		};
 		closeVineLabNow = () => {
 			if ((!vineLabActive && !vineLabTransition.active) || vineLabTransition.active) return;
+			playExitToMenuSfx();
 			vineLabTransition.active = true;
 			vineLabTransition.phase = 0;
 			vineLabTransition.duration = 0.3;
@@ -4577,6 +6389,7 @@ async function boot() {
 			if (livingRoomState.blend < 0.95) return;
 			refreshPlacard();
 		});
+		updateLivingRoomMediaZoomHint();
 		tvEjectBtn.on('pointertap', () => {});
 		tvEjectBtn.on('pointerover', () => {});
 		tvEjectBtn.on('pointerout', () => {});
@@ -4639,8 +6452,21 @@ async function boot() {
 		window.addEventListener('pointercancel', endCartridgeScrollDrag);
 		app.view.addEventListener('wheel', (event) => {
 			if (!livingRoomActive || livingRoomState.viewMode !== VIEW_TV_AREA) return;
+			if (mediaPopoutState.progress > 0.02 || mediaPopoutState.target > 0) {
+				event.preventDefault();
+				return;
+			}
 			const point = toRendererPoint(event);
 			if (!point) return;
+			const insideMedia = point.x >= livingRoomTvScreenRect.x
+				&& point.x <= (livingRoomTvScreenRect.x + livingRoomTvScreenRect.w)
+				&& point.y >= livingRoomTvScreenRect.y
+				&& point.y <= (livingRoomTvScreenRect.y + livingRoomTvScreenRect.h);
+			if (insideMedia && livingRoomDotNodes.length > 1) {
+				event.preventDefault();
+				setLivingRoomSlide(livingRoomSlideIndex + (event.deltaY > 0 ? 1 : -1), { instantTerminal: true, userInitiated: true });
+				return;
+			}
 			const insideViewport = point.x >= cartridgeViewportRect.x
 				&& point.x <= (cartridgeViewportRect.x + cartridgeViewportRect.w)
 				&& point.y >= cartridgeViewportRect.y
@@ -4650,6 +6476,57 @@ async function boot() {
 			cartridgeScrollState.scrollY += event.deltaY;
 			updateCartridgeScrollUi();
 		}, { passive: false });
+		app.view.addEventListener('pointerdown', (event) => {
+			if (!livingRoomActive || livingRoomState.viewMode !== VIEW_TV_AREA) return;
+			const point = toRendererPoint(event);
+			if (!point) return;
+			if (mediaPopoutState.progress > 0.02 || mediaPopoutState.target > 0) {
+				const halfW = mediaPopoutState.cardW * 0.5;
+				const halfH = mediaPopoutState.cardH * 0.5;
+				const insideCard = point.x >= (mediaPopoutState.cardX - halfW)
+					&& point.x <= (mediaPopoutState.cardX + halfW)
+					&& point.y >= (mediaPopoutState.cardY - halfH)
+					&& point.y <= (mediaPopoutState.cardY + halfH);
+				if (!insideCard) {
+					event.preventDefault();
+					closeMediaPopout({ playReturnSfx: true });
+				}
+				return;
+			}
+			if (getActiveProject()?.useDesktopFeed) return;
+			const mediaGlobalX = livingRoomTv.x + livingRoomMediaLayout.x;
+			const mediaGlobalY = livingRoomTv.y + livingRoomMediaLayout.y;
+			const insideMedia = point.x >= mediaGlobalX
+				&& point.x <= (mediaGlobalX + livingRoomMediaLayout.w)
+				&& point.y >= mediaGlobalY
+				&& point.y <= (mediaGlobalY + livingRoomMediaLayout.h);
+			if (!insideMedia) return;
+			event.preventDefault();
+			openMediaPopout();
+		}, { passive: false });
+		app.view.addEventListener('pointermove', (event) => {
+			if (mediaPopoutState.target <= 0 && mediaPopoutState.progress <= 0.02) return;
+			mediaPopoutState.targetTiltX = 0;
+			mediaPopoutState.targetTiltY = 0;
+		}, { passive: true });
+		window.addEventListener('keydown', (event) => {
+			if (!livingRoomActive || livingRoomState.viewMode !== VIEW_TV_AREA) return;
+			if (event.key === 'Escape' && (mediaPopoutState.progress > 0.02 || mediaPopoutState.target > 0)) {
+				event.preventDefault();
+				closeMediaPopout({ playReturnSfx: true });
+				return;
+			}
+			if (mediaPopoutState.progress > 0.02 || mediaPopoutState.target > 0) return;
+			if (livingRoomDotNodes.length <= 1) return;
+			if (event.key === 'ArrowRight') {
+				event.preventDefault();
+				setLivingRoomSlide(livingRoomSlideIndex + 1, { instantTerminal: true, userInitiated: true });
+			}
+			if (event.key === 'ArrowLeft') {
+				event.preventDefault();
+				setLivingRoomSlide(livingRoomSlideIndex - 1, { instantTerminal: true, userInitiated: true });
+			}
+		});
 		const updateLivingRoomScene = (dtSeconds) => {
 			const step = dtSeconds / LIVING_ROOM_TRANSITION_SECONDS;
 			if (livingRoomState.targetBlend > livingRoomState.blend) {
@@ -4666,7 +6543,9 @@ async function boot() {
 				livingRoomState.staticBurst = 0;
 				livingRoomState.viewMode = VIEW_FULLSCREEN;
 				scene.visible = true;
-				const showTvFullscreen = livingRoomState.overlayMode === OVERLAY_MODE_TV && livingRoomState.fullscreenFromTv;
+				const showTvFullscreen = livingRoomState.overlayMode === OVERLAY_MODE_TV
+					&& livingRoomState.fullscreenFromTv
+					&& !getActiveProject()?.useDesktopFeed;
 				fullscreenTvContentLayer.visible = showTvFullscreen;
 				fullscreenTvContentLayer.eventMode = showTvFullscreen ? 'passive' : 'none';
 				livingRoomActive = false;
@@ -4684,13 +6563,15 @@ async function boot() {
 				fullscreenTvContentLayer.visible = false;
 			} else if (livingRoomState.viewMode === VIEW_FULLSCREEN && blend < 0.005) {
 				scene.visible = true;
-				fullscreenTvContentLayer.visible = livingRoomState.overlayMode === OVERLAY_MODE_TV && livingRoomState.fullscreenFromTv;
+				fullscreenTvContentLayer.visible = livingRoomState.overlayMode === OVERLAY_MODE_TV
+					&& livingRoomState.fullscreenFromTv
+					&& !getActiveProject()?.useDesktopFeed;
 			} else {
 				scene.visible = true;
 				fullscreenTvContentLayer.visible = false;
 			}
 			livingRoomActive = blend > 0.02;
-			const fullscreenUiActive = livingRoomActive && isFullscreenTvPlaybackActive() && blend < 0.02;
+			const fullscreenUiActive = livingRoomActive && isFullscreenTvPlaybackActive() && blend < 0.02 && !getActiveProject()?.useDesktopFeed;
 			fullscreenTvContentLayer.eventMode = fullscreenUiActive ? 'passive' : 'none';
 			fullscreenExitBtn.visible = fullscreenUiActive;
 			livingRoomLayer.visible = true;
@@ -4729,29 +6610,46 @@ async function boot() {
 			tvDesktopContentSprite.alpha = 1;
 			tvBroScreen.alpha = 1;
 			tvEmptyScreen.alpha = 0;
+			tvSlideDotNav.visible = livingRoomDotNodes.length > 1;
+			tvMediaZoomHint.alpha = (mediaPopoutState.progress > 0.02 || mediaPopoutState.target > 0) ? 0 : 0.82;
+			stepLivingRoomMediaTransition(dtSeconds);
+			stepLivingRoomBezelAnimation(dtSeconds);
+			stepMediaPopout(dtSeconds);
 			const screensaverTarget = livingRoomState.contentMode === CONTENT_SCREENSAVER ? 1 : 0;
 			tvScreensaverLayer.alpha += (screensaverTarget - tvScreensaverLayer.alpha) * Math.min(1, dtSeconds * 6);
 
-			if (!terminalTypingHold) {
-				terminalTypeTimer += dtSeconds * TERMINAL_TYPE_RATE;
-			}
-			if (!terminalTypingHold && terminalTypedIndex < terminalFullText.length) {
-				const charsToAdd = Math.floor(terminalTypeTimer);
-				if (charsToAdd > 0) {
-					terminalTypeTimer -= charsToAdd;
-					terminalTypedIndex = Math.min(terminalFullText.length, terminalTypedIndex + charsToAdd);
-					renderTerminalTypedText();
+			if (tvTerminalLines.visible) {
+				if (!terminalTypingHold) {
+					terminalTypeTimer += dtSeconds * TERMINAL_TYPE_RATE;
+				}
+				if (!terminalTypingHold && terminalTypedIndex < terminalFullText.length) {
+					const charsToAdd = Math.floor(terminalTypeTimer);
+					if (charsToAdd > 0) {
+						terminalTypeTimer -= charsToAdd;
+						terminalTypedIndex = Math.min(terminalFullText.length, terminalTypedIndex + charsToAdd);
+						renderTerminalTypedText();
+					}
 				}
 			}
+			stepTerminalOverviewTyping(dtSeconds);
 			terminalCursorBlinkTimer = (terminalCursorBlinkTimer + dtSeconds) % 1;
-			tvTerminalCursor.visible = terminalCursorBlinkTimer < 0.5;
+			tvTerminalCursor.visible = tvTerminalLines.visible && terminalCursorBlinkTimer < 0.5;
 
 			const pulseTime = (performance.now ? performance.now() : Date.now()) * 0.003;
 			tvBroTitle.y = tvBroTitleBaseY;
-			const shimmerY = holoPanelLocalRect.y + ((pulseTime * 42) % (holoPanelLocalRect.h + 26)) - 12;
+			stepTerminalDesignWave(pulseTime);
+			const terminalBandTop = Math.max(0, livingRoomTerminalLayout.y - 32);
+			const terminalBandHeight = Math.max(24, livingRoomTerminalLayout.h + 40);
+			const shimmerY = terminalBandTop + ((pulseTime * 42) % (terminalBandHeight + 26)) - 12;
 			tvSlotForeground.clear();
 			tvSlotForeground.beginFill(getActiveAccentColor(), 0.12);
-			tvSlotForeground.drawRoundedRect(holoPanelLocalRect.x + 10, shimmerY, Math.max(24, holoPanelLocalRect.w - 20), 3, 2);
+			tvSlotForeground.drawRoundedRect(
+				Math.max(0, livingRoomTerminalLayout.x - 2),
+				shimmerY,
+				Math.max(24, livingRoomTerminalLayout.w + 4),
+				3,
+				2,
+			);
 			tvSlotForeground.endFill();
 			if (tvScreensaverLayer.alpha > 0.001) {
 				const wave = 0.5 + 0.5 * Math.sin(pulseTime * 0.7);

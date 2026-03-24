@@ -1,3 +1,5 @@
+import { initSfx, loadSfx, playSfx } from '../sfx.js';
+
 const SUITS = [
 	{ id: 'red', label: '♥', color: 0xff5667 },
 	{ id: 'green', label: '♣', color: 0x37ff7a },
@@ -48,6 +50,30 @@ function createDeck() {
 		}
 	}
 	return shuffle(deck);
+}
+
+const WALKLATRO_TAB_CLOSE_SFX_ID = 'walklatroTabClose';
+const WALKLATRO_TAB_CLOSE_SFX_URL = './assets/audio/sounds/Exit_Tab.wav';
+let walklatroTabCloseSfxLoadPromise = null;
+
+function ensureWalklatroTabCloseSfxLoaded() {
+	if (!walklatroTabCloseSfxLoadPromise) {
+		walklatroTabCloseSfxLoadPromise = initSfx()
+			.then(() => loadSfx({ [WALKLATRO_TAB_CLOSE_SFX_ID]: WALKLATRO_TAB_CLOSE_SFX_URL }))
+			.catch(() => {});
+	}
+	return walklatroTabCloseSfxLoadPromise;
+}
+
+function playWalklatroTabCloseSfx() {
+	ensureWalklatroTabCloseSfxLoaded().then(() => {
+		try {
+			playSfx(WALKLATRO_TAB_CLOSE_SFX_ID, {
+				volume: 0.36 + Math.random() * 0.14,
+				rate: 0.9 + Math.random() * 0.18,
+			});
+		} catch (_) {}
+	});
 }
 
 function evaluateHand(cards) {
@@ -212,6 +238,7 @@ function createNoiseTexture() {
 }
 
 export function createWalklatroOverlay(app, world, options = {}) {
+	ensureWalklatroTabCloseSfxLoaded();
 	const screenScale = options.screenScale ?? 1;
 	const colors = {
 		bg: 0x07090c,
@@ -917,7 +944,10 @@ export function createWalklatroOverlay(app, world, options = {}) {
 	skipBtn.on('pointertap', handleNextRound);
 	rerollBtn.on('pointertap', handleReroll);
 	restartBtn.on('pointertap', resetRun);
-	closeBtn.on('pointertap', () => close());
+	closeBtn.on('pointertap', () => {
+		playWalklatroTabCloseSfx();
+		close();
+	});
 
 	const dragState = { active: false, offsetX: 0, offsetY: 0 };
 	const bringWindowToFront = () => {

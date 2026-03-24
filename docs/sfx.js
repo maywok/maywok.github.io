@@ -1,5 +1,6 @@
 let audioCtx = null;
 const bufferCache = new Map();
+const bufferUrlCache = new Map();
 const loadPromises = new Map();
 const activeLoops = new Map();
 let masterGain = null;
@@ -56,17 +57,29 @@ export async function loadSfx(definitions = {}) {
 		: Object.entries(definitions);
 	const tasks = entries.map(async ([id, url]) => {
 		if (!id || !url) return;
-		if (bufferCache.has(id)) return;
+		const nextUrl = String(url);
+		const cachedUrl = bufferUrlCache.get(id);
+		if (bufferCache.has(id) && cachedUrl === nextUrl) return;
+		if (cachedUrl !== nextUrl) {
+			bufferCache.delete(id);
+			loadPromises.delete(id);
+			bufferUrlCache.delete(id);
+		}
 		if (!loadPromises.has(id)) {
 			loadPromises.set(id, (async () => {
-				const res = await fetch(url);
-				if (!res.ok) {
-					throw new Error(`Failed to load SFX '${id}' from ${url}`);
+				try {
+					const res = await fetch(nextUrl, { cache: 'no-store' });
+					if (!res.ok) {
+						throw new Error(`Failed to load SFX '${id}' from ${nextUrl}`);
+					}
+					const arr = await res.arrayBuffer();
+					const decoded = await ctx.decodeAudioData(arr.slice(0));
+					bufferCache.set(id, decoded);
+					bufferUrlCache.set(id, nextUrl);
+					return decoded;
+				} finally {
+					loadPromises.delete(id);
 				}
-				const arr = await res.arrayBuffer();
-				const decoded = await ctx.decodeAudioData(arr.slice(0));
-				bufferCache.set(id, decoded);
-				return decoded;
 			})());
 		}
 		await loadPromises.get(id);
