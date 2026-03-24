@@ -4,7 +4,8 @@ import { createBlogIcon } from './blogIcon.js';
 import { createLinkedinIcon } from './linkedinIcon.js';
 import { createReflexIcon } from './reflex/reflexIcon.js';
 import { createWalklatroIcon } from './walklatro/walklatroIcon.js';
-import { createCrimsonFlowBackground } from './background.js?v=2';
+import { createCrimsonFlowBackground } from './background.js?v=7';
+import { BACKGROUND_QUALITY_MODE, createBackgroundQualityManager } from './backgroundQuality.js?v=4';
 import {
 	createCRTFisheyeFilter,
 	updateCRTFisheyeFilter,
@@ -70,9 +71,6 @@ async function boot() {
 			throw new Error('Missing #game-root element');
 		}
 
-		const desktopTwoOverlay = document.getElementById('desktop-two-overlay');
-		const desktopTwoRoot = document.getElementById('desktop-two-root');
-		const portfolioUi = document.getElementById('portfolio-ui');
 		const BRO_PLACEHOLDER_WORDS = [
 			'brochacho',
 			'broteinshake',
@@ -88,20 +86,6 @@ async function boot() {
 			if (!BRO_PLACEHOLDER_WORDS.length) return 'brochacho';
 			return BRO_PLACEHOLDER_WORDS[Math.floor(Math.random() * BRO_PLACEHOLDER_WORDS.length)];
 		};
-		const setPortfolioUiActive = (active) => {
-			if (!portfolioUi) return;
-			portfolioUi.setAttribute('aria-hidden', active ? 'false' : 'true');
-		};
-		setPortfolioUiActive(false);
-		let tryCloseDesktopTwoPortfolioWindow = () => false;
-		let desktopTwoApp = null;
-		let desktopTwoActive = false;
-		let onDesktopTwoActivated = null;
-		let onDesktopTwoExitRequested = null;
-		let pendingDesktopTwoTape = null;
-		let setDesktopTwoLoadedTape = (tape) => {
-			pendingDesktopTwoTape = tape ? { ...tape } : null;
-		};
 		let livingRoomActive = false;
 		let closeLivingRoomScene = () => {};
 		let openLivingRoomScene = () => {};
@@ -115,1537 +99,13 @@ async function boot() {
 		let returnToTvAreaFromFullscreen = () => {};
 		let isFullscreenTvPlaybackActive = () => false;
 		let isScreenshotPopoutOpen = () => false;
-		const ensureDesktopTwoBackground = () => {
-			if (!desktopTwoRoot || desktopTwoApp) return;
-			const DESKTOP_TWO_BG = 0x090b10;
-			desktopTwoApp = new PIXI.Application({
-				resizeTo: desktopTwoRoot,
-				background: DESKTOP_TWO_BG,
-				backgroundColor: DESKTOP_TWO_BG,
-				backgroundAlpha: 1,
-				antialias: true,
-			});
-			desktopTwoApp.start?.();
-			desktopTwoApp.ticker?.start?.();
-			desktopTwoApp.renderer.background.color = DESKTOP_TWO_BG;
-			desktopTwoApp.stage.roundPixels = true;
-			if (PIXI.settings) {
-				PIXI.settings.SCALE_MODE = PIXI.SCALE_MODES.NEAREST;
-				PIXI.settings.ROUND_PIXELS = true;
-			}
-			desktopTwoRoot.appendChild(desktopTwoApp.view);
-			desktopTwoRoot.style.backgroundColor = '#090b10';
-			desktopTwoApp.view.style.width = '100%';
-			desktopTwoApp.view.style.height = '100%';
-			desktopTwoApp.view.style.display = 'block';
-			desktopTwoApp.view.style.backgroundColor = '#090b10';
-			const desktopTwoBaseFill = new PIXI.Sprite(PIXI.Texture.WHITE);
-			desktopTwoBaseFill.tint = DESKTOP_TWO_BG;
-			desktopTwoBaseFill.position.set(0, 0);
-			desktopTwoBaseFill.width = desktopTwoApp.renderer.width;
-			desktopTwoBaseFill.height = desktopTwoApp.renderer.height;
-			desktopTwoApp.stage.addChild(desktopTwoBaseFill);
-			const desktopTwoScene = new PIXI.Container();
-			desktopTwoScene.sortableChildren = true;
-			desktopTwoApp.stage.addChild(desktopTwoScene);
-			const {
-				container: desktopTwoFlow,
-				update: updateDesktopTwoFlow,
-				resize: resizeDesktopTwoFlow,
-				setAmbience: setDesktopTwoFlowAmbience,
-			} = createCrimsonFlowBackground(desktopTwoApp, {
-				lineColor: 0x2a1414,
-				glowColor: 0x8f1b31,
-				bgColor: DESKTOP_TWO_BG,
-				glowAlpha: 0.55,
-				parallax: 0.06,
-				pixelSize: 8,
-				density: 4.6,
-				speed: 0.75,
-			});
-			const { filter: desktopTwoFisheyeFilter, uniforms: desktopTwoFisheyeUniforms } = createCRTFisheyeFilter(desktopTwoApp, {
-				intensity: 0.08,
-				brightness: 0.06,
-				scanStrength: 0.85,
-				curve: 0.008,
-				vignette: 0.0,
-				edgeColor: DESKTOP_TWO_BG,
-			});
-			const { filter: desktopTwoScanlinesFilter, uniforms: desktopTwoScanlinesUniforms } = createCRTScanlinesFilter(desktopTwoApp, {
-				strength: 0.18,
-				speed: 0.08,
-				noise: 0.0,
-				mask: 0.06,
-			});
-			desktopTwoFisheyeFilter.padding = 16;
-			desktopTwoScene.filters = [desktopTwoFisheyeFilter, desktopTwoScanlinesFilter];
-			desktopTwoScene.filterArea = new PIXI.Rectangle(0, 0, desktopTwoApp.renderer.width, desktopTwoApp.renderer.height);
-			desktopTwoScene.addChild(desktopTwoFlow);
-
-			const mixDesktopColor = (a, b, t) => {
-				const tt = Math.max(0, Math.min(1, t));
-				const ar = (a >> 16) & 255;
-				const ag = (a >> 8) & 255;
-				const ab = a & 255;
-				const br = (b >> 16) & 255;
-				const bg = (b >> 8) & 255;
-				const bb = b & 255;
-				const rr = Math.round(ar + (br - ar) * tt);
-				const rg = Math.round(ag + (bg - ag) * tt);
-				const rb = Math.round(ab + (bb - ab) * tt);
-				return (rr << 16) | (rg << 8) | rb;
-			};
-			const stepDesktopColor = (from, to, t) => {
-				const tt = Math.max(0, Math.min(1, t));
-				const fr = (from >> 16) & 255;
-				const fg = (from >> 8) & 255;
-				const fb = from & 255;
-				const tr = (to >> 16) & 255;
-				const tg = (to >> 8) & 255;
-				const tb = to & 255;
-				const nr = Math.round(fr + (tr - fr) * tt);
-				const ng = Math.round(fg + (tg - fg) * tt);
-				const nb = Math.round(fb + (tb - fb) * tt);
-				return (nr << 16) | (ng << 8) | nb;
-			};
-			const makeDesktopTwoNoiseTexture = () => {
-				const canvas = document.createElement('canvas');
-				canvas.width = 128;
-				canvas.height = 128;
-				const ctx = canvas.getContext('2d');
-				if (!ctx) return PIXI.Texture.WHITE;
-				ctx.clearRect(0, 0, canvas.width, canvas.height);
-				for (let i = 0; i < 650; i++) {
-					const x = Math.floor(Math.random() * canvas.width);
-					const y = Math.floor(Math.random() * canvas.height);
-					const a = 0.025 + Math.random() * 0.045;
-					ctx.fillStyle = `rgba(52, 39, 24, ${a.toFixed(3)})`;
-					ctx.fillRect(x, y, 1, 1);
-				}
-				return PIXI.Texture.from(canvas);
-			};
-			const desktopTwoFlowBase = {
-				lineColor: 0x2a1414,
-				glowColor: 0x8f1b31,
-				mistColorB: 0x6a5643,
-				mistColorC: 0x8a6f51,
-				speed: 0.75,
-				density: 4.6,
-				glowStrength: 0.35,
-			};
-			const portfolioPanel = new PIXI.Container();
-			const portfolioShadow = new PIXI.Graphics();
-			const portfolioOuterGlowMagenta = new PIXI.Graphics();
-			const portfolioOuterGlowTeal = new PIXI.Graphics();
-			const portfolioBody = new PIXI.Graphics();
-			const portfolioInnerBorder = new PIXI.Graphics();
-			const portfolioAccent = new PIXI.Graphics();
-			const portfolioCornerPixels = new PIXI.Graphics();
-			const portfolioRigging = new PIXI.Graphics();
-			const portfolioPlatform = new PIXI.Graphics();
-			const portfolioMask = new PIXI.Graphics();
-			const portfolioNoise = new PIXI.TilingSprite(makeDesktopTwoNoiseTexture(), 64, 64);
-			portfolioNoise.alpha = 0;
-			portfolioNoise.blendMode = PIXI.BLEND_MODES.MULTIPLY;
-			portfolioNoise.mask = portfolioMask;
-			const portfolioShelfLayer = new PIXI.Graphics();
-			const portfolioFocusRails = new PIXI.Graphics();
-			const portfolioStatusPanel = new PIXI.Graphics();
-			const portfolioTitle = new PIXI.Text('PROJECT CARTRIDGES', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 16,
-				fill: 0x5a3f2b,
-				align: 'center',
-				letterSpacing: 1,
-			});
-			portfolioTitle.anchor.set(0.5, 0);
-			const portfolioSub = new PIXI.Text('Select a cartridge to load', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 10,
-				fill: 0x7e6549,
-				align: 'center',
-				letterSpacing: 1,
-			});
-			portfolioSub.anchor.set(0.5, 0);
-			portfolioSub.alpha = 0.92;
-			const portfolioStatusText = new PIXI.Text('EMPTY BAY : 6 SLOTS', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 10,
-				fill: 0xd9e6f5,
-				align: 'center',
-				letterSpacing: 1,
-			});
-			portfolioStatusText.anchor.set(0.5, 0.5);
-
-			const portfolioWindow = new PIXI.Container();
-			const portfolioWindowGlow = new PIXI.Graphics();
-			const portfolioWindowFrame = new PIXI.Graphics();
-			const portfolioWindowInner = new PIXI.Graphics();
-			const portfolioWindowTitlebar = new PIXI.Graphics();
-			const portfolioWindowBody = new PIXI.Graphics();
-			const portfolioWindowGallery = new PIXI.Graphics();
-			const portfolioWindowGalleryMask = new PIXI.Graphics();
-			const portfolioWindowInfo = new PIXI.Graphics();
-			const portfolioWindowScanlines = new PIXI.Graphics();
-			const portfolioWindowSweep = new PIXI.Graphics();
-			const portfolioWindowClose = new PIXI.Container();
-			const portfolioWindowCloseBg = new PIXI.Graphics();
-			const portfolioWindowCloseX = new PIXI.Text('X', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 11,
-				fill: 0xffe1d3,
-				align: 'center',
-			});
-			portfolioWindowCloseX.anchor.set(0.5, 0.5);
-			portfolioWindowClose.addChild(portfolioWindowCloseBg, portfolioWindowCloseX);
-			portfolioWindowClose.eventMode = 'static';
-			portfolioWindowClose.cursor = 'pointer';
-			let portfolioWindowCloseHover = 0;
-
-			const portfolioWindowTitle = new PIXI.Text('PROJECT VIEWER', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 13,
-				fill: 0xf4e5cc,
-				letterSpacing: 1,
-			});
-			portfolioWindowTitle.anchor.set(0, 0.5);
-			const portfolioWindowHint = new PIXI.Text('Nothing here yet.', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 10,
-				fill: 0xe6cda9,
-				letterSpacing: 1,
-			});
-			portfolioWindowHint.anchor.set(0, 0);
-			const portfolioTypingPrefix = new PIXI.Text('', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 13,
-				fill: 0xf2e4cf,
-				letterSpacing: 0.8,
-			});
-			const portfolioTypingWord = new PIXI.Text('', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 13,
-				fill: 0xffd56b,
-				letterSpacing: 0.8,
-			});
-			const portfolioTypingSuffix = new PIXI.Text('', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 13,
-				fill: 0xf2e4cf,
-				letterSpacing: 0.8,
-			});
-			const portfolioTypingCursor = new PIXI.Graphics();
-			const portfolioPreviewPrev = new PIXI.Sprite(PIXI.Texture.WHITE);
-			portfolioPreviewPrev.anchor.set(0.5, 0.5);
-			portfolioPreviewPrev.alpha = 0;
-			portfolioPreviewPrev.visible = false;
-			portfolioPreviewPrev.mask = portfolioWindowGalleryMask;
-			const portfolioPreview = new PIXI.Sprite(PIXI.Texture.from('./assets/images/Uh-Oh.png'));
-			portfolioPreview.anchor.set(0.5, 0.5);
-			portfolioPreview.alpha = 0.9;
-			portfolioPreview.visible = false;
-			portfolioPreview.mask = portfolioWindowGalleryMask;
-			const portfolioDotNav = new PIXI.Container();
-			const portfolioArrowLeft = new PIXI.Container();
-			const portfolioArrowLeftBg = new PIXI.Graphics();
-			const portfolioArrowLeftGlyph = new PIXI.Text('<', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 11,
-				fill: 0xe9f6ff,
-				align: 'center',
-			});
-			portfolioArrowLeftGlyph.anchor.set(0.5, 0.5);
-			portfolioArrowLeft.addChild(portfolioArrowLeftBg, portfolioArrowLeftGlyph);
-			portfolioArrowLeft.eventMode = 'static';
-			portfolioArrowLeft.cursor = 'pointer';
-			const portfolioArrowRight = new PIXI.Container();
-			const portfolioArrowRightBg = new PIXI.Graphics();
-			const portfolioArrowRightGlyph = new PIXI.Text('>', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 11,
-				fill: 0xe9f6ff,
-				align: 'center',
-			});
-			portfolioArrowRightGlyph.anchor.set(0.5, 0.5);
-			portfolioArrowRight.addChild(portfolioArrowRightBg, portfolioArrowRightGlyph);
-			portfolioArrowRight.eventMode = 'static';
-			portfolioArrowRight.cursor = 'pointer';
-			const portfolioTerminalSlideTitle = new PIXI.Text('SLIDE', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 11,
-				fill: 0xffe5bb,
-				letterSpacing: 1,
-			});
-			const portfolioTerminalOverviewLabel = new PIXI.Text('OVERVIEW', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 9,
-				fill: 0x96bfdc,
-				letterSpacing: 1,
-			});
-			const portfolioTerminalOverviewText = new PIXI.Text('', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 8,
-				fill: 0xe9dfcd,
-				letterSpacing: 0.6,
-				wordWrap: true,
-				wordWrapWidth: 160,
-				lineHeight: 11,
-			});
-			const portfolioTerminalDesignLabel = new PIXI.Text('DESIGN', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 9,
-				fill: 0x96bfdc,
-				letterSpacing: 1,
-			});
-			const portfolioTerminalDesignText = new PIXI.Text('', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 8,
-				fill: 0xe9dfcd,
-				letterSpacing: 0.6,
-				wordWrap: true,
-				wordWrapWidth: 160,
-				lineHeight: 11,
-			});
-			const portfolioTerminalTechLabel = new PIXI.Text('TECH', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 9,
-				fill: 0x96bfdc,
-				letterSpacing: 1,
-			});
-			const portfolioTerminalTechText = new PIXI.Text('', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 8,
-				fill: 0xe9dfcd,
-				letterSpacing: 0.6,
-				wordWrap: true,
-				wordWrapWidth: 160,
-				lineHeight: 11,
-			});
-			const portfolioTerminalHighlightsLabel = new PIXI.Text('HIGHLIGHTS', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 9,
-				fill: 0x96bfdc,
-				letterSpacing: 1,
-			});
-			const portfolioTerminalHighlights = new PIXI.Container();
-			const portfolioTerminalLinksLabel = new PIXI.Text('LINKS', {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 9,
-				fill: 0x96bfdc,
-				letterSpacing: 1,
-			});
-			const portfolioTerminalLinks = new PIXI.Container();
-
-			portfolioWindow.addChild(
-				portfolioWindowGlow,
-				portfolioWindowFrame,
-				portfolioWindowInner,
-				portfolioWindowTitlebar,
-				portfolioWindowBody,
-				portfolioWindowGallery,
-				portfolioWindowGalleryMask,
-				portfolioWindowInfo,
-				portfolioWindowScanlines,
-				portfolioWindowSweep,
-				portfolioPreviewPrev,
-				portfolioPreview,
-				portfolioDotNav,
-				portfolioArrowLeft,
-				portfolioArrowRight,
-				portfolioWindowTitle,
-				portfolioWindowClose,
-				portfolioTerminalSlideTitle,
-				portfolioTerminalOverviewLabel,
-				portfolioTerminalOverviewText,
-				portfolioTerminalDesignLabel,
-				portfolioTerminalDesignText,
-				portfolioTerminalTechLabel,
-				portfolioTerminalTechText,
-				portfolioTerminalHighlightsLabel,
-				portfolioTerminalHighlights,
-				portfolioTerminalLinksLabel,
-				portfolioTerminalLinks,
-				portfolioTypingPrefix,
-				portfolioTypingWord,
-				portfolioTypingSuffix,
-				portfolioTypingCursor,
-				portfolioWindowHint,
-			);
-			const PORTFOLIO_MEDIA_IMAGE = 'image';
-			const PORTFOLIO_MEDIA_GIF = 'gif';
-			const PORTFOLIO_MEDIA_VIDEO = 'video';
-			const PORTFOLIO_HIGHLIGHT_RAINBOW = 'rainbow';
-			const PORTFOLIO_HIGHLIGHT_ACCENT = 'accent';
-			const PORTFOLIO_PROJECTS = [
-				{
-					id: 'tile-manager',
-					title: 'Tile Manager',
-					summary: 'A modular launcher workflow focused on legible states and fast handoff.',
-					stack: ['Tauri', 'Rust', 'TypeScript'],
-					links: [
-						{ label: 'Repository', url: 'https://github.com/maywok/maywok.github.io' },
-					],
-					slides: [
-						{
-							type: PORTFOLIO_MEDIA_IMAGE,
-							src: './assets/portfolio/launcher/home.png',
-							title: 'Home Surface',
-							overview: 'The landing surface emphasizes immediate orientation and direct action paths.',
-							design: 'UI philosophy prioritizes low-noise hierarchy: strong headline, restrained chrome, and fast visual scanning.',
-							technical: 'Implemented with TypeScript components layered for quick updates and deterministic state syncing.',
-							highlights: [
-								{ text: 'UI philosophy', style: PORTFOLIO_HIGHLIGHT_ACCENT },
-								{ text: 'TypeScript', style: PORTFOLIO_HIGHLIGHT_ACCENT },
-								{ text: 'Rust', style: PORTFOLIO_HIGHLIGHT_RAINBOW },
-							],
-							links: [
-								{ label: 'home.png', url: './assets/portfolio/launcher/home.png' },
-							],
-						},
-						{
-							type: PORTFOLIO_MEDIA_IMAGE,
-							src: './assets/portfolio/launcher/menu.png',
-							title: 'Menu State',
-							overview: 'Secondary actions are grouped into a compact command surface for faster recall.',
-							design: 'Contrast and spacing keep dense options readable while preserving the cyber-neon tone.',
-							technical: 'State transitions are synchronized so menu focus, cursor mode, and content rendering stay deterministic.',
-							highlights: [
-								{ text: 'Tauri', style: PORTFOLIO_HIGHLIGHT_RAINBOW },
-								{ text: 'filesystem scanning', style: PORTFOLIO_HIGHLIGHT_ACCENT },
-								{ text: 'registry queries', style: PORTFOLIO_HIGHLIGHT_ACCENT },
-							],
-							links: [
-								{ label: 'menu.png', url: './assets/portfolio/launcher/menu.png' },
-							],
-						},
-					],
-				},
-			];
-			const portfolioProjectsById = new Map(PORTFOLIO_PROJECTS.map((project) => [project.id, project]));
-			const projectCartridgeDefs = [
-				{ label: 'TILE MGR', projectId: 'tile-manager', tint: 0x69c4ff, rare: false },
-				{ label: 'EMPTY', projectId: null, tint: 0xcf5f8f, rare: false },
-				{ label: 'EMPTY', projectId: null, tint: 0xd5a063, rare: true },
-				{ label: 'EMPTY', projectId: null, tint: 0xb58a59, rare: false },
-				{ label: 'EMPTY', projectId: null, tint: 0x4f80bf, rare: false },
-				{ label: 'EMPTY', projectId: null, tint: 0x7a659d, rare: true },
-			];
-			const DEFAULT_PORTFOLIO_SUB_LABEL = 'Select a cartridge to load';
-			const DEFAULT_PORTFOLIO_STATUS_LABEL = 'EMPTY BAY : 6 SLOTS';
-			const DEFAULT_PORTFOLIO_WINDOW_TITLE = 'PROJECT VIEWER';
-			const DEFAULT_PORTFOLIO_WINDOW_HINT = 'Nothing here yet.';
-			let desktopTwoLoadedTape = null;
-			const applyDesktopTwoLoadedTape = () => {
-				if (desktopTwoLoadedTape) {
-					const statusLabel = (desktopTwoLoadedTape.status || 'wip').toUpperCase();
-					portfolioSub.text = `Loaded tape: ${desktopTwoLoadedTape.label}`;
-					portfolioStatusText.text = `${statusLabel} TAPE`;
-					portfolioWindowTitle.text = `${desktopTwoLoadedTape.label} PLAYBACK`;
-					portfolioWindowHint.text = desktopTwoLoadedTape.hasContent
-						? 'Playback ready.'
-						: 'Nothing here yet.';
-					return;
-				}
-				portfolioSub.text = DEFAULT_PORTFOLIO_SUB_LABEL;
-				portfolioStatusText.text = DEFAULT_PORTFOLIO_STATUS_LABEL;
-				portfolioWindowTitle.text = DEFAULT_PORTFOLIO_WINDOW_TITLE;
-				portfolioWindowHint.text = DEFAULT_PORTFOLIO_WINDOW_HINT;
-			};
-			setDesktopTwoLoadedTape = (tape) => {
-				desktopTwoLoadedTape = tape ? { ...tape } : null;
-				applyDesktopTwoLoadedTape();
-			};
-			if (pendingDesktopTwoTape) {
-				setDesktopTwoLoadedTape(pendingDesktopTwoTape);
-			}
-			const slotLabelStyle = {
-				fontFamily: 'Minecraft, monospace',
-				fontSize: 9,
-				fill: 0xe8dcc7,
-				align: 'center',
-				letterSpacing: 1,
-			};
-			const portfolioCartridges = projectCartridgeDefs.map((project, index) => {
-				const node = new PIXI.Container();
-				const glow = new PIXI.Graphics();
-				const body = new PIXI.Graphics();
-				const notch = new PIXI.Graphics();
-				const labelStrip = new PIXI.Graphics();
-				const details = new PIXI.Graphics();
-				const led = new PIXI.Graphics();
-				const label = new PIXI.Text(project.label || 'EMPTY', slotLabelStyle);
-				label.anchor.set(0.5, 0.5);
-				node.eventMode = 'static';
-				node.cursor = 'pointer';
-				node.addChild(glow, body, notch, labelStrip, details, led, label);
-				return {
-					index,
-					tint: project.tint,
-					rare: project.rare,
-					node,
-					glow,
-					body,
-					notch,
-					labelStrip,
-					details,
-					led,
-					label,
-					hovered: false,
-					hoverMix: 0,
-				};
-			});
-			portfolioPanel.addChild(
-				portfolioShadow,
-				portfolioOuterGlowMagenta,
-				portfolioOuterGlowTeal,
-				portfolioBody,
-				portfolioInnerBorder,
-				portfolioAccent,
-				portfolioCornerPixels,
-				portfolioMask,
-				portfolioNoise,
-				portfolioRigging,
-				portfolioPlatform,
-				portfolioShelfLayer,
-				portfolioStatusPanel,
-				portfolioFocusRails,
-			);
-			for (const cartridge of portfolioCartridges) portfolioPanel.addChild(cartridge.node);
-			portfolioPanel.addChild(portfolioTitle, portfolioSub, portfolioStatusText);
-			portfolioPanel.zIndex = 10;
-			portfolioWindow.zIndex = 20;
-			desktopTwoScene.addChild(portfolioPanel, portfolioWindow);
-
-			let desktopTwoPanelBoot = 0;
-			let desktopTwoPanelBaseY = 0;
-			let desktopTwoGlowBreath = 0;
-			let desktopTwoCartridgeHover = -1;
-			let desktopTwoLastCartridgeHover = -2;
-			let desktopTwoFlowHoverCurrent = 0;
-			let desktopTwoFlowTintCurrent = desktopTwoFlowBase.glowColor;
-			const portfolioLayout = {
-				panelW: 0,
-				panelH: 0,
-				cardW: 0,
-				cardH: 0,
-				xGap: 0,
-				yGap: 0,
-				startX: 0,
-				startY: 0,
-				statusY: 0,
-				statusTopY: 0,
-			};
-			let portfolioWindowOpen = false;
-			let portfolioWindowBoot = 0;
-			let portfolioWindowScanPhase = 0;
-			let portfolioTypingPrefixSrc = '';
-			let portfolioTypingWordSrc = '';
-			let portfolioTypingSuffixSrc = '';
-			let portfolioTypingChars = 0;
-			let portfolioTypingTimer = 0;
-			let portfolioCursorTimer = 0;
-			const portfolioWindowLayout = {
-				galleryX: 0,
-				galleryY: 0,
-				galleryW: 0,
-				galleryH: 0,
-				infoX: 0,
-				infoY: 0,
-				infoW: 0,
-				infoH: 0,
-				dotY: 0,
-			};
-			const PORTFOLIO_EMPTY_SLIDE = {
-				type: PORTFOLIO_MEDIA_IMAGE,
-				src: './assets/images/Uh-Oh.png',
-				title: 'Empty Slot',
-				overview: 'No media has been attached to this project slot yet.',
-				design: 'Reserve this slot for future mockups, flows, or visual experiments.',
-				technical: 'Attach a slides array to this project entry to activate full walkthrough mode.',
-				highlights: [],
-				links: [],
-			};
-			let portfolioSelectedProjectId = projectCartridgeDefs.find((entry) => entry.projectId)?.projectId || null;
-			let portfolioActiveProject = portfolioProjectsById.get(portfolioSelectedProjectId) || {
-				id: 'empty',
-				title: 'EMPTY SLOT',
-				summary: 'No project is assigned to this cartridge.',
-				stack: [],
-				links: [],
-				slides: [PORTFOLIO_EMPTY_SLIDE],
-			};
-			let portfolioSlideIndex = 0;
-			let portfolioDotNodes = [];
-			let portfolioArrowLeftHover = 0;
-			let portfolioArrowRightHover = 0;
-			let portfolioCurrentVideoSource = null;
-			const portfolioMediaTransition = {
-				active: false,
-				progress: 1,
-				duration: 0.22,
-			};
-
-			const destroyPortfolioChildren = (container) => {
-				const nodes = container.removeChildren();
-				for (const node of nodes) node.destroy?.({ children: true });
-			};
-			const isVideoElement = (source) => typeof HTMLVideoElement !== 'undefined' && source instanceof HTMLVideoElement;
-			const stopPortfolioVideo = (video) => {
-				if (!video) return;
-				try { video.pause(); } catch (_) {}
-			};
-			const playPortfolioVideo = (video) => {
-				if (!video) return;
-				video.loop = true;
-				video.muted = true;
-				video.playsInline = true;
-				video.autoplay = true;
-				const playPromise = video.play?.();
-				if (playPromise && typeof playPromise.catch === 'function') playPromise.catch(() => {});
-			};
-			const getActiveSlides = () => (Array.isArray(portfolioActiveProject?.slides) && portfolioActiveProject.slides.length
-				? portfolioActiveProject.slides
-				: [PORTFOLIO_EMPTY_SLIDE]);
-			const getActiveSlide = () => {
-				const slides = getActiveSlides();
-				if (!slides.length) return PORTFOLIO_EMPTY_SLIDE;
-				const index = ((portfolioSlideIndex % slides.length) + slides.length) % slides.length;
-				return slides[index] || PORTFOLIO_EMPTY_SLIDE;
-			};
-			const getTextureSize = (texture) => {
-				if (!texture) return { width: 1, height: 1 };
-				const src = texture.baseTexture?.resource?.source;
-				if (isVideoElement(src) && src.videoWidth && src.videoHeight) {
-					return { width: src.videoWidth, height: src.videoHeight };
-				}
-				const width = texture.orig?.width || texture.width || texture.baseTexture?.width || 1;
-				const height = texture.orig?.height || texture.height || texture.baseTexture?.height || 1;
-				return { width, height };
-			};
-			const fitMediaSprite = (sprite, texture) => {
-				const { galleryX, galleryY, galleryW, galleryH } = portfolioWindowLayout;
-				if (galleryW <= 0 || galleryH <= 0) return;
-				const pad = 12;
-				const fitW = Math.max(1, galleryW - pad * 2);
-				const fitH = Math.max(1, galleryH - pad * 2);
-				const size = getTextureSize(texture);
-				const scale = Math.min(fitW / Math.max(1, size.width), fitH / Math.max(1, size.height));
-				sprite.texture = texture;
-				sprite.width = Math.max(1, size.width * scale);
-				sprite.height = Math.max(1, size.height * scale);
-				sprite.position.set(galleryX + galleryW * 0.5, galleryY + galleryH * 0.5);
-				if (!texture.baseTexture?.valid) {
-					texture.baseTexture?.once?.('loaded', () => fitMediaSprite(sprite, texture));
-				}
-			};
-			const normalizeHighlight = (entry) => {
-				if (!entry) return null;
-				if (typeof entry === 'string') return { text: entry, style: PORTFOLIO_HIGHLIGHT_ACCENT };
-				if (!entry.text) return null;
-				return {
-					text: entry.text,
-					style: entry.style === PORTFOLIO_HIGHLIGHT_RAINBOW ? PORTFOLIO_HIGHLIGHT_RAINBOW : PORTFOLIO_HIGHLIGHT_ACCENT,
-				};
-			};
-			const rebuildTerminalMeta = () => {
-				const slide = getActiveSlide();
-				const projectTitle = (portfolioActiveProject?.title || 'PROJECT').toUpperCase();
-				portfolioWindowTitle.text = `${projectTitle} // WALKTHROUGH`;
-				portfolioWindowHint.text = portfolioActiveProject?.summary || DEFAULT_PORTFOLIO_WINDOW_HINT;
-				portfolioSub.text = `Project: ${portfolioActiveProject?.title || 'Empty Slot'}`;
-				portfolioStatusText.text = (portfolioActiveProject?.stack?.length
-					? portfolioActiveProject.stack.join(' / ')
-					: DEFAULT_PORTFOLIO_STATUS_LABEL).toUpperCase();
-
-				const infoX = portfolioWindowLayout.infoX + 12;
-				const infoY = portfolioWindowLayout.infoY + 12;
-				const infoW = Math.max(60, portfolioWindowLayout.infoW - 24);
-				portfolioTerminalOverviewText.style.wordWrapWidth = infoW;
-				portfolioTerminalDesignText.style.wordWrapWidth = infoW;
-				portfolioTerminalTechText.style.wordWrapWidth = infoW;
-
-				portfolioTerminalSlideTitle.text = `SLIDE: ${(slide.title || 'Untitled').toUpperCase()}`;
-				portfolioTerminalSlideTitle.position.set(infoX, infoY);
-
-				let y = infoY + 18;
-				portfolioTerminalOverviewLabel.position.set(infoX, y);
-				y += 11;
-				portfolioTerminalOverviewText.text = slide.overview || 'No overview provided.';
-				portfolioTerminalOverviewText.position.set(infoX, y);
-				y += portfolioTerminalOverviewText.height + 8;
-
-				portfolioTerminalDesignLabel.position.set(infoX, y);
-				y += 11;
-				portfolioTerminalDesignText.text = slide.design || 'No design notes provided.';
-				portfolioTerminalDesignText.position.set(infoX, y);
-				y += portfolioTerminalDesignText.height + 8;
-
-				portfolioTerminalTechLabel.position.set(infoX, y);
-				y += 11;
-				portfolioTerminalTechText.text = slide.technical || 'No technical notes provided.';
-				portfolioTerminalTechText.position.set(infoX, y);
-				y += portfolioTerminalTechText.height + 8;
-
-				portfolioTerminalHighlightsLabel.position.set(infoX, y);
-				y += 12;
-				destroyPortfolioChildren(portfolioTerminalHighlights);
-				let chipX = 0;
-				let chipY = 0;
-				const maxChipW = infoW;
-				for (const rawHighlight of (slide.highlights || [])) {
-					const highlight = normalizeHighlight(rawHighlight);
-					if (!highlight) continue;
-					const chip = new PIXI.Container();
-					const chipBg = new PIXI.Graphics();
-					const chipText = new PIXI.Text(highlight.text, {
-						fontFamily: 'Minecraft, monospace',
-						fontSize: 8,
-						fill: highlight.style === PORTFOLIO_HIGHLIGHT_RAINBOW
-							? ['#ff5f9c', '#ffd56b', '#6dff9a', '#6ec6f7']
-							: 0xc7f5ff,
-						letterSpacing: 0.5,
-					});
-					chipText.anchor.set(0, 0.5);
-					const chipPadX = 6;
-					const chipW = Math.ceil(chipText.width + chipPadX * 2);
-					const chipH = 14;
-					if (chipX > 0 && chipX + chipW > maxChipW) {
-						chipX = 0;
-						chipY += chipH + 4;
-					}
-					chipBg.beginFill(highlight.style === PORTFOLIO_HIGHLIGHT_RAINBOW ? 0x5a2f66 : 0x2e5162, 0.72);
-					chipBg.lineStyle(1, highlight.style === PORTFOLIO_HIGHLIGHT_RAINBOW ? 0xff7fc1 : 0x7fc9ff, 0.82);
-					chipBg.drawRoundedRect(0, 0, chipW, chipH, 4);
-					chipBg.endFill();
-					chipText.position.set(chipPadX, chipH * 0.5);
-					chip.addChild(chipBg, chipText);
-					chip.position.set(chipX, chipY);
-					chipX += chipW + 5;
-					portfolioTerminalHighlights.addChild(chip);
-				}
-				portfolioTerminalHighlights.position.set(infoX, y);
-				y += (portfolioTerminalHighlights.height || 0) + 8;
-
-				portfolioTerminalLinksLabel.position.set(infoX, y);
-				y += 12;
-				destroyPortfolioChildren(portfolioTerminalLinks);
-				const linkDefs = [...(slide.links || []), ...(portfolioActiveProject?.links || [])];
-				let linkY = 0;
-				for (const linkDef of linkDefs) {
-					if (!linkDef?.label || !linkDef?.url) continue;
-					const linkText = new PIXI.Text(`> ${linkDef.label}`, {
-						fontFamily: 'Minecraft, monospace',
-						fontSize: 8,
-						fill: 0x8ad7ff,
-						letterSpacing: 0.5,
-					});
-					linkText.position.set(0, linkY);
-					linkText.eventMode = 'static';
-					linkText.cursor = 'pointer';
-					linkText.on('pointerover', () => { linkText.style.fill = 0xffffff; });
-					linkText.on('pointerout', () => { linkText.style.fill = 0x8ad7ff; });
-					linkText.on('pointertap', () => {
-						try {
-							window.open(linkDef.url, '_blank', 'noopener');
-						} catch (_) {}
-					});
-					portfolioTerminalLinks.addChild(linkText);
-					linkY += linkText.height + 4;
-				}
-				portfolioTerminalLinks.position.set(infoX, y);
-			};
-			const rebuildDotNavigation = () => {
-				destroyPortfolioChildren(portfolioDotNav);
-				portfolioDotNodes = [];
-				const slides = getActiveSlides();
-				const count = slides.length;
-				if (!count) return;
-				const spacing = 16;
-				const totalW = (count - 1) * spacing;
-				for (let i = 0; i < count; i++) {
-					const dot = new PIXI.Graphics();
-					dot.position.set(i * spacing - totalW * 0.5, 0);
-					dot.eventMode = 'static';
-					dot.cursor = 'pointer';
-					dot.__hover = 0;
-					dot.on('pointerover', () => { dot.__hover = 1; });
-					dot.on('pointerout', () => { dot.__hover = 0; });
-					dot.on('pointertap', () => setActivePortfolioSlide(i));
-					portfolioDotNav.addChild(dot);
-					portfolioDotNodes.push(dot);
-				}
-			};
-			const redrawDotNavigation = () => {
-				for (let i = 0; i < portfolioDotNodes.length; i++) {
-					const dot = portfolioDotNodes[i];
-					const active = i === portfolioSlideIndex;
-					dot.clear();
-					dot.beginFill(active ? 0x8de8ff : 0x355d7f, active ? 0.96 : (0.5 + dot.__hover * 0.35));
-					dot.drawCircle(0, 0, active ? 4.2 : 3.2);
-					dot.endFill();
-					if (active) {
-						dot.lineStyle(1, 0xd8f8ff, 0.85);
-						dot.drawCircle(0, 0, 6.1);
-					}
-				}
-			};
-			const setActivePortfolioSlide = (nextIndex, options = {}) => {
-				const force = Boolean(options.force);
-				const slides = getActiveSlides();
-				if (!slides.length) return;
-				const normalized = ((nextIndex % slides.length) + slides.length) % slides.length;
-				if (!force && normalized === portfolioSlideIndex) return;
-				if (!force) playScreenshotScrollSfx();
-				if (!force) {
-					portfolioPreviewPrev.texture = portfolioPreview.texture;
-					fitMediaSprite(portfolioPreviewPrev, portfolioPreviewPrev.texture);
-					portfolioPreviewPrev.visible = true;
-					portfolioPreviewPrev.alpha = 1;
-				}
-				stopPortfolioVideo(portfolioCurrentVideoSource);
-				portfolioSlideIndex = normalized;
-				const slide = getActiveSlide();
-				const texture = PIXI.Texture.from(slide.src || './assets/images/Uh-Oh.png');
-				const source = texture.baseTexture?.resource?.source;
-				portfolioCurrentVideoSource = isVideoElement(source) ? source : null;
-				playPortfolioVideo(portfolioCurrentVideoSource);
-				fitMediaSprite(portfolioPreview, texture);
-				portfolioPreview.visible = true;
-				portfolioPreview.alpha = force ? 1 : 0;
-				portfolioMediaTransition.active = !force;
-				portfolioMediaTransition.progress = force ? 1 : 0;
-				if (force) {
-					portfolioPreviewPrev.visible = false;
-					portfolioPreviewPrev.alpha = 0;
-				}
-				rebuildTerminalMeta();
-				redrawDotNavigation();
-			};
-			const setActivePortfolioProjectByCartridge = (cartridgeIndex, options = {}) => {
-				const slotDef = projectCartridgeDefs[cartridgeIndex] || projectCartridgeDefs[0];
-				portfolioSelectedProjectId = slotDef?.projectId || null;
-				const resolved = portfolioSelectedProjectId
-					? portfolioProjectsById.get(portfolioSelectedProjectId)
-					: null;
-				portfolioActiveProject = resolved || {
-					id: `empty-${slotDef?.label || 'slot'}`,
-					title: slotDef?.label || 'EMPTY SLOT',
-					summary: 'This slot is waiting for project media and notes.',
-					stack: [],
-					links: [],
-					slides: [PORTFOLIO_EMPTY_SLIDE],
-				};
-				portfolioSlideIndex = 0;
-				rebuildDotNavigation();
-				setActivePortfolioSlide(0, { force: true });
-			};
-			const stepPortfolioMediaTransition = (dtSeconds) => {
-				if (!portfolioMediaTransition.active) return;
-				portfolioMediaTransition.progress += dtSeconds / Math.max(0.001, portfolioMediaTransition.duration);
-				const t = Math.max(0, Math.min(1, portfolioMediaTransition.progress));
-				const eased = 1 - Math.pow(1 - t, 3);
-				portfolioPreview.alpha = eased;
-				portfolioPreviewPrev.alpha = 1 - eased;
-				if (t >= 1) {
-					portfolioMediaTransition.active = false;
-					portfolioPreviewPrev.visible = false;
-					portfolioPreviewPrev.alpha = 0;
-					portfolioPreview.alpha = 1;
-				}
-			};
-
-			const applyPortfolioTypedLine = () => {
-				const full = `${portfolioTypingPrefixSrc}${portfolioTypingWordSrc}${portfolioTypingSuffixSrc}`;
-				const shown = full.slice(0, Math.max(0, Math.min(full.length, portfolioTypingChars)));
-				const preLen = portfolioTypingPrefixSrc.length;
-				const wordLen = portfolioTypingWordSrc.length;
-				const pre = shown.slice(0, preLen);
-				const word = shown.slice(preLen, preLen + wordLen);
-				const suf = shown.slice(preLen + wordLen);
-				portfolioTypingPrefix.text = pre;
-				portfolioTypingWord.text = word;
-				portfolioTypingSuffix.text = suf;
-				portfolioTypingWord.x = portfolioTypingPrefix.x + portfolioTypingPrefix.width;
-				portfolioTypingSuffix.x = portfolioTypingWord.x + portfolioTypingWord.width;
-				portfolioTypingCursor.clear();
-				portfolioTypingCursor.beginFill(0xf3e0c0, 0.95);
-				portfolioTypingCursor.drawRect(0, 0, 8, 13);
-				portfolioTypingCursor.endFill();
-				portfolioTypingCursor.position.set(portfolioTypingSuffix.x + portfolioTypingSuffix.width + 4, portfolioTypingPrefix.y + 1);
-			};
-
-			const openPortfolioWindow = (cartridgeIndex = 0) => {
-				portfolioWindowOpen = true;
-				portfolioWindowScanPhase = 0;
-				setActivePortfolioProjectByCartridge(cartridgeIndex, { force: true });
-				portfolioTypingPrefixSrc = 'Loading slide, ';
-				portfolioTypingWordSrc = 'bro';
-				portfolioTypingSuffixSrc = '...';
-				portfolioTypingChars = 0;
-				portfolioTypingTimer = 0;
-				portfolioCursorTimer = 0;
-				applyPortfolioTypedLine();
-			};
-
-			const closePortfolioWindow = () => {
-				portfolioWindowOpen = false;
-				stopPortfolioVideo(portfolioCurrentVideoSource);
-			};
-
-			tryCloseDesktopTwoPortfolioWindow = () => {
-				if (!portfolioWindowOpen && portfolioWindowBoot <= 0.04) return false;
-				closePortfolioWindow();
-				return true;
-			};
-
-			const setDesktopTwoCartridgeHover = (index, hovered) => {
-				if (hovered) {
-					if (desktopTwoLastCartridgeHover !== index) {
-						playCartridgeHoverSfx();
-						desktopTwoLastCartridgeHover = index;
-					}
-					desktopTwoCartridgeHover = index;
-					return;
-				}
-				if (desktopTwoCartridgeHover === index) desktopTwoCartridgeHover = -1;
-				if (desktopTwoLastCartridgeHover === index) desktopTwoLastCartridgeHover = -1;
-			};
-			for (const cartridge of portfolioCartridges) {
-				cartridge.node.on('pointerover', () => setDesktopTwoCartridgeHover(cartridge.index, true));
-				cartridge.node.on('pointerout', () => setDesktopTwoCartridgeHover(cartridge.index, false));
-				cartridge.node.on('pointertap', () => {
-					playCartridgeSelectSfx();
-					openPortfolioWindow(cartridge.index);
-				});
-			}
-			portfolioWindowClose.on('pointerover', () => { portfolioWindowCloseHover = 1; });
-			portfolioWindowClose.on('pointerout', () => { portfolioWindowCloseHover = 0; });
-			portfolioWindowClose.on('pointertap', closePortfolioWindow);
-			portfolioArrowLeft.on('pointerover', () => { portfolioArrowLeftHover = 1; });
-			portfolioArrowLeft.on('pointerout', () => { portfolioArrowLeftHover = 0; });
-			portfolioArrowLeft.on('pointertap', () => setActivePortfolioSlide(portfolioSlideIndex - 1));
-			portfolioArrowRight.on('pointerover', () => { portfolioArrowRightHover = 1; });
-			portfolioArrowRight.on('pointerout', () => { portfolioArrowRightHover = 0; });
-			portfolioArrowRight.on('pointertap', () => setActivePortfolioSlide(portfolioSlideIndex + 1));
-
-			const drawPortfolioCartridges = (dtSeconds, timeNow = 0) => {
-				portfolioFocusRails.clear();
-				const { cardW, cardH, startX, startY, xGap, yGap, statusTopY } = portfolioLayout;
-				if (cardW <= 0 || cardH <= 0) return;
-				const cols = 3;
-				portfolioCartridges.forEach((cartridge, idx) => {
-					const col = idx % cols;
-					const row = Math.floor(idx / cols) % 2;
-					const x = startX + xGap * col;
-					const y = startY + yGap * row;
-					const targetHover = desktopTwoCartridgeHover === idx ? 1 : 0;
-					const lerpT = Math.min(1, dtSeconds > 0 ? dtSeconds * 12 : 1);
-					cartridge.hoverMix += (targetHover - cartridge.hoverMix) * lerpT;
-					const h = Math.max(0, Math.min(1, cartridge.hoverMix));
-
-					cartridge.node.position.set(x, y);
-					cartridge.node.scale.set(1 + h * 0.04);
-
-					cartridge.glow.clear();
-					cartridge.glow.beginFill(cartridge.tint, 0.06 + h * 0.2);
-					cartridge.glow.drawRoundedRect(-cardW * 0.53, -cardH * 0.53, cardW * 1.06, cardH * 1.06, 7);
-					cartridge.glow.endFill();
-
-					cartridge.body.clear();
-					cartridge.body.beginFill(0x261b13, 0.96);
-					cartridge.body.lineStyle(2, mixDesktopColor(0x7b6550, cartridge.tint, 0.16 + h * 0.24), 0.9);
-					cartridge.body.drawRoundedRect(-cardW * 0.5, -cardH * 0.5, cardW, cardH, 6);
-					cartridge.body.endFill();
-
-					cartridge.notch.clear();
-					cartridge.notch.beginFill(0x1f170f, 0.9);
-					cartridge.notch.drawRoundedRect(-cardW * 0.18, -cardH * 0.5, cardW * 0.36, cardH * 0.2, 4);
-					cartridge.notch.endFill();
-
-					cartridge.labelStrip.clear();
-					cartridge.labelStrip.beginFill(0x3b2a1d, 0.95);
-					cartridge.labelStrip.drawRoundedRect(-cardW * 0.48, cardH * 0.14, cardW * 0.96, cardH * 0.3, 4);
-					cartridge.labelStrip.endFill();
-
-					cartridge.details.clear();
-					cartridge.details.lineStyle(1, 0x9a8468, 0.8);
-					cartridge.details.drawCircle(-cardW * 0.38, -cardH * 0.34, Math.max(2, cardH * 0.06));
-					cartridge.details.drawCircle(cardW * 0.38, -cardH * 0.34, Math.max(2, cardH * 0.06));
-					cartridge.details.drawCircle(-cardW * 0.38, cardH * 0.02, Math.max(2, cardH * 0.05));
-					cartridge.details.drawCircle(cardW * 0.38, cardH * 0.02, Math.max(2, cardH * 0.05));
-
-					const ledPulse = 0.06 + (0.06 + 0.04 * Math.sin(timeNow * 1.7 + idx * 0.8)) * (0.15 + h * 0.85);
-					cartridge.led.clear();
-					cartridge.led.beginFill(0x0d1117, 0.7);
-					cartridge.led.drawCircle(cardW * 0.32, -cardH * 0.33, Math.max(2, cardH * 0.07));
-					cartridge.led.endFill();
-					const ledColor = cartridge.rare ? 0xffd56b : 0x5ef0cb;
-					cartridge.led.beginFill(ledColor, ledPulse);
-					cartridge.led.drawCircle(cardW * 0.32, -cardH * 0.33, Math.max(1.5, cardH * 0.045));
-					cartridge.led.endFill();
-
-					cartridge.label.style.fill = mixDesktopColor(0xe8dcc7, 0xfff2da, h * 0.85);
-					cartridge.label.position.set(0, cardH * 0.295);
-
-					if (h > 0.03) {
-						const railColor = mixDesktopColor(0x5a6b77, cartridge.tint, 0.4);
-						portfolioFocusRails.lineStyle(1.2, railColor, 0.08 + h * 0.2);
-						const fromY = y + cardH * 0.54;
-						const midY = statusTopY - 12;
-						portfolioFocusRails.moveTo(x, fromY);
-						portfolioFocusRails.lineTo(x * 0.8, midY);
-						portfolioFocusRails.lineTo(0, statusTopY);
-					}
-				});
-			};
-
-			const layoutPortfolioPanel = () => {
-				const w = desktopTwoApp.renderer.width;
-				const h = desktopTwoApp.renderer.height;
-				const panelW = Math.max(540, Math.min(1120, w * 0.78));
-				const panelH = Math.max(360, Math.min(780, h * 0.76));
-				const r = Math.max(12, Math.round(Math.min(panelW, panelH) * 0.03));
-				desktopTwoPanelBaseY = h * 0.52;
-				portfolioPanel.position.set(w * 0.5, desktopTwoPanelBaseY);
-
-				portfolioShadow.clear();
-				portfolioShadow.beginFill(0x000000, 0.24);
-				portfolioShadow.drawRoundedRect(-panelW * 0.52 + 10, panelH * 0.34, panelW * 1.04, panelH * 0.24, r + 6);
-				portfolioShadow.endFill();
-
-				portfolioOuterGlowMagenta.clear();
-				portfolioOuterGlowMagenta.lineStyle(5, 0xa53567, 0.1 + desktopTwoGlowBreath * 0.05);
-				portfolioOuterGlowMagenta.drawRoundedRect(-panelW * 0.5 - 3, -panelH * 0.5 - 3, panelW + 6, panelH + 6, r + 2);
-
-				portfolioOuterGlowTeal.clear();
-				portfolioOuterGlowTeal.lineStyle(4, 0x35b1a0, 0.08 + desktopTwoGlowBreath * 0.04);
-				portfolioOuterGlowTeal.drawRoundedRect(-panelW * 0.5 - 1, -panelH * 0.5 - 1, panelW + 2, panelH + 2, r + 1);
-
-				portfolioBody.clear();
-				portfolioBody.beginFill(0xd6c3a3, 0.97);
-				portfolioBody.drawRoundedRect(-panelW * 0.5, -panelH * 0.5, panelW, panelH, r);
-				portfolioBody.endFill();
-				portfolioBody.lineStyle(3, 0x222028, 0.92);
-				portfolioBody.drawRoundedRect(-panelW * 0.5, -panelH * 0.5, panelW, panelH, r);
-
-				portfolioInnerBorder.clear();
-				portfolioInnerBorder.lineStyle(2, 0xe0c8a4, 0.62);
-				portfolioInnerBorder.drawRoundedRect(-panelW * 0.5 + 8, -panelH * 0.5 + 8, panelW - 16, panelH - 16, Math.max(8, r - 4));
-
-				portfolioAccent.clear();
-				portfolioAccent.lineStyle(2, 0x8f1b31, 0.24);
-				portfolioAccent.moveTo(-panelW * 0.46, -panelH * 0.33);
-				portfolioAccent.lineTo(panelW * 0.46, -panelH * 0.33);
-				portfolioAccent.lineStyle(1.5, 0x3bb9a6, 0.16);
-				portfolioAccent.moveTo(-panelW * 0.46, panelH * 0.34);
-				portfolioAccent.lineTo(panelW * 0.46, panelH * 0.34);
-
-				portfolioCornerPixels.clear();
-				const px = Math.max(3, Math.round(panelW * 0.006));
-				const drawCornerPixels = (x, y, c) => {
-					portfolioCornerPixels.beginFill(c, 0.9);
-					portfolioCornerPixels.drawRect(x, y, px, px);
-					portfolioCornerPixels.drawRect(x + px, y, px, px);
-					portfolioCornerPixels.drawRect(x, y + px, px, px);
-					portfolioCornerPixels.endFill();
-				};
-				drawCornerPixels(-panelW * 0.5 + 12, -panelH * 0.5 + 12, 0x9f2b4f);
-				drawCornerPixels(panelW * 0.5 - 12 - px * 2, -panelH * 0.5 + 12, 0x3dc2aa);
-				drawCornerPixels(-panelW * 0.5 + 12, panelH * 0.5 - 12 - px * 2, 0x3dc2aa);
-				drawCornerPixels(panelW * 0.5 - 12 - px * 2, panelH * 0.5 - 12 - px * 2, 0x9f2b4f);
-
-				portfolioMask.clear();
-				portfolioMask.beginFill(0xffffff, 1);
-				portfolioMask.drawRoundedRect(-panelW * 0.5 + 4, -panelH * 0.5 + 4, panelW - 8, panelH - 8, Math.max(8, r - 3));
-				portfolioMask.endFill();
-				portfolioNoise.width = panelW - 8;
-				portfolioNoise.height = panelH - 8;
-				portfolioNoise.position.set(-panelW * 0.5 + 4, -panelH * 0.5 + 4);
-
-				portfolioRigging.clear();
-				portfolioRigging.lineStyle(2, 0x57412f, 0.45);
-				portfolioRigging.moveTo(-panelW * 0.34, -panelH * 0.58);
-				portfolioRigging.lineTo(-panelW * 0.34, -panelH * 0.5 + 8);
-				portfolioRigging.moveTo(panelW * 0.34, -panelH * 0.58);
-				portfolioRigging.lineTo(panelW * 0.34, -panelH * 0.5 + 8);
-
-				portfolioPlatform.clear();
-				portfolioPlatform.beginFill(0x1e2a35, 0.16);
-				portfolioPlatform.drawRoundedRect(-panelW * 0.48, panelH * 0.36, panelW * 0.96, panelH * 0.15, Math.max(8, r - 4));
-				portfolioPlatform.endFill();
-
-				portfolioTitle.position.set(0, -panelH * 0.42);
-				portfolioSub.position.set(0, -panelH * 0.35);
-
-				portfolioShelfLayer.clear();
-				portfolioShelfLayer.lineStyle(3, 0x8f734f, 0.72);
-				const shelfTop = -panelH * 0.22;
-				const shelfGap = panelH * 0.31;
-				for (let i = 0; i < 2; i++) {
-					const y = shelfTop + shelfGap * i;
-					portfolioShelfLayer.moveTo(-panelW * 0.38, y);
-					portfolioShelfLayer.lineTo(panelW * 0.38, y);
-					portfolioShelfLayer.lineStyle(1.2, 0xe0c8a4, 0.34);
-					portfolioShelfLayer.moveTo(-panelW * 0.38, y - 2);
-					portfolioShelfLayer.lineTo(panelW * 0.38, y - 2);
-					portfolioShelfLayer.lineStyle(3, 0x8f734f, 0.72);
-				}
-
-				portfolioLayout.panelW = panelW;
-				portfolioLayout.panelH = panelH;
-				portfolioLayout.cardW = panelW * 0.2;
-				portfolioLayout.cardH = panelH * 0.16;
-				portfolioLayout.xGap = panelW * 0.26;
-				portfolioLayout.yGap = panelH * 0.31;
-				portfolioLayout.startX = -portfolioLayout.xGap;
-				portfolioLayout.startY = -panelH * 0.2;
-				portfolioLayout.statusY = panelH * 0.395;
-				const statusW = panelW * 0.48;
-				const statusH = panelH * 0.1;
-				portfolioLayout.statusTopY = portfolioLayout.statusY - statusH * 0.5;
-
-				portfolioStatusPanel.clear();
-				portfolioStatusPanel.beginFill(0x1f2d3d, 0.35);
-				portfolioStatusPanel.lineStyle(2, 0x7f99b7, 0.38);
-				portfolioStatusPanel.drawRoundedRect(-statusW * 0.5, portfolioLayout.statusY - statusH * 0.5, statusW, statusH, 8);
-				portfolioStatusPanel.endFill();
-				portfolioStatusText.position.set(0, portfolioLayout.statusY);
-				for (const cartridge of portfolioCartridges) {
-					cartridge.label.style.fontSize = Math.max(10, Math.round(portfolioLayout.cardH * 0.27));
-				}
-
-				drawPortfolioCartridges(0, 0);
-
-				const winW = Math.max(460, Math.min(920, w * 0.72));
-				const winH = Math.max(300, Math.min(560, h * 0.66));
-				const winR = Math.max(10, Math.round(Math.min(winW, winH) * 0.03));
-				const titleH = Math.max(42, Math.round(winH * 0.12));
-				portfolioWindow.position.set(w * 0.5, h * 0.5);
-
-				portfolioWindowGlow.clear();
-				portfolioWindowGlow.lineStyle(4, 0xaa2f62, 0.14 + desktopTwoGlowBreath * 0.08);
-				portfolioWindowGlow.drawRoundedRect(-winW * 0.5 - 4, -winH * 0.5 - 4, winW + 8, winH + 8, winR + 2);
-
-				portfolioWindowFrame.clear();
-				portfolioWindowFrame.beginFill(0xd6c3a3, 0.98);
-				portfolioWindowFrame.drawRoundedRect(-winW * 0.5, -winH * 0.5, winW, winH, winR);
-				portfolioWindowFrame.endFill();
-				portfolioWindowFrame.lineStyle(3, 0x10161f, 0.96);
-				portfolioWindowFrame.drawRoundedRect(-winW * 0.5, -winH * 0.5, winW, winH, winR);
-
-				portfolioWindowInner.clear();
-				portfolioWindowInner.lineStyle(2, 0xe0c8a4, 0.58);
-				portfolioWindowInner.drawRoundedRect(-winW * 0.5 + 8, -winH * 0.5 + 8, winW - 16, winH - 16, Math.max(8, winR - 4));
-
-				portfolioWindowTitlebar.clear();
-				portfolioWindowTitlebar.beginFill(0x263145, 0.95);
-				portfolioWindowTitlebar.drawRoundedRect(-winW * 0.5 + 4, -winH * 0.5 + 4, winW - 8, titleH, Math.max(8, winR - 4));
-				portfolioWindowTitlebar.endFill();
-
-				portfolioWindowBody.clear();
-				portfolioWindowBody.beginFill(0x1a2433, 0.94);
-				portfolioWindowBody.drawRoundedRect(-winW * 0.5 + 16, -winH * 0.5 + titleH + 12, winW - 32, winH - titleH - 28, 10);
-				portfolioWindowBody.endFill();
-
-				const galleryX = -winW * 0.5 + 34;
-				const galleryY = -winH * 0.5 + titleH + 28;
-				const galleryW = winW * 0.56;
-				const galleryH = winH - titleH - 66;
-				const infoX = galleryX + galleryW + 18;
-				const infoW = winW - (infoX + winW * 0.5) - 22;
-				const infoH = galleryH;
-				portfolioWindowLayout.galleryX = galleryX;
-				portfolioWindowLayout.galleryY = galleryY;
-				portfolioWindowLayout.galleryW = galleryW;
-				portfolioWindowLayout.galleryH = galleryH;
-				portfolioWindowLayout.infoX = infoX;
-				portfolioWindowLayout.infoY = galleryY;
-				portfolioWindowLayout.infoW = infoW;
-				portfolioWindowLayout.infoH = infoH;
-				portfolioWindowLayout.dotY = galleryY + galleryH - 18;
-
-				portfolioWindowGallery.clear();
-				portfolioWindowGallery.beginFill(0x101720, 0.95);
-				portfolioWindowGallery.lineStyle(2, 0x303e52, 0.85);
-				portfolioWindowGallery.drawRoundedRect(galleryX, galleryY, galleryW, galleryH, 8);
-				portfolioWindowGallery.endFill();
-				portfolioWindowGalleryMask.clear();
-				portfolioWindowGalleryMask.beginFill(0xffffff, 1);
-				portfolioWindowGalleryMask.drawRoundedRect(galleryX + 2, galleryY + 2, Math.max(4, galleryW - 4), Math.max(4, galleryH - 4), 7);
-				portfolioWindowGalleryMask.endFill();
-
-				portfolioWindowInfo.clear();
-				portfolioWindowInfo.beginFill(0x3a2c1d, 0.82);
-				portfolioWindowInfo.lineStyle(2, 0x76583d, 0.85);
-				portfolioWindowInfo.drawRoundedRect(infoX, galleryY, infoW, infoH, 8);
-				portfolioWindowInfo.endFill();
-
-				portfolioWindowScanlines.clear();
-				portfolioWindowScanlines.lineStyle(1, 0xffffff, 0.055);
-				const linesTop = -winH * 0.5 + titleH + 16;
-				const linesBottom = winH * 0.5 - 16;
-				for (let y = linesTop; y <= linesBottom; y += 4) {
-					portfolioWindowScanlines.moveTo(-winW * 0.5 + 12, y);
-					portfolioWindowScanlines.lineTo(winW * 0.5 - 12, y);
-				}
-
-				portfolioWindowTitle.position.set(-winW * 0.5 + 22, -winH * 0.5 + 4 + titleH * 0.5);
-				portfolioWindowClose.position.set(winW * 0.5 - 28, -winH * 0.5 + 8 + titleH * 0.5);
-				portfolioWindowCloseBg.clear();
-				portfolioWindowCloseBg.beginFill(0xa5374d, 0.92 + portfolioWindowCloseHover * 0.08);
-				portfolioWindowCloseBg.lineStyle(2, 0x6d2032, 0.95);
-				portfolioWindowCloseBg.drawRoundedRect(-14, -11, 28, 22, 5);
-				portfolioWindowCloseBg.endFill();
-				portfolioWindowCloseX.position.set(0, 0);
-
-				fitMediaSprite(portfolioPreviewPrev, portfolioPreviewPrev.texture || PIXI.Texture.WHITE);
-				fitMediaSprite(portfolioPreview, portfolioPreview.texture || PIXI.Texture.WHITE);
-				portfolioDotNav.position.set(galleryX + galleryW * 0.5, portfolioWindowLayout.dotY);
-				const arrowSize = 18;
-				portfolioArrowLeft.position.set(galleryX + 16, galleryY + galleryH * 0.5);
-				portfolioArrowRight.position.set(galleryX + galleryW - 16, galleryY + galleryH * 0.5);
-				portfolioArrowLeftBg.clear();
-				portfolioArrowLeftBg.beginFill(0x2a3f55, 0.62 + portfolioArrowLeftHover * 0.22);
-				portfolioArrowLeftBg.lineStyle(1, 0x9bd7ff, 0.76);
-				portfolioArrowLeftBg.drawRoundedRect(-arrowSize * 0.5, -arrowSize * 0.5, arrowSize, arrowSize, 5);
-				portfolioArrowLeftBg.endFill();
-				portfolioArrowRightBg.clear();
-				portfolioArrowRightBg.beginFill(0x2a3f55, 0.62 + portfolioArrowRightHover * 0.22);
-				portfolioArrowRightBg.lineStyle(1, 0x9bd7ff, 0.76);
-				portfolioArrowRightBg.drawRoundedRect(-arrowSize * 0.5, -arrowSize * 0.5, arrowSize, arrowSize, 5);
-				portfolioArrowRightBg.endFill();
-				portfolioArrowLeftGlyph.position.set(0, 0);
-				portfolioArrowRightGlyph.position.set(0, 0);
-
-				portfolioTypingPrefix.visible = false;
-				portfolioTypingWord.visible = false;
-				portfolioTypingSuffix.visible = false;
-				portfolioTypingCursor.visible = false;
-				portfolioWindowHint.position.set(infoX + 14, galleryY + infoH - 20);
-				rebuildTerminalMeta();
-				redrawDotNavigation();
-				applyPortfolioTypedLine();
-			};
-			layoutPortfolioPanel();
-			applyDesktopTwoLoadedTape();
-			setActivePortfolioProjectByCartridge(0, { force: true });
-
-			const rightPortal = new PIXI.Container();
-			const rightGlowSoft = new PIXI.Graphics();
-			const rightGlow = new PIXI.Graphics();
-			const rightArrow = new PIXI.Graphics();
-			const rightPortalHitZone = new PIXI.Graphics();
-			rightPortal.addChild(rightGlowSoft, rightGlow, rightArrow, rightPortalHitZone);
-			rightPortal.zIndex = 30;
-			desktopTwoScene.addChild(rightPortal);
-			rightArrow.eventMode = 'static';
-			rightArrow.cursor = 'pointer';
-			rightArrow.on('pointertap', () => {
-				playExitToMenuSfx();
-				setDesktopTwoActive(false);
-			});
-			rightPortalHitZone.eventMode = 'static';
-			rightPortalHitZone.cursor = 'pointer';
-			rightPortalHitZone.on('pointertap', () => {
-				playExitToMenuSfx();
-				setDesktopTwoActive(false);
-			});
-
-			let rightPortalWidth = 84;
-			let rightPortalProgress = 0;
-			let rightPortalShownX = 0;
-			let rightPortalHiddenX = 0;
-			let rightPortalY = 0;
-			const desktopTwoMouse = {
-				x: desktopTwoApp.renderer.width * 0.5,
-				y: desktopTwoApp.renderer.height * 0.5,
-			};
-			let desktopTwoCursorSpriteRef = null;
-			const desktopTwoCursorFallbackHalf = Math.max(10, frameW * 0.45);
-			const updateDesktopTwoMouse = (event) => {
-				if (!desktopTwoApp?.view) return;
-				const rect = desktopTwoApp.view.getBoundingClientRect();
-				if (!rect || rect.width <= 0 || rect.height <= 0) return;
-				const x = (event.clientX - rect.left) * (desktopTwoApp.renderer.width / rect.width);
-				const y = (event.clientY - rect.top) * (desktopTwoApp.renderer.height / rect.height);
-				const cursorHalfW = desktopTwoCursorSpriteRef ? desktopTwoCursorSpriteRef.width * 0.5 : desktopTwoCursorFallbackHalf;
-				const cursorHalfH = desktopTwoCursorSpriteRef ? desktopTwoCursorSpriteRef.height * 0.5 : desktopTwoCursorFallbackHalf;
-				const nextX = Math.max(cursorHalfW, Math.min(desktopTwoApp.renderer.width - cursorHalfW, x));
-				const nextY = Math.max(cursorHalfH, Math.min(desktopTwoApp.renderer.height - cursorHalfH, y));
-				if (Number.isFinite(nextX)) desktopTwoMouse.x = nextX;
-				if (Number.isFinite(nextY)) desktopTwoMouse.y = nextY;
-			};
-			desktopTwoApp.view.addEventListener('pointermove', updateDesktopTwoMouse);
-			desktopTwoApp.view.addEventListener('pointerdown', updateDesktopTwoMouse);
-			desktopTwoApp.view.addEventListener('pointerenter', updateDesktopTwoMouse);
-			window.addEventListener('keydown', (event) => {
-				if (!desktopTwoActive || !portfolioWindowOpen) return;
-				if (event.key === 'ArrowLeft') {
-					event.preventDefault();
-					setActivePortfolioSlide(portfolioSlideIndex - 1);
-				}
-				if (event.key === 'ArrowRight') {
-					event.preventDefault();
-					setActivePortfolioSlide(portfolioSlideIndex + 1);
-				}
-			});
-
-			const desktopTwoCursor = new PIXI.Container();
-			const desktopTwoCursorSprite = new PIXI.Sprite(cursorTexture);
-			desktopTwoCursorSpriteRef = desktopTwoCursorSprite;
-			desktopTwoCursorSprite.anchor.set(0.5);
-			const desktopTwoCursorGlow = new PIXI.Sprite(cursorTexture);
-			desktopTwoCursorGlow.anchor.set(0.5);
-			desktopTwoCursorGlow.tint = 0xff5aa8;
-			desktopTwoCursorGlow.alpha = 0.35;
-			desktopTwoCursorGlow.scale.set(1.2);
-			desktopTwoCursorGlow.blendMode = PIXI.BLEND_MODES.ADD;
-			const firstDesktopTwoCursorFrame = new PIXI.Texture(cursorBase, new PIXI.Rectangle(0, 0, frameW, frameH));
-			desktopTwoCursorSprite.texture = firstDesktopTwoCursorFrame;
-			desktopTwoCursorGlow.texture = firstDesktopTwoCursorFrame;
-			let desktopTwoCursorAnim = null;
-			if (USE_ANIMATED_CURSOR && cols > 0 && rows > 0) {
-				const frames = [];
-				for (let y = 0; y < rows; y++) {
-					for (let x = 0; x < cols; x++) {
-						if (frames.length >= CURSOR_ANIM_MAX_FRAMES) break;
-						frames.push(new PIXI.Texture(cursorBase, new PIXI.Rectangle(x * frameW, y * frameH, frameW, frameH)));
-					}
-					if (frames.length >= CURSOR_ANIM_MAX_FRAMES) break;
-				}
-				if (frames.length > 0) {
-					desktopTwoCursorAnim = new PIXI.AnimatedSprite(frames);
-					desktopTwoCursorAnim.anchor.set(0.5);
-					desktopTwoCursorAnim.animationSpeed = 0.22;
-					desktopTwoCursorAnim.play();
-				}
-			}
-			if (desktopTwoCursorAnim && desktopTwoCursorAnim.totalFrames > 1) desktopTwoCursor.addChild(desktopTwoCursorGlow, desktopTwoCursorAnim);
-			else desktopTwoCursor.addChild(desktopTwoCursorGlow, desktopTwoCursorSprite);
-			desktopTwoCursor.eventMode = 'none';
-			desktopTwoCursor.scale.set(0.85);
-			desktopTwoCursor.zIndex = 999;
-			const { filter: desktopTwoCursorPixelate, update: updateDesktopTwoCursorPixelate } = createPixelateFilter(desktopTwoApp, { pixelSize: 2 });
-			desktopTwoCursor.filters = [desktopTwoCursorPixelate];
-			desktopTwoScene.addChild(desktopTwoCursor);
-			document.documentElement.classList.add('desktop-two-cursor-ready');
-
-			const layoutRightPortal = () => {
-				rightPortalWidth = Math.max(56, Math.min(110, desktopTwoApp.renderer.width * 0.095));
-				const h = desktopTwoApp.renderer.height;
-				const portalW = rightPortalWidth;
-				const portalH = h;
-				rightPortalShownX = desktopTwoApp.renderer.width;
-				rightPortalY = 0;
-				rightPortalHiddenX = rightPortalShownX + portalW * 0.62;
-				rightPortal.position.set(rightPortalHiddenX, rightPortalY);
-				rightPortal.scale.set(-1, 1);
-
-				const bulge = portalW * 0.65;
-				const midY = portalH * 0.5;
-				const curveX = portalW + bulge;
-				const edgeX = portalW * 0.55;
-
-				rightGlowSoft.clear();
-				rightGlowSoft.beginFill(0x2a0d0d, 0.2);
-				rightGlowSoft.moveTo(0, 0);
-				rightGlowSoft.lineTo(edgeX, 0);
-				rightGlowSoft.quadraticCurveTo(curveX, midY, edgeX, portalH);
-				rightGlowSoft.lineTo(0, portalH);
-				rightGlowSoft.closePath();
-				rightGlowSoft.endFill();
-
-				rightGlow.clear();
-				rightGlow.beginFill(0xa5271a, 0.22);
-				rightGlow.moveTo(0, 0);
-				rightGlow.lineTo(portalW * 0.45, 0);
-				rightGlow.quadraticCurveTo(portalW + bulge * 0.35, midY, portalW * 0.45, portalH);
-				rightGlow.lineTo(0, portalH);
-				rightGlow.closePath();
-				rightGlow.endFill();
-
-				const arrowSize = Math.max(16, Math.min(26, desktopTwoApp.renderer.height * 0.038));
-				rightArrow.clear();
-				drawPixelArrow(rightArrow, arrowSize, 0xf3e0c0);
-				rightArrow.position.set(portalW * 0.52, portalH * 0.5);
-				rightArrow.hitArea = new PIXI.Circle(0, 0, arrowSize * 1.2);
-
-				rightPortalHitZone.clear();
-				rightPortalHitZone.beginFill(0xffffff, 0.001);
-				rightPortalHitZone.drawRect(0, 0, portalW * 0.88, portalH);
-				rightPortalHitZone.endFill();
-			};
-			let desktopTwoTime = 0;
-			const DESKTOP_TWO_PARALLAX = 9;
-			const DESKTOP_TWO_SMOOTHING = 0.08;
-			const desktopTwoCameraOffset = { x: 0, y: 0 };
-			desktopTwoApp.ticker.add((dt) => {
-				desktopTwoTime += dt / 60;
-				const dtSeconds = dt / 60;
-				updateCRTFisheyeFilter({ uniforms: desktopTwoFisheyeUniforms }, desktopTwoApp, dt / 60);
-				updateCRTScanlinesFilter({ uniforms: desktopTwoScanlinesUniforms }, desktopTwoApp, dt / 60);
-				const nx = (desktopTwoMouse.x / Math.max(1, desktopTwoApp.renderer.width)) * 2 - 1;
-				const ny = (desktopTwoMouse.y / Math.max(1, desktopTwoApp.renderer.height)) * 2 - 1;
-				const targetX = -nx * DESKTOP_TWO_PARALLAX;
-				const targetY = -ny * DESKTOP_TWO_PARALLAX;
-				desktopTwoCameraOffset.x += (targetX - desktopTwoCameraOffset.x) * DESKTOP_TWO_SMOOTHING;
-				desktopTwoCameraOffset.y += (targetY - desktopTwoCameraOffset.y) * DESKTOP_TWO_SMOOTHING;
-				desktopTwoPanelBoot += ((desktopTwoActive ? 1 : 0) - desktopTwoPanelBoot) * Math.min(1, dtSeconds * 9);
-				desktopTwoGlowBreath = 0.5 + 0.5 * Math.sin(desktopTwoTime * 1.8);
-				portfolioPanel.visible = desktopTwoPanelBoot > 0.01;
-				portfolioPanel.alpha = desktopTwoPanelBoot;
-				portfolioPanel.scale.set(0.98 + desktopTwoPanelBoot * 0.02);
-				portfolioPanel.position.y = desktopTwoPanelBaseY + Math.sin(desktopTwoTime * 1.3) * 2.2 * desktopTwoPanelBoot;
-
-				portfolioWindowBoot += ((portfolioWindowOpen ? 1 : 0) - portfolioWindowBoot) * Math.min(1, dtSeconds * 12);
-				portfolioWindow.visible = portfolioWindowBoot > 0.02;
-				portfolioWindow.alpha = portfolioWindowBoot;
-				portfolioWindow.scale.set(0.98 + portfolioWindowBoot * 0.02);
-				portfolioWindowClose.scale.set(1 + portfolioWindowCloseHover * 0.04);
-				portfolioPreview.visible = portfolioWindow.visible;
-
-				if (portfolioWindow.visible) {
-					portfolioWindowScanPhase += dtSeconds * (portfolioWindowOpen ? 1.8 : 0.8);
-					portfolioWindowSweep.clear();
-					const sweepW = desktopTwoApp.renderer.width * 0.62;
-					const sweepH = 10;
-					const y = -desktopTwoApp.renderer.height * 0.23 + ((portfolioWindowScanPhase * 120) % (desktopTwoApp.renderer.height * 0.44));
-					portfolioWindowSweep.beginFill(0x9ad8ff, 0.08 + Math.max(0, 1 - portfolioWindowBoot) * 0.22);
-					portfolioWindowSweep.drawRoundedRect(-sweepW * 0.5, y, sweepW, sweepH, 4);
-					portfolioWindowSweep.endFill();
-
-					if (portfolioWindowOpen) {
-						const totalChars = (`${portfolioTypingPrefixSrc}${portfolioTypingWordSrc}${portfolioTypingSuffixSrc}`).length;
-						if (portfolioTypingChars < totalChars) {
-							portfolioTypingTimer += dtSeconds;
-							const interval = 0.017;
-							while (portfolioTypingTimer >= interval && portfolioTypingChars < totalChars) {
-								portfolioTypingTimer -= interval;
-								portfolioTypingChars += 1;
-							}
-							applyPortfolioTypedLine();
-						}
-						portfolioCursorTimer += dtSeconds;
-						portfolioTypingCursor.alpha = (portfolioCursorTimer % 0.66) < 0.36 ? 1 : 0.2;
-					} else {
-						portfolioTypingCursor.alpha = 0;
-					}
-					portfolioPreviewPrev.visible = portfolioPreviewPrev.visible || portfolioMediaTransition.active;
-					portfolioDotNav.visible = true;
-					portfolioArrowLeft.visible = portfolioDotNodes.length > 1;
-					portfolioArrowRight.visible = portfolioDotNodes.length > 1;
-					stepPortfolioMediaTransition(dtSeconds);
-					redrawDotNavigation();
-				} else {
-					portfolioPreviewPrev.visible = false;
-					portfolioDotNav.visible = false;
-					portfolioArrowLeft.visible = false;
-					portfolioArrowRight.visible = false;
-				}
-
-				if (portfolioLayout.cardW <= 0 || portfolioLayout.cardH <= 0) {
-					layoutPortfolioPanel();
-				}
-				drawPortfolioCartridges(dtSeconds, desktopTwoTime);
-				portfolioSub.alpha = 0.9 + 0.01 * Math.sin(desktopTwoTime * 1.6);
-
-				const hoverTintTarget = desktopTwoCartridgeHover >= 0
-					? projectCartridgeDefs[desktopTwoCartridgeHover]?.tint ?? desktopTwoFlowBase.glowColor
-					: desktopTwoFlowBase.glowColor;
-				const hoverMixTarget = desktopTwoCartridgeHover >= 0 ? 1 : 0;
-				desktopTwoFlowHoverCurrent += (hoverMixTarget - desktopTwoFlowHoverCurrent) * Math.min(1, dtSeconds * 8);
-				desktopTwoFlowTintCurrent = stepDesktopColor(desktopTwoFlowTintCurrent, hoverTintTarget, Math.min(1, dtSeconds * 7));
-				const hoverBreathe = desktopTwoFlowHoverCurrent > 0.05
-					? (0.5 + 0.5 * Math.sin(desktopTwoTime * 4.2)) * desktopTwoFlowHoverCurrent * 0.06
-					: 0;
-				const cartridgeMix = 0.04 + desktopTwoFlowHoverCurrent * 0.16 + hoverBreathe;
-				setDesktopTwoFlowAmbience?.({
-					lineColor: mixDesktopColor(desktopTwoFlowBase.lineColor, desktopTwoFlowTintCurrent, cartridgeMix),
-					glowColor: mixDesktopColor(desktopTwoFlowBase.glowColor, desktopTwoFlowTintCurrent, cartridgeMix + 0.05),
-					mistColorB: mixDesktopColor(desktopTwoFlowBase.mistColorB, desktopTwoFlowTintCurrent, cartridgeMix * 0.34),
-					mistColorC: mixDesktopColor(desktopTwoFlowBase.mistColorC, desktopTwoFlowTintCurrent, cartridgeMix * 0.38),
-					speed: desktopTwoFlowBase.speed * (1 + desktopTwoFlowHoverCurrent * 0.05),
-					density: desktopTwoFlowBase.density * (1 + desktopTwoFlowHoverCurrent * 0.04),
-					glowStrength: desktopTwoFlowBase.glowStrength + desktopTwoFlowHoverCurrent * 0.08 + hoverBreathe * 0.7,
-				});
-				updateDesktopTwoFlow(desktopTwoTime, desktopTwoCameraOffset);
-				updateDesktopTwoCursorPixelate();
-				desktopTwoCursor.visible = desktopTwoActive;
-				desktopTwoCursor.alpha = desktopTwoActive ? 1 : 0;
-				desktopTwoCursor.position.set(desktopTwoMouse.x, desktopTwoMouse.y);
-
-				if (!desktopTwoActive) {
-					desktopTwoCartridgeHover = -1;
-					desktopTwoLastCartridgeHover = -1;
-					portfolioWindowOpen = false;
-					rightPortalProgress += (0 - rightPortalProgress) * 0.2;
-					rightGlowSoft.alpha = 0;
-					rightGlow.alpha = 0;
-					rightArrow.alpha = 0;
-					rightPortal.visible = false;
-					return;
-				}
-
-				const backEdgeWidth = Math.max(1, desktopTwoApp.renderer.width * 0.18);
-				const edgeStart = desktopTwoApp.renderer.width - backEdgeWidth;
-				const edgeFactor = Math.max(0, Math.min(1, (desktopTwoMouse.x - edgeStart) / backEdgeWidth));
-				rightPortalProgress += (edgeFactor - rightPortalProgress) * 0.2;
-				rightPortal.position.x = rightPortalHiddenX + (rightPortalShownX - rightPortalHiddenX) * rightPortalProgress;
-				rightPortal.position.y = rightPortalY;
-				rightGlowSoft.alpha = 0.08 + 0.18 * rightPortalProgress;
-				rightGlow.alpha = 0.14 + 0.32 * rightPortalProgress;
-				rightArrow.alpha = 0.22 + 0.74 * rightPortalProgress;
-				const scale = 0.8 + 0.28 * rightPortalProgress;
-				rightArrow.scale.set(scale);
-				rightPortal.visible = true;
-			});
-			const handleDesktopTwoResize = () => {
-				desktopTwoBaseFill.width = desktopTwoApp.renderer.width;
-				desktopTwoBaseFill.height = desktopTwoApp.renderer.height;
-				desktopTwoScene.filterArea = new PIXI.Rectangle(0, 0, desktopTwoApp.renderer.width, desktopTwoApp.renderer.height);
-				resizeDesktopTwoFlow();
-				layoutPortfolioPanel();
-				layoutRightPortal();
-			};
-			desktopTwoApp.renderer?.on?.('resize', handleDesktopTwoResize);
-			handleDesktopTwoResize();
-		};
-		const setDesktopTwoActive = (next) => {
-			desktopTwoActive = next;
-			document.documentElement.classList.toggle('desktop-two-active', next);
-			if (desktopTwoOverlay) {
-				desktopTwoOverlay.setAttribute('aria-hidden', next ? 'false' : 'true');
-			}
-			setPortfolioUiActive(false);
-			if (!next) {
-				tryCloseDesktopTwoPortfolioWindow();
-				onDesktopTwoExitRequested?.();
-			}
-			if (next) {
-				try {
-					ensureDesktopTwoBackground();
-					onDesktopTwoActivated?.();
-				} catch (err) {
-					console.error('Desktop Two activation failed:', err);
-					desktopTwoActive = false;
-					document.documentElement.classList.remove('desktop-two-active');
-					if (desktopTwoOverlay) desktopTwoOverlay.setAttribute('aria-hidden', 'true');
-				}
-			}
-		};
+		const PORTFOLIO_LEFT_TITLE_FONT_FAMILY = 'Minecraft, monospace';
+		const PORTFOLIO_RIGHT_INFO_FONT_FAMILY = 'Minecraft, monospace';
 		window.addEventListener('keydown', (event) => {
 			if (event.key !== 'Escape') return;
 			if (isScreenshotPopoutOpen()) return;
 			if (vineLabActive) {
 				closeVineLabNow();
-				return;
-			}
-			if (desktopTwoActive && tryCloseDesktopTwoPortfolioWindow()) {
-				return;
-			}
-			if (desktopTwoActive) {
-				playExitToMenuSfx();
-				setDesktopTwoActive(false);
 				return;
 			}
 			if (isFullscreenTvPlaybackActive()) {
@@ -1654,14 +114,19 @@ async function boot() {
 			}
 			if (livingRoomActive) closeLivingRoomScene();
 		});
-
 		if (document.fonts && document.fonts.load) {
 			try {
-				const fontPromise = document.fonts.load('16px Minecraft');
 				const fontTimeout = new Promise((resolve) => {
-					window.setTimeout(resolve, 1500);
+					window.setTimeout(resolve, 2200);
 				});
-				await Promise.race([fontPromise, fontTimeout]);
+				const loadRequestedFonts = Promise.allSettled([
+					document.fonts.load('16px "Minecraft"'),
+				]);
+				const fontsReady = document.fonts.ready || Promise.resolve();
+				await Promise.race([
+					Promise.allSettled([loadRequestedFonts, fontsReady]),
+					fontTimeout,
+				]);
 				await new Promise((r) => requestAnimationFrame(() => r()));
 			} catch (_) {
 			}
@@ -1678,11 +143,51 @@ async function boot() {
 		};
 		const SHOW_INGAME_CURSOR = !isMobileTouchDevice();
 
+		const backgroundQualityManager = createBackgroundQualityManager({
+			requestedMode: BACKGROUND_QUALITY_MODE.AUTO,
+		});
+		const BACKGROUND_SCENE_QUALITY = {
+			[BACKGROUND_QUALITY_MODE.FULL]: {
+				ambientDebrisCount: 10,
+				cameraParallax: 9,
+				scanlineStrengthScale: 1,
+				scanlineNoiseScale: 1,
+				ambienceUpdateStep: 1,
+				ambientDebrisUpdateStep: 1,
+			},
+			[BACKGROUND_QUALITY_MODE.REDUCED]: {
+				ambientDebrisCount: 6,
+				cameraParallax: 7.2,
+				scanlineStrengthScale: 0.86,
+				scanlineNoiseScale: 0.78,
+				ambienceUpdateStep: 2,
+				ambientDebrisUpdateStep: 2,
+			},
+		};
+		let activeBackgroundQualityMode = backgroundQualityManager.getMode();
+		let backgroundSceneQuality = BACKGROUND_SCENE_QUALITY[activeBackgroundQualityMode] || BACKGROUND_SCENE_QUALITY[BACKGROUND_QUALITY_MODE.FULL];
+
 		const app = new PIXI.Application({
 				resizeTo: root,
 				background: THEMES[loadThemeKey()].appBackground,
 				antialias: true,
 			});
+		if (typeof window !== 'undefined') {
+			window.__mwBackgroundQuality = {
+				getState: () => backgroundQualityManager.getState(),
+				setAuto: () => backgroundQualityManager.setRequestedMode(BACKGROUND_QUALITY_MODE.AUTO, { persistOverride: true, reason: 'debug-set-auto' }),
+				setFull: () => backgroundQualityManager.setRequestedMode(BACKGROUND_QUALITY_MODE.FULL, { persistOverride: true, reason: 'debug-set-full' }),
+				setReduced: () => backgroundQualityManager.setRequestedMode(BACKGROUND_QUALITY_MODE.REDUCED, { persistOverride: true, reason: 'debug-set-reduced' }),
+				startProbe: () => backgroundQualityManager.startRuntimeMonitoring(app.ticker, {
+					warmupSeconds: 2.5,
+					sampleWindowSeconds: 3.2,
+					minimumSamples: 90,
+					poorAverageFps: 47,
+					poorP95FrameMs: 33,
+					requireBothPoorSignals: true,
+				}),
+			};
+		}
 		app.start?.();
 		app.ticker?.start?.();
 			app.stage.roundPixels = true;
@@ -1712,6 +217,7 @@ async function boot() {
 				update: updateFlowBackground,
 				resize: resizeFlowBackground,
 				setAmbience: setFlowAmbience,
+				setQualityMode: setFlowQualityMode,
 			} = createCrimsonFlowBackground(app, {
 				lineColor: 0x6f001b,
 				glowColor: 0xa00026,
@@ -1721,14 +227,49 @@ async function boot() {
 				pixelSize: 8,
 				density: 4.6,
 				speed: 0.75,
+				qualityMode: activeBackgroundQualityMode,
 			});
 			scene.addChild(flowBackground);
+			const targetReactiveFxLayer = new PIXI.Container();
+			targetReactiveFxLayer.eventMode = 'none';
+			const targetReactiveInfluenceLayer = new PIXI.Graphics();
+			targetReactiveInfluenceLayer.blendMode = PIXI.BLEND_MODES.ADD;
+			const targetReactiveRippleLayer = new PIXI.Graphics();
+			targetReactiveRippleLayer.blendMode = PIXI.BLEND_MODES.ADD;
+			targetReactiveFxLayer.addChild(targetReactiveInfluenceLayer, targetReactiveRippleLayer);
+			targetReactiveFxLayer.visible = false;
+			scene.addChild(targetReactiveFxLayer);
 			const ambientLayer = new PIXI.Container();
 			scene.addChild(ambientLayer);
 			const SCENE_SCALE = 1.12;
-			const CAMERA_PARALLAX = 9;
+			let cameraParallax = backgroundSceneQuality.cameraParallax;
 			const CAMERA_SMOOTHING = 0.08;
 			const cameraOffset = { x: 0, y: 0 };
+			let flowAmbienceFrameCounter = 0;
+			let ambientDebrisFrameCounter = 0;
+			let refreshBackgroundSceneQuality = () => {};
+
+			const applyBackgroundQualityMode = (mode, reason = 'unknown') => {
+				const nextMode = mode === BACKGROUND_QUALITY_MODE.REDUCED
+					? BACKGROUND_QUALITY_MODE.REDUCED
+					: BACKGROUND_QUALITY_MODE.FULL;
+				activeBackgroundQualityMode = nextMode;
+				backgroundSceneQuality = BACKGROUND_SCENE_QUALITY[nextMode] || BACKGROUND_SCENE_QUALITY[BACKGROUND_QUALITY_MODE.FULL];
+				cameraParallax = backgroundSceneQuality.cameraParallax;
+				flowAmbienceFrameCounter = 0;
+				ambientDebrisFrameCounter = 0;
+				setFlowQualityMode?.(nextMode);
+				refreshBackgroundSceneQuality();
+				console.info('[Background quality]', {
+					mode: nextMode,
+					reason,
+					state: backgroundQualityManager.getState(),
+				});
+			};
+			applyBackgroundQualityMode(activeBackgroundQualityMode, backgroundQualityManager.getReason());
+			backgroundQualityManager.onModeChange((event) => {
+				applyBackgroundQualityMode(event.mode, event.reason || event.trigger || 'mode-change');
+			});
 			const screenToWorldX = (screenX) => {
 				const cx = app.renderer.width / 2;
 				return (screenX - cx) / SCENE_SCALE + cx;
@@ -1923,6 +464,31 @@ async function boot() {
 				waveMix: 0.1,
 				vignette: 0.008,
 			};
+			const TARGET_BACKGROUND_MODE = Object.freeze({
+				MENU: 'menu',
+				TRANSITION_TO_TARGET: 'transition-to-target',
+				TARGET_MINIGAME_UNLOCKED_ACTIVE: 'target-minigame-unlocked-active',
+			});
+			const TARGET_BACKGROUND_QUALITY = Object.freeze({
+				[BACKGROUND_QUALITY_MODE.FULL]: {
+					maxRipples: 9,
+					maxInfluencers: 5,
+					rippleStrokePx: 3.4,
+					rippleSpeedPx: 260,
+					targetRadiusPx: 132,
+					frameStep: 1,
+					layerAlpha: 0.82,
+				},
+				[BACKGROUND_QUALITY_MODE.REDUCED]: {
+					maxRipples: 4,
+					maxInfluencers: 3,
+					rippleStrokePx: 2.4,
+					rippleSpeedPx: 220,
+					targetRadiusPx: 106,
+					frameStep: 2,
+					layerAlpha: 0.64,
+				},
+			});
 			const MOOD_MAP = {
 				default: BASE_MOOD,
 				GitHub: {
@@ -2125,7 +691,7 @@ async function boot() {
 			};
 			const resolveMusicTrack = () => {
 				if (vineLabActive) return MUSIC_TRACKS.lab;
-				if (livingRoomActive || desktopTwoActive) return MUSIC_TRACKS.portfolio;
+				if (livingRoomActive) return MUSIC_TRACKS.portfolio;
 				if (basketballMode && dragEnabled) return MUSIC_TRACKS.targetTest;
 				return MUSIC_TRACKS.menu;
 			};
@@ -2296,7 +862,7 @@ async function boot() {
 				if (changed) resolveActiveMood();
 			};
 			resolveActiveMood();
-			for (let i = 0; i < 10; i++) {
+			for (let i = 0; i < backgroundSceneQuality.ambientDebrisCount; i++) {
 				const node = new PIXI.Container();
 				const glow = new PIXI.Graphics();
 				const body = new PIXI.Graphics();
@@ -2352,6 +918,13 @@ async function boot() {
 					parallax: 10 + Math.random() * 20,
 				});
 			}
+			refreshBackgroundSceneQuality = () => {
+				const activeDebrisCount = Math.max(0, Math.min(ambientDebris.length, backgroundSceneQuality.ambientDebrisCount));
+				for (let i = 0; i < ambientDebris.length; i++) {
+					ambientDebris[i].panel.visible = i < activeDebrisCount;
+				}
+			};
+			refreshBackgroundSceneQuality();
 
 			const systemCore = new PIXI.Container();
 			const coreDial = new PIXI.Graphics();
@@ -2717,7 +1290,7 @@ async function boot() {
 						hoverActionText: 'Open Portfolio',
 						tooltip: 'Open Portfolio',
 						onTap: () => {
-							startDesktopTwoEntryTransition();
+							startPortfolioEntryTransition();
 						},
 						panelFill: 0x131d2d,
 						panelFillAlpha: 0.96,
@@ -3424,6 +1997,149 @@ async function boot() {
 				dividerWorldX: 0,
 				dividerWorldY: 0,
 			};
+			const targetBackgroundState = {
+				mode: TARGET_BACKGROUND_MODE.MENU,
+				mix: 0,
+				comboEnergy: 0,
+				hitImpulse: 0,
+				flowEnergy: 0,
+				frameCounter: 0,
+			};
+			const targetBackgroundRipples = [];
+			const targetBackgroundInfluencers = new Array(8).fill(null).map(() => ({
+				screenX: 0,
+				screenY: 0,
+				strength: 0,
+				tint: 0xffffff,
+			}));
+			let targetBackgroundInfluencerCount = 0;
+			const targetBackgroundScratchA = { x: 0, y: 0 };
+			const getTargetBackgroundQualityProfile = () => (
+				TARGET_BACKGROUND_QUALITY[activeBackgroundQualityMode]
+				|| TARGET_BACKGROUND_QUALITY[BACKGROUND_QUALITY_MODE.FULL]
+			);
+			const isTargetGameplayBackgroundActive = () => Boolean(dragEnabled && basketballMode);
+			const toScenePointFromScreen = (sx, sy, out = targetBackgroundScratchA) => {
+				const cx = app.renderer.width * 0.5;
+				const cy = app.renderer.height * 0.5;
+				out.x = (sx - cx - cameraOffset.x) / SCENE_SCALE + cx;
+				out.y = (sy - cy - cameraOffset.y) / SCENE_SCALE + cy;
+				return out;
+			};
+			const resetTargetReactiveBackground = () => {
+				targetBackgroundRipples.length = 0;
+				targetBackgroundInfluencerCount = 0;
+				targetReactiveInfluenceLayer.clear();
+				targetReactiveRippleLayer.clear();
+				targetReactiveFxLayer.visible = false;
+				targetBackgroundState.mode = TARGET_BACKGROUND_MODE.MENU;
+				targetBackgroundState.mix = 0;
+				targetBackgroundState.comboEnergy = 0;
+				targetBackgroundState.hitImpulse = 0;
+				targetBackgroundState.flowEnergy = 0;
+			};
+			const clearTargetReactiveTransientFx = () => {
+				targetBackgroundRipples.length = 0;
+				targetBackgroundInfluencerCount = 0;
+				targetReactiveInfluenceLayer.clear();
+				targetReactiveRippleLayer.clear();
+			};
+			const updateTargetReactiveBackgroundMode = (dtSeconds) => {
+				const dt = Math.max(0, dtSeconds || 0);
+				const active = isTargetGameplayBackgroundActive();
+				const targetMix = active ? 1 : 0;
+				const response = active ? 5.2 : 3.2;
+				targetBackgroundState.mix += (targetMix - targetBackgroundState.mix) * Math.min(1, dt * response);
+
+				const comboTarget = active ? clamp01(arcadeFeedback.combo / 7) : 0;
+				targetBackgroundState.comboEnergy += (comboTarget - targetBackgroundState.comboEnergy) * Math.min(1, dt * 2.4);
+				targetBackgroundState.comboEnergy = Math.max(0, targetBackgroundState.comboEnergy - dt * (active ? 0.14 : 1.2));
+				targetBackgroundState.hitImpulse = Math.max(0, targetBackgroundState.hitImpulse - dt * (active ? 1.3 : 3.1));
+				const flowTarget = clamp01(targetBackgroundState.comboEnergy * 0.72 + targetBackgroundState.hitImpulse * 0.95);
+				targetBackgroundState.flowEnergy += (flowTarget - targetBackgroundState.flowEnergy) * Math.min(1, dt * (active ? 4.4 : 3.2));
+
+				if (active && targetBackgroundState.mix >= 0.985) {
+					targetBackgroundState.mode = TARGET_BACKGROUND_MODE.TARGET_MINIGAME_UNLOCKED_ACTIVE;
+				} else if (targetBackgroundState.mix <= 0.015) {
+					targetBackgroundState.mode = TARGET_BACKGROUND_MODE.MENU;
+				} else {
+					targetBackgroundState.mode = TARGET_BACKGROUND_MODE.TRANSITION_TO_TARGET;
+				}
+			};
+			const spawnTargetBackgroundRipple = (screenX, screenY, strength = 1, tint = 0x79d8ff) => {
+				if (!isTargetGameplayBackgroundActive()) return;
+				const profile = getTargetBackgroundQualityProfile();
+				if (targetBackgroundRipples.length >= profile.maxRipples) {
+					targetBackgroundRipples.shift();
+				}
+				const mixStrength = clamp01(strength);
+				targetBackgroundRipples.push({
+					screenX,
+					screenY,
+					tint,
+					age: 0,
+					life: 0.54 + mixStrength * 0.32,
+					radiusPx: 14 + mixStrength * 18,
+					speedPx: profile.rippleSpeedPx * (0.84 + mixStrength * 0.42),
+					strokePx: profile.rippleStrokePx * (0.85 + mixStrength * 0.34),
+					maxAlpha: 0.22 + mixStrength * 0.34,
+				});
+				targetBackgroundState.hitImpulse = Math.min(1, targetBackgroundState.hitImpulse + 0.2 + mixStrength * 0.34);
+			};
+			const renderTargetReactiveBackground = (dtSeconds) => {
+				const dt = Math.max(0, dtSeconds || 0);
+				const profile = getTargetBackgroundQualityProfile();
+				targetBackgroundState.frameCounter = (targetBackgroundState.frameCounter + 1) % Math.max(1, profile.frameStep);
+				if (targetBackgroundState.frameCounter !== 0) return;
+
+				const mix = clamp01(targetBackgroundState.mix);
+				if (mix <= 0.001 && targetBackgroundRipples.length === 0) {
+					targetReactiveFxLayer.visible = false;
+					targetReactiveInfluenceLayer.clear();
+					targetReactiveRippleLayer.clear();
+					return;
+				}
+
+				targetReactiveFxLayer.visible = true;
+				targetReactiveFxLayer.alpha = clamp01((profile.layerAlpha + targetBackgroundState.flowEnergy * 0.18) * Math.max(mix, targetBackgroundRipples.length > 0 ? 0.18 : 0));
+				targetReactiveInfluenceLayer.clear();
+				targetReactiveRippleLayer.clear();
+
+				const influencerLimit = Math.min(targetBackgroundInfluencerCount, profile.maxInfluencers);
+				for (let i = 0; i < influencerLimit; i++) {
+					const inf = targetBackgroundInfluencers[i];
+					const influence = clamp01((0.28 + inf.strength * 0.5 + targetBackgroundState.flowEnergy * 0.24) * mix);
+					if (influence <= 0.01) continue;
+					const targetWorld = toScenePointFromScreen(inf.screenX, inf.screenY, targetBackgroundScratchA);
+					const radius = screenToWorldSize(profile.targetRadiusPx * (0.88 + inf.strength * 0.22));
+					targetReactiveInfluenceLayer.beginFill(inf.tint, 0.06 * influence);
+					targetReactiveInfluenceLayer.drawCircle(targetWorld.x, targetWorld.y, radius);
+					targetReactiveInfluenceLayer.endFill();
+					targetReactiveInfluenceLayer.beginFill(0xffffff, 0.022 * influence);
+					targetReactiveInfluenceLayer.drawCircle(targetWorld.x, targetWorld.y, radius * 0.54);
+					targetReactiveInfluenceLayer.endFill();
+				}
+
+				for (let i = targetBackgroundRipples.length - 1; i >= 0; i--) {
+					const ripple = targetBackgroundRipples[i];
+					ripple.age += dt;
+					if (ripple.age >= ripple.life) {
+						targetBackgroundRipples.splice(i, 1);
+						continue;
+					}
+					const t = clamp01(ripple.age / Math.max(0.0001, ripple.life));
+					const eased = 1 - Math.pow(1 - t, 2);
+					const alpha = (1 - t) * ripple.maxAlpha * Math.max(mix, 0.2);
+					if (alpha <= 0.003) continue;
+					const worldPos = toScenePointFromScreen(ripple.screenX, ripple.screenY, targetBackgroundScratchA);
+					const radius = screenToWorldSize(ripple.radiusPx + ripple.speedPx * eased);
+					targetReactiveRippleLayer.lineStyle(screenToWorldSize(ripple.strokePx * (1 - t * 0.45)), ripple.tint, alpha);
+					targetReactiveRippleLayer.drawCircle(worldPos.x, worldPos.y, radius);
+					targetReactiveRippleLayer.beginFill(ripple.tint, alpha * 0.14);
+					targetReactiveRippleLayer.drawCircle(worldPos.x, worldPos.y, radius * 0.72);
+					targetReactiveRippleLayer.endFill();
+				}
+			};
 			const arcadeCountdownSteps = [
 				{ label: '3', rate: 1.0, tint: 0xe8faff },
 				{ label: '2', rate: 1.0, tint: 0xe8faff },
@@ -3655,6 +2371,7 @@ async function boot() {
 				arcadePopupText.visible = true;
 			};
 			const applyDragEnabled = (enabled) => {
+				const wasTargetGameplayActive = Boolean(dragEnabled && basketballMode);
 				dragEnabled = Boolean(enabled);
 				if (dragEnabled) {
 					moodHoverEnabled = false;
@@ -3676,6 +2393,13 @@ async function boot() {
 				basketballToggle.eventMode = dragEnabled ? 'static' : 'none';
 				if (!dragEnabled) basketballMode = false;
 				arcadeLayer.visible = basketballMode;
+				if (!dragEnabled || !basketballMode) {
+					clearTargetReactiveTransientFx();
+					const exitingTargetViaLock = wasTargetGameplayActive && !dragEnabled;
+					if (!exitingTargetViaLock) {
+						resetTargetReactiveBackground();
+					}
+				}
 				appLauncher.setDragEnabled?.(dragEnabled, { preserveMomentum: dragEnabled });
 				if (blogIconSetDragEnabled) blogIconSetDragEnabled(dragEnabled, { preserveMomentum: dragEnabled });
 				if (linkedinIconSetDragEnabled) linkedinIconSetDragEnabled(dragEnabled, { preserveMomentum: dragEnabled });
@@ -3763,6 +2487,7 @@ async function boot() {
 				} else {
 					stopArcadeCountdown();
 					arcadePopupText.visible = false;
+					clearTargetReactiveTransientFx();
 				}
 			});
 			arcadeSweepControl.on('pointerover', () => { arcadeSweepHoverTarget = 1; });
@@ -4038,15 +2763,8 @@ async function boot() {
 				return true;
 			}
 		})();
-		onDesktopTwoActivated = () => {
-			showFirstPortfolioHint = false;
-			try {
-				localStorage.setItem(PORTFOLIO_SEEN_KEY, '1');
-			} catch (_) {
-			}
-		};
 
-		const desktopTwoEntryTransition = {
+		const portfolioEntryTransition = {
 			active: false,
 			phase: 0,
 			duration: 0.28,
@@ -4098,31 +2816,36 @@ async function boot() {
 				}
 			}
 		};
-		const startDesktopTwoExitTransition = () => {
-			if (!livingRoomActive || desktopTwoActive || desktopTwoEntryTransition.active) return;
+		const startPortfolioExitTransition = () => {
+			if (!livingRoomActive || portfolioEntryTransition.active) return;
 			playExitToMenuSfx();
-			desktopTwoEntryTransition.active = true;
-			desktopTwoEntryTransition.phase = 0;
-			desktopTwoEntryTransition.duration = 0.3;
-			desktopTwoEntryTransition.surge = 1;
-			desktopTwoEntryTransition.direction = -1;
-			desktopTwoEntryTransition.actionTriggered = false;
-			desktopTwoEntryTransition.action = () => {
+			portfolioEntryTransition.active = true;
+			portfolioEntryTransition.phase = 0;
+			portfolioEntryTransition.duration = 0.3;
+			portfolioEntryTransition.surge = 1;
+			portfolioEntryTransition.direction = -1;
+			portfolioEntryTransition.actionTriggered = false;
+			portfolioEntryTransition.action = () => {
 				closePortfolioLibraryNow();
 			};
 			drawTransitionWipe(0.01);
 		};
-		const startDesktopTwoEntryTransition = () => {
-			if (livingRoomActive || desktopTwoActive || desktopTwoEntryTransition.active) return;
+		const startPortfolioEntryTransition = () => {
+			if (livingRoomActive || portfolioEntryTransition.active) return;
 			terminalTypingHold = true;
-			desktopTwoEntryTransition.active = true;
-			desktopTwoEntryTransition.phase = 0;
-			desktopTwoEntryTransition.duration = 0.28;
-			desktopTwoEntryTransition.surge = 1;
-			desktopTwoEntryTransition.direction = 1;
-			desktopTwoEntryTransition.actionTriggered = false;
-			desktopTwoEntryTransition.action = () => {
+			portfolioEntryTransition.active = true;
+			portfolioEntryTransition.phase = 0;
+			portfolioEntryTransition.duration = 0.28;
+			portfolioEntryTransition.surge = 1;
+			portfolioEntryTransition.direction = 1;
+			portfolioEntryTransition.actionTriggered = false;
+			portfolioEntryTransition.action = () => {
 				openPortfolioLibraryNow();
+				showFirstPortfolioHint = false;
+				try {
+					localStorage.setItem(PORTFOLIO_SEEN_KEY, '1');
+				} catch (_) {
+				}
 				portfolioSnapTimer = 0.16;
 			};
 			drawTransitionWipe(0.01);
@@ -4178,7 +2901,7 @@ async function boot() {
 		leftArrow.on('pointertap', () => {
 			if (!ENABLE_LEFT_PORTAL_SHORTCUT) return;
 			markPortalInteraction();
-			startDesktopTwoEntryTransition();
+			startPortfolioEntryTransition();
 		});
 		leftPortalHitZone.eventMode = ENABLE_LEFT_PORTAL_SHORTCUT ? 'static' : 'none';
 		leftPortalHitZone.cursor = ENABLE_LEFT_PORTAL_SHORTCUT ? 'pointer' : 'default';
@@ -4187,7 +2910,7 @@ async function boot() {
 		leftPortalHitZone.on('pointertap', () => {
 			if (!ENABLE_LEFT_PORTAL_SHORTCUT) return;
 			markPortalInteraction();
-			startDesktopTwoEntryTransition();
+			startPortfolioEntryTransition();
 		});
 		let leftPortalWidth = 84;
 		let leftPortalProgress = 0;
@@ -4411,6 +3134,62 @@ async function boot() {
 			playingMix: 0,
 			staticBurst: 0,
 		};
+		// Portfolio scene-only metaball layer; launcher/home flow background is separate.
+		const createAmbientBlobTexture = (size = 256) => {
+			if (typeof document === 'undefined') return PIXI.Texture.WHITE;
+			const canvas = document.createElement('canvas');
+			canvas.width = size;
+			canvas.height = size;
+			const ctx = canvas.getContext('2d');
+			if (!ctx) return PIXI.Texture.WHITE;
+			const image = ctx.createImageData(size, size);
+			const data = image.data;
+			const smoothstep = (edge0, edge1, x) => {
+				const t = Math.max(0, Math.min(1, (x - edge0) / Math.max(0.0001, edge1 - edge0)));
+				return t * t * (3 - 2 * t);
+			};
+			const hash = (x, y) => {
+				const v = Math.sin(x * 127.1 + y * 311.7 + 73.2) * 43758.5453;
+				return v - Math.floor(v);
+			};
+			for (let y = 0; y < size; y++) {
+				for (let x = 0; x < size; x++) {
+					const nx = ((x + 0.5) / size) * 2 - 1;
+					const ny = ((y + 0.5) / size) * 2 - 1;
+					const radius = Math.hypot(nx, ny);
+					const angle = Math.atan2(ny, nx);
+					const edgeRadius = 0.72
+						+ Math.sin(angle * 2.9 + 0.7) * 0.06
+						+ Math.sin(angle * 5.3 - 1.2) * 0.04
+						+ Math.sin(angle * 8.1 + 1.4) * 0.018;
+					const edgeMask = 1 - smoothstep(edgeRadius - 0.14, edgeRadius + 0.02, radius);
+					const mask = edgeMask * edgeMask;
+					if (mask <= 0.001) continue;
+					const marblingA = Math.sin(nx * 8.2 + ny * 5.1 + radius * 7.6 + hash(x * 0.56, y * 0.44) * 2.8);
+					const marblingB = Math.sin(nx * 12.3 - ny * 9.1 + hash(x * 0.92, y * 0.76) * 3.6);
+					const marbling = (marblingA * 0.58 + marblingB * 0.42) * 0.5 + 0.5;
+					const cloud = (Math.sin(nx * 4.6 - ny * 3.9 + hash(x * 0.32, y * 0.28) * 4.0) * 0.5 + 0.5);
+					const core = 1 - Math.max(0, Math.min(1, radius / Math.max(0.1, edgeRadius)));
+					const rim = smoothstep(0.54, 0.98, radius / Math.max(0.16, edgeRadius));
+					const tone = Math.max(0, Math.min(1,
+						0.56
+						+ core * 0.24
+						+ marbling * 0.14
+						+ cloud * 0.08
+						+ rim * (0.07 + marbling * 0.06)
+					));
+					const alpha = mask * (0.62 + core * 0.24) * (0.88 + marbling * 0.12);
+					const idx = (y * size + x) * 4;
+					const value = Math.max(0, Math.min(255, Math.round(tone * 255)));
+					data[idx] = value;
+					data[idx + 1] = value;
+					data[idx + 2] = value;
+					data[idx + 3] = Math.max(0, Math.min(255, Math.round(alpha * 255)));
+				}
+			}
+			ctx.putImageData(image, 0, 0);
+			return PIXI.Texture.from(canvas);
+		};
 		const livingRoomLayer = new PIXI.Container();
 		livingRoomLayer.zIndex = 180;
 		livingRoomLayer.sortableChildren = true;
@@ -4418,10 +3197,72 @@ async function boot() {
 		livingRoomLayer.eventMode = 'none';
 		const roomBg = new PIXI.Container();
 		const livingRoomBackdrop = new PIXI.Graphics();
+		const livingRoomAmbientLayer = new PIXI.Container();
 		const livingRoomWallGlow = new PIXI.Graphics();
 		const livingRoomFloor = new PIXI.Graphics();
 		const roomVignette = new PIXI.Graphics();
-		roomBg.addChild(livingRoomBackdrop, livingRoomWallGlow, livingRoomFloor, roomVignette);
+		const livingRoomAmbientBlur = new PIXI.BlurFilter(8, 1);
+		const livingRoomAmbientMetaFilter = new PIXI.Filter(undefined, `
+			precision mediump float;
+			varying vec2 vTextureCoord;
+			uniform sampler2D uSampler;
+			uniform float u_thresholdLow;
+			uniform float u_thresholdHigh;
+			uniform float u_alphaBoost;
+			uniform float u_bodyContrast;
+
+			void main() {
+				vec4 src = texture2D(uSampler, vTextureCoord);
+				float shaped = smoothstep(u_thresholdLow, u_thresholdHigh, src.a);
+				float body = pow(max(0.0, min(1.0, src.r)), u_bodyContrast);
+				float finalAlpha = max(0.0, min(1.0, shaped * u_alphaBoost));
+				vec3 color = src.rgb * (0.84 + body * 0.38);
+				gl_FragColor = vec4(color, finalAlpha);
+			}
+		`, {
+			u_thresholdLow: 0.21,
+			u_thresholdHigh: 0.58,
+			u_alphaBoost: 1.08,
+			u_bodyContrast: 1.14,
+		});
+		const livingRoomAmbientFilterArea = new PIXI.Rectangle(0, 0, 1, 1);
+		livingRoomAmbientLayer.filters = [livingRoomAmbientBlur, livingRoomAmbientMetaFilter];
+		livingRoomAmbientLayer.filterArea = livingRoomAmbientFilterArea;
+		livingRoomAmbientLayer.blendMode = PIXI.BLEND_MODES.NORMAL;
+		const livingRoomAmbientBlobTexture = createAmbientBlobTexture();
+		const livingRoomAmbientBlobs = [
+			{ baseX: 0.18, baseY: 0.24, driftX: 0.044, driftY: 0.03, speed: 0.028, scale: 3.12, squish: 0.132, alpha: 0.56, tint: 0x6beaff, phase: 0.4 },
+			{ baseX: 0.44, baseY: 0.46, driftX: 0.038, driftY: 0.028, speed: 0.024, scale: 3.44, squish: 0.138, alpha: 0.54, tint: 0x93b3ff, phase: 1.1 },
+			{ baseX: 0.72, baseY: 0.22, driftX: 0.04, driftY: 0.03, speed: 0.025, scale: 3.02, squish: 0.126, alpha: 0.52, tint: 0x7de7d2, phase: 2.2 },
+			{ baseX: 0.68, baseY: 0.68, driftX: 0.036, driftY: 0.025, speed: 0.022, scale: 3.14, squish: 0.118, alpha: 0.5, tint: 0xff9cd9, phase: 3.1 },
+			{ baseX: 0.28, baseY: 0.72, driftX: 0.034, driftY: 0.024, speed: 0.023, scale: 2.86, squish: 0.122, alpha: 0.47, tint: 0xb7ff83, phase: 4.0 },
+			{ baseX: 0.52, baseY: 0.28, driftX: 0.032, driftY: 0.022, speed: 0.021, scale: 2.62, squish: 0.114, alpha: 0.44, tint: 0xffb4a3, phase: 4.8 },
+		];
+		const livingRoomAmbientComputed = new Array(livingRoomAmbientBlobs.length).fill(null).map(() => ({
+			x: 0,
+			y: 0,
+			baseX: 0,
+			baseY: 0,
+			targetX: 0,
+			targetY: 0,
+			vx: 0,
+			vy: 0,
+			merge: 0,
+			phase: 0,
+			phaseY: 0,
+			initialized: false,
+		}));
+		for (const blob of livingRoomAmbientBlobs) {
+			const sprite = new PIXI.Sprite(livingRoomAmbientBlobTexture);
+			sprite.anchor.set(0.5);
+			sprite.tint = blob.tint;
+			sprite.alpha = blob.alpha;
+			sprite.blendMode = PIXI.BLEND_MODES.NORMAL;
+			sprite.eventMode = 'none';
+			blob.sprite = sprite;
+			livingRoomAmbientLayer.addChild(sprite);
+		}
+		roomBg.addChild(livingRoomBackdrop, livingRoomWallGlow, livingRoomAmbientLayer, livingRoomFloor, roomVignette);
 		const leftShelf = new PIXI.Graphics();
 		const rightShelf = new PIXI.Graphics();
 		const vhsTapesLeft = new PIXI.Container();
@@ -4472,14 +3313,14 @@ async function boot() {
 		const tvBroScreen = new PIXI.Container();
 		const tvBroBg = new PIXI.Graphics();
 		const tvBroTitle = new PIXI.Text('TERMINAL', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 13,
 			fill: 0xf5ecdb,
 			letterSpacing: 1,
 		});
 		tvBroTitle.anchor.set(0.5, 0.5);
 		const tvBroSub = new PIXI.Text('placeholder playback', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 9,
 			fill: 0xd4c0a4,
 			letterSpacing: 1,
@@ -4489,13 +3330,13 @@ async function boot() {
 		const tvTerminalLines = new PIXI.Container();
 		const tvTerminalCursor = new PIXI.Graphics();
 		const tvTerminalSlideTitle = new PIXI.Text('SLIDE', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 12,
 			fill: 0xffe4bc,
 			letterSpacing: 1,
 		});
 		const tvTerminalSlideValue = new PIXI.Text('', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 10,
 			fill: 0xe9dfcd,
 			letterSpacing: 0.6,
@@ -4504,13 +3345,13 @@ async function boot() {
 			lineHeight: 14,
 		});
 		const tvTerminalOverviewLabel = new PIXI.Text('OVERVIEW', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 9,
 			fill: 0x96bfdc,
 			letterSpacing: 1,
 		});
 		const tvTerminalOverviewText = new PIXI.Text('', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 9,
 			fill: 0xe9dfcd,
 			letterSpacing: 0.5,
@@ -4519,13 +3360,13 @@ async function boot() {
 			lineHeight: 14,
 		});
 		const tvTerminalDesignLabel = new PIXI.Text('DESIGN', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 9,
 			fill: 0x96bfdc,
 			letterSpacing: 1,
 		});
 		const tvTerminalDesignText = new PIXI.Text('', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 9,
 			fill: 0xe9dfcd,
 			letterSpacing: 0.5,
@@ -4540,13 +3381,13 @@ async function boot() {
 		tvTerminalDesignWaveMask.renderable = false;
 		tvTerminalDesignWave.visible = false;
 		const tvTerminalTechLabel = new PIXI.Text('TECHNICAL', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 9,
 			fill: 0x96bfdc,
 			letterSpacing: 1,
 		});
 		const tvTerminalTechText = new PIXI.Text('', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 9,
 			fill: 0xe9dfcd,
 			letterSpacing: 0.5,
@@ -4555,14 +3396,14 @@ async function boot() {
 			lineHeight: 14,
 		});
 		const tvTerminalHighlightsLabel = new PIXI.Text('HIGHLIGHTS', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 9,
 			fill: 0x96bfdc,
 			letterSpacing: 1,
 		});
 		const tvTerminalHighlights = new PIXI.Container();
 		const tvTerminalLinksLabel = new PIXI.Text('LINKS', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 9,
 			fill: 0x96bfdc,
 			letterSpacing: 1,
@@ -4613,7 +3454,7 @@ async function boot() {
 		const tvEmptyBg = new PIXI.Graphics();
 		const tvEmptySprite = new PIXI.Sprite(PIXI.Texture.WHITE);
 		const tvEmptyText = new PIXI.Text('Nothing here yet', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 10,
 			fill: 0xf4d06d,
 			letterSpacing: 1,
@@ -4654,26 +3495,26 @@ async function boot() {
 		const placardStand = new PIXI.Graphics();
 		const placardLed = new PIXI.Graphics();
 		const placardLedLabel = new PIXI.Text('NO TAPE', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 8,
 			fill: 0xe9dfcf,
 			letterSpacing: 1,
 		});
 		placardLedLabel.anchor.set(0, 0.5);
 		const placardTitle = new PIXI.Text('NO TAPE SELECTED', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 10,
 			fill: 0xf4e5cc,
 			letterSpacing: 1,
 		});
 		const placardStatus = new PIXI.Text('STATUS: IDLE', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 8,
 			fill: 0xd9c6a8,
 			letterSpacing: 1,
 		});
 		const placardBody = new PIXI.Text('Hover a tape to inspect metadata.', {
-			fontFamily: 'Minecraft, monospace',
+			fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 			fontSize: 8,
 			fill: 0xbca98d,
 			wordWrap: true,
@@ -5018,7 +3859,7 @@ async function boot() {
 				const appendChunk = (chunkText, color) => {
 					if (!chunkText) return;
 					const chunk = new PIXI.Text(chunkText, {
-						fontFamily: 'Minecraft, monospace',
+						fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 						fontSize: tvTerminalFontSize,
 						fill: color,
 						letterSpacing: 0.8,
@@ -5131,7 +3972,7 @@ async function boot() {
 			if (!phraseText.trim().length || !PIXI.TextMetrics?.measureText) return source;
 
 			const glyphStyle = {
-				fontFamily: 'Minecraft, monospace',
+				fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 				fontSize,
 				fill: 0xffffff,
 				letterSpacing: 0.5,
@@ -5648,7 +4489,7 @@ async function boot() {
 						const chip = new PIXI.Container();
 						const chipBg = new PIXI.Graphics();
 						const chipText = new PIXI.Text(highlight.text, {
-							fontFamily: 'Minecraft, monospace',
+							fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 							fontSize: 9,
 							fill: highlight.style === PORTFOLIO_HIGHLIGHT_RAINBOW ? TERMINAL_RAINBOW_FILL : TERMINAL_ACCENT_COLOR,
 							letterSpacing: 0.5,
@@ -5675,7 +4516,7 @@ async function boot() {
 					for (const linkDef of linkDefs) {
 						const row = new PIXI.Container();
 						const linkText = new PIXI.Text(`> ${linkDef.label}`, {
-							fontFamily: 'Minecraft, monospace',
+							fontFamily: PORTFOLIO_RIGHT_INFO_FONT_FAMILY,
 							fontSize: 9,
 							fill: TERMINAL_LINK_COLOR,
 							letterSpacing: 0.5,
@@ -5878,7 +4719,7 @@ async function boot() {
 			art.anchor.set(0.5);
 			const labelStrip = new PIXI.Graphics();
 			const title = new PIXI.Text('EMPTY', {
-				fontFamily: 'Minecraft, monospace',
+				fontFamily: PORTFOLIO_LEFT_TITLE_FONT_FAMILY,
 				fontSize: 13,
 				fill: 0xf2fbff,
 				stroke: 0x0a1320,
@@ -5947,7 +4788,6 @@ async function boot() {
 			livingRoomState.contentMode = isEmptyProject ? CONTENT_EMPTY : CONTENT_BRO_MEME;
 			livingRoomState.playingMix = isEmptyProject ? 0 : 1;
 			setLivingRoomProjectForTape(tapeEntry.tape, { resetSlide: true, force: true, instantTerminal: true });
-			setDesktopTwoLoadedTape(tapeEntry.tape);
 			setLivingRoomDetailFocus(true);
 			layoutLivingRoom();
 			refreshPlacard();
@@ -6041,6 +4881,122 @@ async function boot() {
 		const holoPanelLocalRect = { x: 0, y: 0, w: 0, h: 0 };
 		let livingRoomTapeW = 108;
 		let livingRoomTapeH = 62;
+		let livingRoomAmbientTime = Math.random() * 10;
+		const stepLivingRoomAmbient = (dtSeconds, reveal, focusMix) => {
+			if (reveal <= 0.01) {
+				livingRoomAmbientLayer.visible = false;
+				return;
+			}
+			livingRoomAmbientLayer.visible = true;
+			const dt = Math.max(1 / 180, Math.min(0.05, Math.max(0, dtSeconds || 0)));
+			livingRoomAmbientTime += dt;
+			const sw = app.renderer.width;
+			const sh = app.renderer.height;
+			const isReducedQuality = activeBackgroundQualityMode === BACKGROUND_QUALITY_MODE.REDUCED;
+			const activeBlobCount = isReducedQuality ? Math.min(4, livingRoomAmbientBlobs.length) : livingRoomAmbientBlobs.length;
+			livingRoomAmbientBlur.blur = isReducedQuality ? 5 : 8;
+			livingRoomAmbientBlur.quality = 1;
+			livingRoomAmbientMetaFilter.uniforms.u_thresholdLow = isReducedQuality ? 0.25 : 0.21;
+			livingRoomAmbientMetaFilter.uniforms.u_thresholdHigh = isReducedQuality ? 0.64 : 0.58;
+			livingRoomAmbientMetaFilter.uniforms.u_alphaBoost = isReducedQuality ? 1.0 : 1.08;
+			livingRoomAmbientMetaFilter.uniforms.u_bodyContrast = isReducedQuality ? 1.09 : 1.14;
+			livingRoomAmbientFilterArea.width = sw;
+			livingRoomAmbientFilterArea.height = sh;
+			const baseScale = Math.max(sw, sh) / 760;
+			const readabilityDampen = 1 - focusMix * 0.08;
+			livingRoomAmbientLayer.alpha = (0.42 + reveal * 0.22) * readabilityDampen * (isReducedQuality ? 0.9 : 1);
+			const driftScale = isReducedQuality ? 0.84 : 1;
+			for (let i = 0; i < livingRoomAmbientBlobs.length; i++) {
+				const blob = livingRoomAmbientBlobs[i];
+				const sprite = blob.sprite;
+				const computed = livingRoomAmbientComputed[i];
+				if (!sprite) continue;
+				if (i >= activeBlobCount) {
+					sprite.visible = false;
+					continue;
+				}
+				sprite.visible = true;
+				const phase = livingRoomAmbientTime * blob.speed + blob.phase;
+				const phaseY = livingRoomAmbientTime * (blob.speed * 0.86) + blob.phase * 1.31;
+				const driftX = (Math.sin(phase) * blob.driftX + Math.sin(phase * 0.39 + blob.phase * 0.5) * blob.driftX * 0.42) * driftScale;
+				const driftY = (Math.cos(phaseY) * blob.driftY + Math.cos(phaseY * 0.44 + blob.phase * 0.82) * blob.driftY * 0.38) * driftScale;
+				computed.baseX = sw * (blob.baseX + driftX);
+				computed.baseY = sh * (blob.baseY + driftY);
+				computed.phase = phase;
+				computed.phaseY = phaseY;
+			}
+			const mergeDistance = Math.max(sw, sh) * (isReducedQuality ? 0.24 : 0.28);
+			const pullStrength = Math.max(sw, sh) * (isReducedQuality ? 0.016 : 0.022);
+			const repelStrength = Math.max(sw, sh) * (isReducedQuality ? 0.004 : 0.0055);
+			for (let i = 0; i < activeBlobCount; i++) {
+				const computed = livingRoomAmbientComputed[i];
+				computed.targetX = computed.baseX;
+				computed.targetY = computed.baseY;
+				let merge = 0;
+				for (let j = 0; j < activeBlobCount; j++) {
+					if (i === j) continue;
+					const other = livingRoomAmbientComputed[j];
+					const dx = other.baseX - computed.baseX;
+					const dy = other.baseY - computed.baseY;
+					const distance = Math.max(0.001, Math.hypot(dx, dy));
+					const influence = Math.max(0, 1 - distance / mergeDistance);
+					if (influence <= 0) continue;
+					const nx = dx / distance;
+					const ny = dy / distance;
+					const pull = influence * influence * pullStrength;
+					computed.targetX += nx * pull;
+					computed.targetY += ny * pull;
+					const repelInfluence = Math.max(0, 1 - distance / (mergeDistance * 0.36));
+					if (repelInfluence > 0) {
+						computed.targetX -= nx * repelInfluence * repelStrength;
+						computed.targetY -= ny * repelInfluence * repelStrength;
+					}
+					merge += influence;
+				}
+				computed.merge = Math.max(0, Math.min(1, merge * (isReducedQuality ? 0.34 : 0.4)));
+			}
+
+			const spring = isReducedQuality ? 0.12 : 0.14;
+			const damping = isReducedQuality ? 0.84 : 0.82;
+			const velocityDenominator = Math.max(sw, sh) * (isReducedQuality ? 0.0072 : 0.0065);
+			for (let i = 0; i < activeBlobCount; i++) {
+				const blob = livingRoomAmbientBlobs[i];
+				const sprite = blob.sprite;
+				const computed = livingRoomAmbientComputed[i];
+				if (!sprite || !computed) continue;
+				if (!computed.initialized) {
+					computed.x = computed.targetX;
+					computed.y = computed.targetY;
+					computed.vx = 0;
+					computed.vy = 0;
+					computed.initialized = true;
+				}
+				computed.vx = (computed.vx + (computed.targetX - computed.x) * spring) * damping;
+				computed.vy = (computed.vy + (computed.targetY - computed.y) * spring) * damping;
+				computed.x += computed.vx;
+				computed.y += computed.vy;
+				sprite.x = computed.x;
+				sprite.y = computed.y;
+				const velocity = Math.hypot(computed.vx, computed.vy);
+				const velocityMix = Math.max(0, Math.min(1, velocity / Math.max(0.0001, velocityDenominator)));
+				const merge = computed.merge;
+				const breath = 1 + Math.sin(computed.phase * 0.38 + blob.phase) * 0.1;
+				const wobbleX = 1 + Math.sin(computed.phase * 0.9 + merge * 1.8) * blob.squish;
+				const wobbleY = 1 + Math.cos(computed.phaseY * 1.03 + merge * 1.2) * blob.squish;
+				const mergeScaleX = 1 + merge * 0.24 + velocityMix * 0.1;
+				const mergeScaleY = 1 + merge * 0.14 - velocityMix * 0.06;
+				const squishMix = Math.max(0.84, Math.min(1.18, 1 + Math.sin(computed.phase * 0.52 + blob.phase) * 0.08));
+				sprite.scale.set(
+					baseScale * blob.scale * breath * wobbleX * mergeScaleX * squishMix,
+					baseScale * blob.scale * breath * wobbleY * mergeScaleY / squishMix,
+				);
+				sprite.rotation = Math.sin(computed.phase * 0.21 + blob.phase) * 0.08 + Math.atan2(computed.vy, computed.vx) * velocityMix * 0.08;
+				const alpha = blob.alpha
+					* (0.88 + Math.sin(computed.phase * 0.26 + blob.phase) * 0.12)
+					* (0.92 + merge * 0.28);
+				sprite.alpha = Math.max(0.2, Math.min(1, alpha));
+			}
+		};
 		const drawLivingRoomBackdrop = (blend) => {
 			const sw = app.renderer.width;
 			const sh = app.renderer.height;
@@ -6048,7 +5004,7 @@ async function boot() {
 			const eased = 1 - Math.pow(1 - t, 3);
 
 			livingRoomBackdrop.clear();
-			livingRoomBackdrop.beginFill(0x0b090d, 0.86 * eased);
+			livingRoomBackdrop.beginFill(0x05070c, 0.42 * eased);
 			livingRoomBackdrop.drawRect(0, 0, sw, sh);
 			livingRoomBackdrop.endFill();
 		};
@@ -6097,7 +5053,7 @@ async function boot() {
 			livingRoomWallGlow.drawRect(0, 0, sw, sh);
 			livingRoomWallGlow.endFill();
 			roomVignette.clear();
-			roomVignette.beginFill(0x05050a, 0.28);
+			roomVignette.beginFill(0x05050a, 0.08);
 			roomVignette.drawRect(0, 0, sw, sh);
 			roomVignette.endFill();
 
@@ -6420,17 +5376,17 @@ async function boot() {
 		};
 		layoutLivingRoom({ instantTerminal: true });
 		openPortfolioLibraryNow = () => {
-			if (desktopTwoActive || livingRoomActive) return;
+			if (livingRoomActive) return;
 			enterLivingRoom();
 		};
 		closePortfolioLibraryNow = () => {
 			exitLivingRoom();
 		};
 		openLivingRoomScene = () => {
-			startDesktopTwoEntryTransition();
+			startPortfolioEntryTransition();
 		};
 		closeLivingRoomScene = () => {
-			startDesktopTwoExitTransition();
+			startPortfolioExitTransition();
 		};
 		const vineLabApp = createVineLab(app, {
 			accentColor: 0x38ffd0,
@@ -6445,7 +5401,7 @@ async function boot() {
 			vineLabApp.resize();
 		};
 		openVineLabNow = () => {
-			if (vineLabActive || vineLabTransition.active || livingRoomActive || desktopTwoActive || desktopTwoEntryTransition.active) return;
+			if (vineLabActive || vineLabTransition.active || livingRoomActive || portfolioEntryTransition.active) return;
 			vineLabTransition.active = true;
 			vineLabTransition.phase = 0;
 			vineLabTransition.duration = 0.34;
@@ -6459,7 +5415,6 @@ async function boot() {
 				livingRoomLayer.visible = false;
 				livingRoomLayer.eventMode = 'none';
 				fullscreenTvContentLayer.visible = false;
-				setDesktopTwoActive(false);
 				scene.visible = false;
 				vineLabApp.open();
 			};
@@ -6485,7 +5440,6 @@ async function boot() {
 			};
 			drawTransitionWipe(0.01);
 		};
-		onDesktopTwoExitRequested = () => {};
 		tvScreenHitArea.on('pointertap', () => {
 			if (livingRoomState.viewMode !== VIEW_TV_AREA) return;
 			if (livingRoomState.blend < 0.95) return;
@@ -6704,6 +5658,7 @@ async function boot() {
 			cursorContainer.zIndex = 5000;
 			uiTopLayer.sortChildren();
 			drawLivingRoomBackdrop(blend);
+			stepLivingRoomAmbient(dtSeconds, reveal, focusMix);
 			tvDesktopTransitionLayer.visible = blend > 0.001 && blend < 0.999;
 			tvDesktopTransitionSprite.position.set(
 				livingRoomTvScreenRect.x * desktopProxyMix,
@@ -6713,7 +5668,7 @@ async function boot() {
 			tvDesktopTransitionSprite.height = app.renderer.height + (livingRoomTvScreenRect.h - app.renderer.height) * desktopProxyMix;
 			tvDesktopTransitionSprite.alpha = Math.max(0, 1 - Math.max(0, (desktopProxyMix - 0.92) / 0.08));
 
-			livingRoomWallGlow.alpha = 0.2 + reveal * 0.8;
+			livingRoomWallGlow.alpha = 0.04 + reveal * 0.16;
 			livingRoomFloor.alpha = 0.24 + reveal * 0.62;
 			leftShelf.alpha = (0.24 + reveal * 0.76) * (1 - focusMix * 0.08);
 			rightShelf.alpha = 0;
@@ -7169,33 +6124,33 @@ async function boot() {
 			if (soundPanelOpen && Math.abs(soundCloseHover - prevSoundCloseHover) > 0.001) {
 				drawSoundCloseBtn();
 			}
-			desktopTwoEntryTransition.surge = Math.max(0, desktopTwoEntryTransition.surge - seconds / 0.32);
+			portfolioEntryTransition.surge = Math.max(0, portfolioEntryTransition.surge - seconds / 0.32);
 			let transitionWipePhase = 0;
 			let keepLivingRoomJitter = false;
-			if (desktopTwoEntryTransition.active) {
-				desktopTwoEntryTransition.phase += seconds / desktopTwoEntryTransition.duration;
-				const triggerAt = desktopTwoEntryTransition.direction > 0 ? 0.78 : 0.16;
-				if (!desktopTwoEntryTransition.actionTriggered && desktopTwoEntryTransition.phase >= triggerAt) {
-					desktopTwoEntryTransition.action?.();
-					desktopTwoEntryTransition.actionTriggered = true;
+			if (portfolioEntryTransition.active) {
+				portfolioEntryTransition.phase += seconds / portfolioEntryTransition.duration;
+				const triggerAt = portfolioEntryTransition.direction > 0 ? 0.78 : 0.16;
+				if (!portfolioEntryTransition.actionTriggered && portfolioEntryTransition.phase >= triggerAt) {
+					portfolioEntryTransition.action?.();
+					portfolioEntryTransition.actionTriggered = true;
 				}
-				transitionWipePhase = Math.max(transitionWipePhase, desktopTwoEntryTransition.phase);
-				if (desktopTwoEntryTransition.direction > 0 && desktopTwoEntryTransition.actionTriggered && livingRoomLayer.visible) {
-					const jitterScale = Math.max(0, 1 - desktopTwoEntryTransition.phase);
+				transitionWipePhase = Math.max(transitionWipePhase, portfolioEntryTransition.phase);
+				if (portfolioEntryTransition.direction > 0 && portfolioEntryTransition.actionTriggered && livingRoomLayer.visible) {
+					const jitterScale = Math.max(0, 1 - portfolioEntryTransition.phase);
 					livingRoomLayer.position.x = (Math.random() - 0.5) * 6 * jitterScale;
 					keepLivingRoomJitter = true;
 				}
-				if (desktopTwoEntryTransition.phase >= 1) {
-					desktopTwoEntryTransition.active = false;
-					if (!desktopTwoEntryTransition.actionTriggered) {
-						desktopTwoEntryTransition.action?.();
+				if (portfolioEntryTransition.phase >= 1) {
+					portfolioEntryTransition.active = false;
+					if (!portfolioEntryTransition.actionTriggered) {
+						portfolioEntryTransition.action?.();
 					}
-					desktopTwoEntryTransition.actionTriggered = false;
-					desktopTwoEntryTransition.action = null;
-					if (desktopTwoEntryTransition.direction > 0) {
+					portfolioEntryTransition.actionTriggered = false;
+					portfolioEntryTransition.action = null;
+					if (portfolioEntryTransition.direction > 0) {
 						terminalTypingHold = false;
 					}
-					desktopTwoEntryTransition.phase = 0;
+					portfolioEntryTransition.phase = 0;
 				}
 			}
 			if (vineLabTransition.active) {
@@ -7246,7 +6201,7 @@ async function boot() {
 			} else {
 				livingRoomLayer.scale.set(1);
 			}
-			if (ENABLE_LEFT_PORTAL_SHORTCUT && !desktopTwoActive && !livingRoomActive && !vineLabActive) {
+			if (ENABLE_LEFT_PORTAL_SHORTCUT && !livingRoomActive && !vineLabActive) {
 				const edgeWidth = Math.max(1, leftPortalWidth * 1.9);
 				const edgeFactor = Math.max(0, Math.min(1, 1 - mouse.x / edgeWidth));
 				leftPortalProgress += (edgeFactor - leftPortalProgress) * 0.18;
@@ -7254,7 +6209,7 @@ async function boot() {
 				const edgePromptTarget = edgeFactor > 0.12 ? Math.min(1, (edgeFactor - 0.12) / 0.52) : 0;
 				leftPortalEdgePrompt += (edgePromptTarget - leftPortalEdgePrompt) * Math.min(1, seconds * 9);
 				const idleMs = nowMs() - lastPortalInteractionAtMs;
-				const hintTarget = (showFirstPortfolioHint && idleMs >= 6000 && !desktopTwoEntryTransition.active) ? 1 : 0;
+				const hintTarget = (showFirstPortfolioHint && idleMs >= 6000 && !portfolioEntryTransition.active) ? 1 : 0;
 				leftPortalHintPrompt += (hintTarget - leftPortalHintPrompt) * Math.min(1, seconds * 4.5);
 				const labelStrength = Math.max(leftPortalHover, leftPortalEdgePrompt);
 				leftPortal.position.x = leftPortalHiddenX + (leftPortalShownX - leftPortalHiddenX) * leftPortalProgress;
@@ -7301,30 +6256,66 @@ async function boot() {
 			moodCurrent.vignette += (moodTarget.vignette - moodCurrent.vignette) * moodLerp;
 			moodCurrent.waveMotion += (moodTarget.waveMotion - moodCurrent.waveMotion) * moodLerp;
 			moodCurrent.lampBoost += (moodTarget.lampBoost - moodCurrent.lampBoost) * moodLerp;
-			const transitionSurge = desktopTwoEntryTransition.surge;
+			updateTargetReactiveBackgroundMode(seconds);
+			const transitionSurge = portfolioEntryTransition.surge;
+			const targetMixRaw = clamp01(targetBackgroundState.mix);
+			const targetMix = targetMixRaw * targetMixRaw * (3 - 2 * targetMixRaw);
+			const targetPulse = (Math.sin(time * 4.3) * 0.5 + 0.5) * targetMix;
+			const targetEnergy = clamp01(targetBackgroundState.flowEnergy);
+			const targetLiquidLineColor = mixColors(0x42b8ff, 0x89ffe3, clamp01(0.25 + targetEnergy * 0.65));
+			const targetLiquidGlowColor = mixColors(0x6ad8ff, 0xa5fff0, clamp01(0.3 + targetEnergy * 0.62));
+			const targetLiquidMistB = mixColors(0x10293f, 0x114156, clamp01(0.38 + targetEnergy * 0.42));
+			const targetLiquidMistC = mixColors(0x163045, 0x255d74, clamp01(0.3 + targetEnergy * 0.44));
 			const blendedLineColor = mixColors(FLOW_BASE.lineColor, moodCurrent.waveTint, clamp01(moodCurrent.waveMix));
 			const blendedGlowColor = mixColors(FLOW_BASE.glowColor, moodCurrent.waveTint, clamp01(moodCurrent.waveMix + 0.1));
 			const blendedMistB = mixColors(FLOW_BASE.mistColorB, moodCurrent.waveTint, clamp01(moodCurrent.waveMix * 0.38));
 			const blendedMistC = mixColors(FLOW_BASE.mistColorC, moodCurrent.particleColor, 0.5);
 			const surgedLineColor = mixColors(blendedLineColor, 0xff5fa8, transitionSurge * 0.24);
 			const surgedGlowColor = mixColors(blendedGlowColor, 0xff7fa8, transitionSurge * 0.3);
-			setFlowAmbience?.({
-				lineColor: surgedLineColor,
-				glowColor: surgedGlowColor,
-				mistColorA: FLOW_BASE.mistColorA,
-				mistColorB: blendedMistB,
-				mistColorC: blendedMistC,
-				sparkStrength: FLOW_BASE.sparkStrength + moodCurrent.glowStrength * 0.1 + transitionSurge * 0.08,
-				glowStrength: FLOW_BASE.glowStrength + moodCurrent.glowStrength * 0.32 + transitionSurge * 0.42,
-				speed: FLOW_BASE.speed * (1 + (moodCurrent.waveMotion - 1) * 0.9 + transitionSurge * 0.25),
-				density: FLOW_BASE.density * (1 + (moodCurrent.waveMotion - 1) * 0.45 + transitionSurge * 0.14),
-				glowAlpha: clamp01(FLOW_BASE.glowAlpha + moodCurrent.glowStrength * 0.16 + transitionSurge * 0.2),
-			});
-			crtScanlinesUniforms.u_strength = 0.42 + moodCurrent.contrast * 0.45;
-			crtScanlinesUniforms.u_noise = 0.03 + moodCurrent.glowStrength * 0.01;
+			const targetLineColor = mixColors(surgedLineColor, targetLiquidLineColor, targetMix * (0.56 + targetPulse * 0.18));
+			const targetGlowColor = mixColors(surgedGlowColor, targetLiquidGlowColor, targetMix * (0.6 + targetPulse * 0.22));
+			const targetMistB = mixColors(blendedMistB, targetLiquidMistB, targetMix * 0.5);
+			const targetMistC = mixColors(blendedMistC, targetLiquidMistC, targetMix * 0.56);
+			const targetBoost = targetMix * (0.2 + targetEnergy * 0.72 + targetPulse * 0.18);
+			flowAmbienceFrameCounter = (flowAmbienceFrameCounter + 1) % Math.max(1, backgroundSceneQuality.ambienceUpdateStep);
+			if (flowAmbienceFrameCounter === 0) {
+				setFlowAmbience?.({
+					lineColor: targetLineColor,
+					glowColor: targetGlowColor,
+					mistColorA: FLOW_BASE.mistColorA,
+					mistColorB: targetMistB,
+					mistColorC: targetMistC,
+					sparkStrength: FLOW_BASE.sparkStrength
+						+ moodCurrent.glowStrength * 0.1
+						+ transitionSurge * 0.08
+						+ targetBoost * 0.11,
+					glowStrength: FLOW_BASE.glowStrength
+						+ moodCurrent.glowStrength * 0.32
+						+ transitionSurge * 0.42
+						+ targetBoost * 0.58,
+					speed: FLOW_BASE.speed * (1
+						+ (moodCurrent.waveMotion - 1) * 0.9
+						+ transitionSurge * 0.25
+						+ targetMix * 0.22
+						+ targetEnergy * 0.11),
+					density: FLOW_BASE.density * (1
+						+ (moodCurrent.waveMotion - 1) * 0.45
+						+ transitionSurge * 0.14
+						+ targetMix * 0.14
+						+ targetEnergy * 0.07),
+					glowAlpha: clamp01(FLOW_BASE.glowAlpha
+						+ moodCurrent.glowStrength * 0.16
+						+ transitionSurge * 0.2
+						+ targetBoost * 0.22),
+				});
+			}
+			crtScanlinesUniforms.u_strength = (0.42 + moodCurrent.contrast * 0.45) * backgroundSceneQuality.scanlineStrengthScale;
+			crtScanlinesUniforms.u_noise = (0.03 + moodCurrent.glowStrength * 0.01) * backgroundSceneQuality.scanlineNoiseScale;
 			window.moodCurrent = {
 				key: activeMoodEntry?.key || 'default',
 				locked: Boolean(moodLockTarget),
+				targetBackgroundMode: targetBackgroundState.mode,
+				targetBackgroundMix: targetMixRaw,
 				...moodCurrent,
 			};
 			const introSpeed = 1.25;
@@ -7368,19 +6359,22 @@ async function boot() {
 			drawSystemCore(time);
 			const mx = (mouse.x / app.renderer.width) * 2 - 1;
 			const my = (mouse.y / app.renderer.height) * 2 - 1;
-			for (const d of ambientDebris) {
-				if (!d?.panel) continue;
-				if (!Number.isFinite(d.baseX) || !Number.isFinite(d.baseY)) continue;
-				d.panel.position.x = d.baseX + Math.sin(time * 0.34 + d.phase) * d.driftX - mx * d.parallax;
-				d.panel.position.y = d.baseY + Math.cos(time * 0.29 + d.phase * 1.2) * d.driftY - my * (d.parallax * 0.7);
-				d.panel.rotation = Math.sin(time * 0.18 + d.phase) * d.spin;
-				d.panel.alpha = d.alphaBase + 0.1 * Math.sin(time * 0.42 + d.phase);
+			ambientDebrisFrameCounter = (ambientDebrisFrameCounter + 1) % Math.max(1, backgroundSceneQuality.ambientDebrisUpdateStep);
+			if (ambientDebrisFrameCounter === 0) {
+				for (const d of ambientDebris) {
+					if (!d?.panel || !d.panel.visible) continue;
+					if (!Number.isFinite(d.baseX) || !Number.isFinite(d.baseY)) continue;
+					d.panel.position.x = d.baseX + Math.sin(time * 0.34 + d.phase) * d.driftX - mx * d.parallax;
+					d.panel.position.y = d.baseY + Math.cos(time * 0.29 + d.phase * 1.2) * d.driftY - my * (d.parallax * 0.7);
+					d.panel.rotation = Math.sin(time * 0.18 + d.phase) * d.spin;
+					d.panel.alpha = d.alphaBase + 0.1 * Math.sin(time * 0.42 + d.phase);
+				}
 			}
 			scene.alpha = 1;
 			const nx = (mouse.x / app.renderer.width) * 2 - 1;
 			const ny = (mouse.y / app.renderer.height) * 2 - 1;
-			const targetX = -nx * CAMERA_PARALLAX;
-			const targetY = -ny * CAMERA_PARALLAX;
+			const targetX = -nx * cameraParallax;
+			const targetY = -ny * cameraParallax;
 			cameraOffset.x += (targetX - cameraOffset.x) * CAMERA_SMOOTHING;
 			cameraOffset.y += (targetY - cameraOffset.y) * CAMERA_SMOOTHING;
 				updateFlowBackground(time, cameraOffset);
@@ -7400,6 +6394,7 @@ async function boot() {
 			appLauncher.update(time, seconds, mouseWorld);
 			updateIconSfxMonitor();
 			if (basketballMode && dragEnabled) {
+				targetBackgroundInfluencerCount = 0;
 				arcadeLayer.visible = true;
 				arcadeSweepControl.visible = true;
 				arcadeSweepControl.eventMode = 'static';
@@ -7506,6 +6501,14 @@ async function boot() {
 					arcadeTargetLayer.drawCircle(center.x, center.y, radius * 0.63);
 					arcadeTargetLayer.lineStyle(toWorldSizeWithCamera(1.65), type.ringColor, 0.84);
 					arcadeTargetLayer.drawCircle(center.x, center.y, radius * 0.34);
+					if (targetBackgroundInfluencerCount < targetBackgroundInfluencers.length) {
+						const influencer = targetBackgroundInfluencers[targetBackgroundInfluencerCount];
+						influencer.screenX = target.drawScreenX;
+						influencer.screenY = target.drawScreenY;
+						influencer.strength = Math.max(0.2, Math.min(1, type.points / 5));
+						influencer.tint = type.ringColor;
+						targetBackgroundInfluencerCount += 1;
+					}
 				}
 
 				arcadeHintText.text = countdownActive
@@ -7575,6 +6578,12 @@ async function boot() {
 							: `${phrase} +${type.points}`;
 						const popupScale = 1.0 + Math.min(0.7, arcadeFeedback.combo * 0.1);
 						triggerArcadePopup(popupMsg, popupScale);
+						spawnTargetBackgroundRipple(
+							target.drawScreenX,
+							target.drawScreenY,
+							Math.min(1, 0.4 + type.points * 0.12 + arcadeFeedback.combo * 0.04),
+							type.ringColor,
+						);
 						spawnArcadeShards(target.drawScreenX, target.drawScreenY, type.shardColor, type.radiusPx);
 						target.alive = false;
 						target.respawnTimer = arcadeRand(type.respawnMin, type.respawnMax);
@@ -7646,6 +6655,7 @@ async function boot() {
 					arcadePopupText.visible = false;
 				}
 			} else {
+				targetBackgroundInfluencerCount = 0;
 				stopArcadeCountdown();
 				arcadeLayer.visible = false;
 				arcadePopupText.visible = false;
@@ -7657,6 +6667,7 @@ async function boot() {
 				arcadeSweepHoverTarget = 0;
 				arcadeSweepHover = 0;
 			}
+			renderTargetReactiveBackground(seconds);
 			const lampBoostByIndex = new Array(vines.length).fill(0);
 			if (activeMoodEntry?.container) {
 				const hoverX = activeMoodEntry.container.position.x;
@@ -7852,6 +6863,20 @@ async function boot() {
 			if (circle) circle.rotation += 0.02;
 		});
 
+		window.setTimeout(() => {
+			backgroundQualityManager.startRuntimeMonitoring(app.ticker, {
+				warmupSeconds: 2.5,
+				sampleWindowSeconds: 3.2,
+				minimumSamples: 90,
+				poorAverageFps: 47,
+				poorP95FrameMs: 33,
+				requireBothPoorSignals: true,
+			}).then((result) => {
+				if (!result) return;
+				console.info('[Background quality probe]', result);
+			});
+		}, 2500);
+
 		function onResize() {
 			// In some browsers, layout settles a tick later; force a resize based on the
 			// actual root box to avoid 1-frame letterboxing/cropping.
@@ -7864,8 +6889,8 @@ async function boot() {
 			layoutLeftPortal();
 			layoutLivingRoom({ instantTerminal: true });
 			scene.filterArea = new PIXI.Rectangle(0, 0, app.renderer.width, app.renderer.height);
-			if (desktopTwoEntryTransition.active || vineLabTransition.active) {
-				drawTransitionWipe(Math.max(desktopTwoEntryTransition.phase, vineLabTransition.phase));
+			if (portfolioEntryTransition.active || vineLabTransition.active) {
+				drawTransitionWipe(Math.max(portfolioEntryTransition.phase, vineLabTransition.phase));
 			}
 			else drawTransitionWipe(0);
 			resizeFlowBackground();

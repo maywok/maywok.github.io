@@ -90,6 +90,59 @@ function writeColorToVec3(target, color) {
   target[2] = (color & 255) / 255;
 }
 
+const FLOW_QUALITY_MODE = Object.freeze({
+  FULL: 'full',
+  REDUCED: 'reduced',
+});
+
+export const FLOW_BACKGROUND_QUALITY_PRESETS = Object.freeze({
+  [FLOW_QUALITY_MODE.FULL]: {
+    coreFilterResolution: 1,
+    glowFilterResolution: 1,
+    updateStep: 1,
+    enableGlowLayer: true,
+    ambienceScale: {
+      mistStrength: 1,
+      sparkStrength: 1,
+      glowStrength: 1,
+      speed: 1,
+      density: 1,
+      glowAlpha: 1,
+    },
+  },
+  [FLOW_QUALITY_MODE.REDUCED]: {
+    coreFilterResolution: 0.85,
+    glowFilterResolution: 0.7,
+    updateStep: 2,
+    enableGlowLayer: false,
+    ambienceScale: {
+      mistStrength: 0.75,
+      sparkStrength: 0.5,
+      glowStrength: 0.78,
+      speed: 0.94,
+      density: 0.9,
+      glowAlpha: 0.55,
+    },
+  },
+});
+
+function normalizeQualityMode(mode) {
+  return mode === FLOW_QUALITY_MODE.REDUCED ? FLOW_QUALITY_MODE.REDUCED : FLOW_QUALITY_MODE.FULL;
+}
+
+function mergeQualityPreset(basePreset, overridePreset) {
+  const base = basePreset || {};
+  const extra = overridePreset || {};
+  return {
+    ...base,
+    ...extra,
+    ambienceScale: {
+      ...(base.ambienceScale || {}),
+      ...(extra.ambienceScale || {}),
+    },
+  };
+}
+
 function createFlowFilter(app, options = {}) {
   const {
     lineColor = 0x7f0020,
@@ -105,6 +158,7 @@ function createFlowFilter(app, options = {}) {
     speed = 0.45,
     density = 3.2,
     pixelSize = 4,
+    filterResolution = 1,
   } = options;
 
   const fragment = `
@@ -209,7 +263,9 @@ function createFlowFilter(app, options = {}) {
     u_pixelSize: pixelSize,
   };
 
-  return { filter: new PIXI.Filter(undefined, fragment, uniforms), uniforms };
+  const filter = new PIXI.Filter(undefined, fragment, uniforms);
+  filter.resolution = Math.max(0.5, filterResolution);
+  return { filter, uniforms };
 }
 
 export function createCrimsonFlowBackground(app, options = {}) {
@@ -228,6 +284,8 @@ export function createCrimsonFlowBackground(app, options = {}) {
     density = 4.2,
     speed = 0.62,
     autoTick = true,
+    qualityMode = FLOW_QUALITY_MODE.FULL,
+    qualityPresets = {},
   } = options;
 
   const baseConfig = {
@@ -263,6 +321,7 @@ export function createCrimsonFlowBackground(app, options = {}) {
     speed,
     density,
     pixelSize,
+    filterResolution: 1,
   });
   core.filters = [coreFilter];
 
@@ -282,6 +341,7 @@ export function createCrimsonFlowBackground(app, options = {}) {
     speed,
     density,
     pixelSize,
+    filterResolution: 1,
   });
   glow.filters = [glowFilter];
 
@@ -293,6 +353,10 @@ export function createCrimsonFlowBackground(app, options = {}) {
     lastExternalUpdate: 0,
     lastOffset: { x: 0, y: 0 },
     tickerFn: null,
+    qualityMode: FLOW_QUALITY_MODE.FULL,
+    qualityPreset: FLOW_BACKGROUND_QUALITY_PRESETS[FLOW_QUALITY_MODE.FULL],
+    updateStep: 1,
+    frameStepCounter: 0,
   };
 
   const nowMs = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
@@ -308,10 +372,46 @@ export function createCrimsonFlowBackground(app, options = {}) {
     glowUniforms.u_offset[1] = oy;
   }
 
+  const resolvedQualityPresets = {
+    [FLOW_QUALITY_MODE.FULL]: mergeQualityPreset(
+      FLOW_BACKGROUND_QUALITY_PRESETS[FLOW_QUALITY_MODE.FULL],
+      qualityPresets?.[FLOW_QUALITY_MODE.FULL],
+    ),
+    [FLOW_QUALITY_MODE.REDUCED]: mergeQualityPreset(
+      FLOW_BACKGROUND_QUALITY_PRESETS[FLOW_QUALITY_MODE.REDUCED],
+      qualityPresets?.[FLOW_QUALITY_MODE.REDUCED],
+    ),
+  };
+
+  function getActiveAmbienceScale() {
+    return state.qualityPreset?.ambienceScale || FLOW_BACKGROUND_QUALITY_PRESETS[FLOW_QUALITY_MODE.FULL].ambienceScale;
+  }
+
+  function shouldApplyFrame() {
+    if (state.updateStep <= 1) return true;
+    state.frameStepCounter = (state.frameStepCounter + 1) % state.updateStep;
+    return state.frameStepCounter === 0;
+  }
+
+  function applyQualityPreset(mode) {
+    state.qualityMode = normalizeQualityMode(mode);
+    state.qualityPreset = resolvedQualityPresets[state.qualityMode] || resolvedQualityPresets[FLOW_QUALITY_MODE.FULL];
+    state.updateStep = Math.max(1, Math.round(state.qualityPreset.updateStep || 1));
+    state.frameStepCounter = 0;
+
+    coreFilter.resolution = Math.max(0.5, state.qualityPreset.coreFilterResolution || 1);
+    glowFilter.resolution = Math.max(0.5, state.qualityPreset.glowFilterResolution || 1);
+
+    const glowEnabled = state.qualityPreset.enableGlowLayer !== false;
+    glow.visible = glowEnabled;
+    glow.renderable = glowEnabled;
+  }
+
   function update(time, offset = { x: 0, y: 0 }) {
     state.lastExternalUpdate = nowMs();
     state.lastOffset = offset || state.lastOffset;
     if (Number.isFinite(time)) state.internalTime = time;
+    if (!shouldApplyFrame()) return;
     applyUniforms(state.internalTime, state.lastOffset);
   }
 
@@ -333,6 +433,8 @@ export function createCrimsonFlowBackground(app, options = {}) {
 
   function setAmbience(config = {}) {
     const next = config || {};
+    const ambienceScale = getActiveAmbienceScale();
+    const scaleValue = (value, scaleKey) => value * (Number.isFinite(ambienceScale?.[scaleKey]) ? ambienceScale[scaleKey] : 1);
     if (typeof next.lineColor === 'number') {
       writeColorToVec3(coreUniforms.u_lineColor, next.lineColor);
     }
@@ -352,25 +454,28 @@ export function createCrimsonFlowBackground(app, options = {}) {
       writeColorToVec3(coreUniforms.u_mistColorC, next.mistColorC);
     }
     if (Number.isFinite(next.mistStrength)) {
-      coreUniforms.u_mistStrength = Math.max(0, next.mistStrength);
+      coreUniforms.u_mistStrength = Math.max(0, scaleValue(next.mistStrength, 'mistStrength'));
     }
     if (Number.isFinite(next.sparkStrength)) {
-      coreUniforms.u_sparkStrength = Math.max(0, next.sparkStrength);
+      coreUniforms.u_sparkStrength = Math.max(0, scaleValue(next.sparkStrength, 'sparkStrength'));
     }
     if (Number.isFinite(next.glowStrength)) {
-      coreUniforms.u_glowStrength = Math.max(0, next.glowStrength);
-      glowUniforms.u_glowStrength = Math.max(0, next.glowStrength + 0.35);
+      const scaledGlowStrength = Math.max(0, scaleValue(next.glowStrength, 'glowStrength'));
+      coreUniforms.u_glowStrength = scaledGlowStrength;
+      glowUniforms.u_glowStrength = Math.max(0, scaledGlowStrength + 0.35);
     }
     if (Number.isFinite(next.speed)) {
-      coreUniforms.u_speed = Math.max(0.01, next.speed);
-      glowUniforms.u_speed = Math.max(0.01, next.speed);
+      const scaledSpeed = Math.max(0.01, scaleValue(next.speed, 'speed'));
+      coreUniforms.u_speed = scaledSpeed;
+      glowUniforms.u_speed = scaledSpeed;
     }
     if (Number.isFinite(next.density)) {
-      coreUniforms.u_density = Math.max(0.1, next.density);
-      glowUniforms.u_density = Math.max(0.1, next.density);
+      const scaledDensity = Math.max(0.1, scaleValue(next.density, 'density'));
+      coreUniforms.u_density = scaledDensity;
+      glowUniforms.u_density = scaledDensity;
     }
     if (Number.isFinite(next.glowAlpha)) {
-      glow.alpha = Math.max(0, Math.min(1, next.glowAlpha));
+      glow.alpha = Math.max(0, Math.min(1, scaleValue(next.glowAlpha, 'glowAlpha')));
     }
   }
 
@@ -378,17 +483,42 @@ export function createCrimsonFlowBackground(app, options = {}) {
     setAmbience(baseConfig);
   }
 
+  function setQualityMode(mode) {
+    const normalized = normalizeQualityMode(mode);
+    if (state.qualityMode === normalized) return false;
+    applyQualityPreset(normalized);
+    resetAmbience();
+    return true;
+  }
+
+  function getQualityMode() {
+    return state.qualityMode;
+  }
+
+  applyQualityPreset(qualityMode);
+  resetAmbience();
+
   if (autoTick && app?.ticker?.add) {
     state.lastExternalUpdate = nowMs();
     state.tickerFn = (dt) => {
       const seconds = Number.isFinite(dt) ? dt / 60 : 1 / 60;
       state.internalTime += seconds;
       if (nowMs() - state.lastExternalUpdate > 200) {
+        if (!shouldApplyFrame()) return;
         applyUniforms(state.internalTime, state.lastOffset);
       }
     };
     app.ticker.add(state.tickerFn);
   }
 
-  return { container, update, resize, destroy, setAmbience, resetAmbience };
+  return {
+    container,
+    update,
+    resize,
+    destroy,
+    setAmbience,
+    resetAmbience,
+    setQualityMode,
+    getQualityMode,
+  };
 }
