@@ -1,4 +1,4 @@
-import { createCardMotion } from '../cardMotion.js';
+import { createCardMotion } from '../core/cardMotion.js';
 import { createReflexGameOverlay } from './reflexGame.js';
 
 export async function createReflexIcon(app, world, options = {}) {
@@ -165,6 +165,7 @@ export async function createReflexIcon(app, world, options = {}) {
 		width: backgroundWidth,
 		height: backgroundHeight,
 		tiltAmount,
+		tiltTarget: iconLayer,
 		layers: [{ target: iconLayer, strength: parallaxOffset }],
 	});
 
@@ -189,6 +190,7 @@ export async function createReflexIcon(app, world, options = {}) {
 		mouseProvider: null,
 		lastMouse: null,
 		mouseVel: { x: 0, y: 0 },
+		tennisScaleOverride: null,
 		star: {
 			homeX: backgroundWidth * 0.24,
 			homeY: -backgroundHeight * 0.06,
@@ -422,7 +424,8 @@ export async function createReflexIcon(app, world, options = {}) {
 		if (!state.star.active && !state.hovered) {
 			resetStarDock();
 		}
-		const targetScale = state.hovered ? scale * 1.05 : scale;
+		const forcedScale = Number.isFinite(state.tennisScaleOverride) ? state.tennisScaleOverride : null;
+		const targetScale = forcedScale ?? (state.hovered ? scale * 1.05 : scale);
 		state.currentScale += (targetScale - state.currentScale) * 0.18 * dt;
 		container.scale.set(state.currentScale);
 		state.radiusScaled = state.radius * state.currentScale;

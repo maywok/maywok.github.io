@@ -1,5 +1,5 @@
-import { createCrimsonFlowBackground } from '../background.js';
-import { initSfx, loadSfx, playSfx } from '../sfx.js';
+import { createCrimsonFlowBackground } from '../rendering/background.js';
+import { initSfx, loadSfx, playSfx } from '../audio/sfx.js';
 
 const DEFAULTS = {
 	title: 'Reflex',

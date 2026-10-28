@@ -1,4 +1,4 @@
-import { initSfx, loadSfx, playSfx } from '../sfx.js';
+import { initSfx, loadSfx, playSfx } from '../audio/sfx.js';
 
 const SUITS = [
 	{ id: 'red', label: '♥', color: 0xff5667 },
